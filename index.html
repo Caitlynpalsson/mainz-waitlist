@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mainz — waitlist</title><meta name="description" content="we make the luxury of eating clean accessible.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;800&family=Monsieur+La+Doulaise&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#fff;color:#14213D;font:13px/1.6 Inter,sans-serif;-webkit-font-smoothing:antialiased;text-align:center}
+main{max-width:340px;margin:0 auto;padding:72px 24px 48px}
+.lock{position:relative;display:inline-block;text-align:left;padding-left:12px}
+.hb{font-weight:800;letter-spacing:-.055em;line-height:.9;font-size:30px}
+.m{font-family:'Monsieur La Doulaise',cursive;position:absolute;font-size:52px;left:-10px;bottom:-6px;color:#111;line-height:1}
+.ainz{padding-left:43px;margin-top:2px}
+p{margin:0 0 4px}.s{margin-top:56px}.dim{color:#9FBBE0}
+img{display:block;width:96px;margin:48px auto}
+form{margin-top:32px;text-align:left}
+label{display:block;font-size:11px;margin:16px 0 4px;color:#14213D}
+input[type=email],input[type=text]{width:100%;border:0;border-bottom:1px solid #14213D;font:16px Inter,sans-serif;color:#14213D;padding:6px 0;background:none;outline:none;border-radius:0}
+.cb{display:flex;align-items:center;gap:8px;margin-top:18px;font-size:13px}
+.cb input{accent-color:#14213D;width:15px;height:15px}
+button{margin-top:28px;width:100%;background:#14213D;color:#fff;border:0;font:500 13px Inter,sans-serif;padding:13px;cursor:pointer;border-radius:0}
+#ok{display:none;margin-top:28px}.red{color:#FF1E1E}
+footer{margin-top:72px;font-size:11px}a{color:inherit}
+</style></head><body><main>
+<div class="lock"><div class="hb">LOVE<br>LIVING:</div><div class="hb ainz">AINZ</div><span class="m">M</span></div>
+<div class="s"><p>know your farmer.</p><p>real food. straight from the farm.</p><p>no middleman.</p></div>
+<img src="p.jpg" alt="">
+<p>we make the luxury of eating clean accessible.</p>
+<p class="dim">utah first. launching soon.</p>
+<form id="f">
+<input type="hidden" name="_subject" value="mainz waitlist signup"><input type="hidden" name="_template" value="table"><input type="text" name="_honey" style="display:none">
+<label for="e">email</label><input id="e" type="email" name="email" required autocomplete="email">
+<label for="z">zip (optional)</label><input id="z" type="text" name="zip" inputmode="numeric" maxlength="10">
+<label class="cb"><input type="checkbox" name="farmer" value="yes"> i'm a farmer.</label>
+<button id="b">join the waitlist</button></form>
+<p id="ok">you're on the list.<br><span class="red">big food is not.</span></p>
+<footer><a href="https://instagram.com/themainzco">@themainzco</a></footer>
+</main><script>
+f.onsubmit=async e=>{e.preventDefault();b.disabled=1;b.textContent='...';
+const d=Object.fromEntries(new FormData(f));d.farmer=d.farmer?'yes':'no';
+try{const r=await fetch('https://formsubmit.co/ajax/caitlyn.palsson@gmail.com',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(d)});
+if(!r.ok)throw 0;f.style.display='none';ok.style.display='block'}catch(x){b.disabled=0;b.textContent='try again'}}
+</script></body></html>
