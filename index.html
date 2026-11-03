@@ -36,6 +36,6 @@ footer{margin-top:72px;font-size:11px}a{color:inherit}
 </main><script>
 f.onsubmit=async e=>{e.preventDefault();b.disabled=1;b.textContent='...';
 const d=Object.fromEntries(new FormData(f));d.farmer=d.farmer?'yes':'no';
-try{const r=await fetch('https://formsubmit.co/ajax/caitlyn.palsson@gmail.com',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(d)});
+try{const r=await fetch('https://formsubmit.co/ajax/6dc0c7989bc6fabb14a262372dd6f013',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(d)});
 if(!r.ok)throw 0;f.style.display='none';ok.style.display='block'}catch(x){b.disabled=0;b.textContent='try again'}}
 </script></body></html>
