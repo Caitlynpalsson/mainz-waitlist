@@ -2,12 +2,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isShopVisible } from '../src/orderMath.ts';
 import {
+  canTurnUdafOn,
   decisionEffect,
   documentHints,
   rankProducts,
   repeatBuyers,
   salesReport,
   scoreLine,
+  shopperCanSeeProduct,
+  stageDue,
+  udafType,
+  type FarmClock,
   type LedgerOrder,
 } from '../src/review.ts';
 
@@ -22,31 +27,102 @@ function order(partial: Partial<LedgerOrder> & Pick<LedgerOrder, 'createdAt' | '
   };
 }
 
-test('only approve and approve with conditions put a farm on the site', () => {
+test('approval starts onboarding and does not put the farm on the site yet', () => {
   const plain = decisionEffect('approve', '');
   const conditions = decisionEffect('approve_conditions', 'fix the cooler before june');
   const waiting = decisionEffect('waitlist', 'full this season');
   const declined = decisionEffect('decline', '');
-  assert.equal(isShopVisible(plain.status, plain.active), true);
-  assert.equal(isShopVisible(conditions.status, conditions.active), true);
+  assert.equal(plain.status, 'approved');
+  assert.equal(plain.active, 0);
+  assert.equal(isShopVisible(plain.status, plain.active), false);
+  assert.equal(isShopVisible(plain.status, 1), true);
+  assert.equal(conditions.status, 'approved');
+  assert.equal(isShopVisible(conditions.status, conditions.active), false);
   assert.equal(conditions.conditionsNote, 'fix the cooler before june');
   assert.equal(isShopVisible(waiting.status, waiting.active), false);
   assert.equal(waiting.status, 'waitlist');
   assert.equal(isShopVisible(declined.status, declined.active), false);
   assert.equal(declined.status, 'declined');
-  assert.equal(isShopVisible('approved', 0), false);
   assert.equal(isShopVisible('pending', 1), false);
   assert.throws(() => decisionEffect('approve_conditions', '   '), /needs a note/);
   assert.throws(() => decisionEffect('maybe', ''), /not on the list/);
 });
 
+test('raw milk and cottage food stay off until the document is verified and the item is turned on', () => {
+  assert.equal(udafType('raw milk, fridays')?.key, 'raw_milk');
+  assert.equal(udafType('raw honey')?.document, 'cottage_food');
+  assert.equal(udafType('sourdough bread')?.key, 'homemade');
+  assert.equal(udafType('peaches'), null);
+  assert.equal(udafType('eggs'), null);
+  assert.equal(udafType('honeydew'), null);
+  assert.equal(shopperCanSeeProduct({ active: 1, needsUdaf: 1, udafOn: 0 }), false);
+  assert.equal(shopperCanSeeProduct({ active: 1, needsUdaf: 1, udafOn: 1 }), true);
+  assert.equal(shopperCanSeeProduct({ active: 0, needsUdaf: 1, udafOn: 1 }), false);
+  assert.equal(shopperCanSeeProduct({ active: 1, needsUdaf: 0, udafOn: 0 }), true);
+  assert.equal(canTurnUdafOn('verified'), true);
+  assert.equal(canTurnUdafOn('received'), false);
+  assert.equal(canTurnUdafOn('needed'), false);
+});
+
 test('document hints follow the product words and always include sales tax', () => {
-  assert.deepEqual(documentHints('eggs from the hens'), ['egg_license', 'sales_tax_license']);
-  assert.deepEqual(documentHints('beef and eggs'), ['egg_license', 'meat_inspection', 'sales_tax_license']);
-  assert.deepEqual(documentHints('raw milk, fridays'), ['raw_milk_permit', 'sales_tax_license']);
+  assert.deepEqual(documentHints('eggs from the hens'), ['business_info', 'egg_license', 'sales_tax_license']);
+  assert.deepEqual(documentHints('beef and eggs'), ['business_info', 'egg_license', 'meat_inspection', 'sales_tax_license']);
+  assert.deepEqual(documentHints('raw milk, fridays'), ['business_info', 'raw_milk_permit', 'sales_tax_license']);
   assert.ok(documentHints('bread, cookies, and jam').includes('cottage_food'));
-  assert.deepEqual(documentHints('peaches'), ['sales_tax_license']);
+  assert.ok(documentHints('peaches').includes('produce_safety'));
+  assert.ok(documentHints('peaches').includes('sales_tax_license'));
   assert.equal(documentHints('eggplant').includes('egg_license'), false);
+});
+
+function clock(partial: Partial<FarmClock>): FarmClock {
+  return {
+    stage: 'application_received',
+    receivedAt: '',
+    stageEnteredAt: '',
+    sampleReceivedAt: '',
+    reviewCompletedAt: '',
+    approvedAt: '',
+    liveAt: '',
+    lastWeeklyAt: '',
+    lastRecheckAt: '',
+    decided: false,
+    ...partial,
+  };
+}
+
+test('goal times are due dates, and a missed one is overdue', () => {
+  const now = new Date('2026-11-13T18:00:00Z');
+  const received = '2026-11-01 12:00:00';
+  assert.equal(stageDue(clock({ stage: 'application_received', receivedAt: received }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'quick_screen', receivedAt: received }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'intro_call', receivedAt: '2026-11-10 12:00:00' }), now).overdue, false);
+  assert.equal(stageDue(clock({ stage: 'decision', receivedAt: received }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'decision', receivedAt: received, decided: true }), now).overdue, false);
+  const docsWaiting = stageDue(clock({ stage: 'documents', receivedAt: received }), now);
+  assert.equal(docsWaiting.overdue, false);
+  assert.match(docsWaiting.waiting, /7 days/);
+  assert.equal(stageDue(clock({ stage: 'documents', stageEnteredAt: '2026-11-01 12:00:00' }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'documents', stageEnteredAt: '2026-11-10 12:00:00' }), now).overdue, false);
+  const sampleWaiting = stageDue(clock({ stage: 'sample_review' }), now);
+  assert.equal(sampleWaiting.overdue, false);
+  assert.match(sampleWaiting.waiting, /waiting/);
+  assert.equal(stageDue(clock({ stage: 'sample_review', sampleReceivedAt: '2026-11-12 12:00:00' }), now).overdue, false);
+  assert.equal(stageDue(clock({ stage: 'sample_review', sampleReceivedAt: '2026-11-01 12:00:00' }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'score', reviewCompletedAt: '2026-11-13 09:00:00' }), now).overdue, false);
+  assert.equal(stageDue(clock({ stage: 'score', reviewCompletedAt: '2026-11-12 09:00:00' }), now).overdue, true);
+  assert.equal(stageDue(clock({ stage: 'onboarding', approvedAt: '2026-11-10 12:00:00' }), now).overdue, false);
+  assert.equal(stageDue(clock({ stage: 'onboarding', approvedAt: '2026-10-01 12:00:00' }), now).overdue, true);
+  const weekly = stageDue(clock({ stage: 'ongoing', liveAt: '2026-11-01 12:00:00' }), now);
+  assert.equal(weekly.overdue, true);
+  assert.equal(weekly.quarterlyOverdue, false);
+  const quarter = stageDue(clock({
+    stage: 'ongoing',
+    liveAt: '2026-11-01 12:00:00',
+    lastWeeklyAt: '2026-11-12 12:00:00',
+    lastRecheckAt: '2026-08-01 12:00:00',
+  }), now);
+  assert.equal(quarter.quarterlyOverdue, true);
+  assert.equal(quarter.overdue, true);
 });
 
 test('dashboard totals split all-time, 7 days, and 30 days', () => {

@@ -8,6 +8,7 @@ import { api } from '../src/lib/api';
 import { dollars } from '../src/lib/money';
 import { prepareFarmerPhoto } from '../src/lib/uploadPhoto';
 import type { CatalogFood, Windows } from '../src/lib/types';
+import { udafType } from '../../api/src/review';
 import { colors, useLayout } from '../src/theme';
 
 const TOKEN_KEY = 'mainz.farmToken';
@@ -21,6 +22,9 @@ type Owned = {
   unit: string;
   stockQty: number;
   active: boolean;
+  needsUdaf?: boolean;
+  udafOn?: boolean;
+  udafLabel?: string;
   photo: string;
   photos: { role: string; photo: string; isStock: boolean }[];
 };
@@ -213,7 +217,7 @@ export default function Dashboard() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: picked?.id === food.id ? '700' : '500' }}>{food.name}</Text>
-                    <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{food.needsLicensedPhoto ? 'stock photo coming' : 'mainz photo'}</Text>
+                    <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{udafType(`${food.name} ${food.category}`) ? 'needs UDAF check · stays off until mainz verifies it' : (food.needsLicensedPhoto ? 'stock photo coming' : 'mainz photo')}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -264,7 +268,12 @@ function ProductEditor({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontFamily: 'Inter', fontWeight: '600', color: colors.navy }}>{product.name}</Text>
-          <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{dollars(product.priceCents, 'auto')} / {product.unit}</Text>
+          <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{dollars(product.priceCents, 'auto')} / {product.unit}{product.active ? '' : ' · off'}</Text>
+          {product.needsUdaf ? (
+            <Text style={{ fontFamily: 'Inter', color: colors.red, fontSize: 12, marginTop: 2 }}>
+              {product.udafLabel || 'needs UDAF check'}{product.udafOn ? ' · on the shop' : ' · hidden until mainz verifies the document'}
+            </Text>
+          ) : null}
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>

@@ -65,9 +65,35 @@ const approved = await api(`/api/admin/farms/${pending.id}/approve`, {
   headers: { authorization: `Bearer ${admin}` },
 });
 assert(approved.status === 200 && approved.data.accessToken, 'approve failed');
+assert(approved.data.active === false, 'approval should start onboarding, not go live');
+
+const notLive = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
+assert(!notLive.data.farms.some((farm) => farm.slug === pending.slug), 'approved farm appeared before go-live');
+
+const lived = await api(`/api/admin/farms/${pending.id}/live`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+});
+assert(lived.status === 200 && lived.data.active === true, 'go-live failed');
 
 const visible = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
-assert(visible.data.farms.some((farm) => farm.slug === pending.slug), 'approved farm did not appear');
+assert(visible.data.farms.some((farm) => farm.slug === pending.slug), 'live farm did not appear');
+
+const paused = await api(`/api/admin/farms/${pending.id}/pause`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ reason: 'license lapse' }),
+});
+assert(paused.status === 200 && paused.data.active === false, 'pause failed');
+const hiddenPause = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
+assert(!hiddenPause.data.farms.some((farm) => farm.slug === pending.slug), 'paused farm still listed');
+
+const resumed = await api(`/api/admin/farms/${pending.id}/pause`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ resume: true }),
+});
+assert(resumed.data.active === true, 'could not resume the farm');
 
 const off = await api(`/api/admin/farms/${pending.id}/active`, {
   method: 'POST',
@@ -165,10 +191,17 @@ const withConditions = await api(`/api/admin/farms/${pending.id}/decision`, {
   headers: { authorization: `Bearer ${admin}` },
   body: JSON.stringify({ decision: 'approve_conditions', note: 'send the cooler photo' }),
 });
-assert(withConditions.status === 200 && withConditions.data.active === true, 'approve with conditions failed');
+assert(withConditions.status === 200 && withConditions.data.active === false, 'approve with conditions should not go live yet');
 assert(withConditions.data.conditionsNote === 'send the cooler photo', 'conditions note was not saved');
+const hiddenConditions = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
+assert(!hiddenConditions.data.farms.some((farm) => farm.slug === pending.slug), 'conditional approval appeared before go-live');
+const livedConditions = await api(`/api/admin/farms/${pending.id}/live`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+});
+assert(livedConditions.data.active === true, 'conditional farm did not go live');
 const visibleConditions = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
-assert(visibleConditions.data.farms.some((farm) => farm.slug === pending.slug), 'conditional approval did not appear');
+assert(visibleConditions.data.farms.some((farm) => farm.slug === pending.slug), 'conditional approval did not appear after go-live');
 const record = await api(`/api/admin/farms/${pending.id}`, { headers: { authorization: `Bearer ${admin}` } });
 assert(record.status === 200 && record.data.farm.conditionsNote === 'send the cooler photo', 'conditions are missing on the farm record');
 assert(record.data.activity.some((row) => row.kind === 'decision'), 'decisions should be in the activity log');

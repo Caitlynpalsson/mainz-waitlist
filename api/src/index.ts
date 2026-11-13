@@ -2,6 +2,7 @@ import { handleAdmin } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
+import { shopperCanSeeProduct, udafType } from './review';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
 export interface Env {
@@ -64,6 +65,8 @@ type ProductJoin = {
   unit: string;
   stock_qty: number;
   product_active: number;
+  needs_udaf: number;
+  udaf_on: number;
   note: string;
   dek: string;
   headline: string;
@@ -155,7 +158,7 @@ async function browse(env: Env, url: URL): Promise<Response> {
   if (cat !== 'all') {
     farmWhere.push(`f.id IN (
       SELECT p.farm_id FROM products p JOIN catalog_foods c ON c.id = p.food_id
-      WHERE p.active = 1 AND c.category = ?
+      WHERE p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1) AND c.category = ?
     )`);
     farmBinds.push(cat);
   }
@@ -169,7 +172,7 @@ async function browse(env: Env, url: URL): Promise<Response> {
         SELECT p.farm_id FROM products p
         JOIN catalog_foods c ON c.id = p.food_id
         LEFT JOIN product_options o ON o.product_id = p.id
-        WHERE p.active = 1 AND (
+        WHERE p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1) AND (
           lower(c.name) LIKE ? ESCAPE '\\' OR lower(c.synonyms) LIKE ? ESCAPE '\\'
           OR lower(p.headline) LIKE ? ESCAPE '\\' OR lower(o.name) LIKE ? ESCAPE '\\'
         )
@@ -187,7 +190,7 @@ async function browse(env: Env, url: URL): Promise<Response> {
     farmCards.filter((farm) => farm.milesAway != null && farm.milesAway <= NEAR_MILES).map((farm) => farm.id),
   );
 
-  const productWhere = [`f.status = 'approved'`, `f.active = 1`, `p.active = 1`];
+  const productWhere = [`f.status = 'approved'`, `f.active = 1`, `p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1)`];
   const productBinds: unknown[] = [];
   if (season === 'week' && !q) productWhere.push('p.in_season = 1');
   if (cat !== 'all') {
@@ -263,7 +266,7 @@ async function farmDetail(env: Env, slug: string, url: URL): Promise<Response> {
      FROM products p
      JOIN farms f ON f.id = p.farm_id
      JOIN catalog_foods c ON c.id = p.food_id
-     WHERE p.farm_id = ? AND p.active = 1
+     WHERE p.farm_id = ? AND p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1)
      ORDER BY p.shop_order, p.id`,
   ).bind(farm.id).all<ProductJoin>();
   return json({
@@ -281,7 +284,7 @@ async function productDetail(env: Env, id: number): Promise<Response> {
      FROM products p
      JOIN catalog_foods c ON c.id = p.food_id
      JOIN farms f ON f.id = p.farm_id
-     WHERE p.id = ? AND p.active = 1`,
+     WHERE p.id = ? AND p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1)`,
   ).bind(id).first<Record<string, unknown>>();
   if (!product || !isShopVisible(String(product.status), Number(product.farm_active))) {
     throw new HttpError('that food is not for sale.', 404);
@@ -297,7 +300,7 @@ async function productDetail(env: Env, id: number): Promise<Response> {
      FROM products p
      JOIN farms f ON f.id = p.farm_id
      JOIN catalog_foods c ON c.id = p.food_id
-     WHERE p.farm_id = ? AND p.id != ? AND p.active = 1
+     WHERE p.farm_id = ? AND p.id != ? AND p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1)
      ORDER BY p.shop_order, p.id
      LIMIT 8`,
   ).bind(product.farm_id, id).all<ProductJoin>();
@@ -574,7 +577,7 @@ async function farmDesk(request: Request, env: Env, method: string, path: string
 async function addProduct(env: Env, farm: FarmRow, body: Record<string, unknown>): Promise<Response> {
   const foodId = Number(body.foodId);
   const food = await env.DB.prepare(`SELECT * FROM catalog_foods WHERE id = ?`).bind(foodId).first<{
-    id: number; name: string; unit: string; photo_key: string;
+    id: number; name: string; unit: string; photo_key: string; category: string;
   }>();
   if (!food) throw new HttpError('pick a food from the mainz catalog.');
   const existing = await env.DB.prepare(
@@ -587,14 +590,16 @@ async function addProduct(env: Env, farm: FarmRow, body: Record<string, unknown>
   const note = clean(body.note, 80);
   const dek = clean(body.dek, 140) || note;
   const stock = clampInt(body.stockQty, 0, 9999, 0);
+  const flagged = udafType(`${food.name} ${food.category}`);
   const inserted = await env.DB.prepare(
     `INSERT INTO products (
-      farm_id, food_id, headline, note, dek, price_cents, unit, price_setter, grown_note, picked_label, stock_qty, in_season, sort_order, active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 80, 1)`,
+      farm_id, food_id, headline, note, dek, price_cents, unit, price_setter, grown_note, picked_label, stock_qty, in_season, sort_order, active, needs_udaf, udaf_on
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 80, ?, ?, 0)`,
   ).bind(
     farm.id, food.id, headline, note, dek, price, unit,
     farm.farmer_names.split(' ')[0] || 'the farm',
     clean(body.grownNote, 80), clean(body.pickedLabel, 40) || 'this week', stock,
+    flagged ? 0 : 1, flagged ? 1 : 0,
   ).run();
   const productId = inserted.meta.last_row_id;
   const varietyNames = Array.isArray(body.varietyNames) ? body.varietyNames.map((name) => clean(name, 40)).filter(Boolean).slice(0, 6) : [];
@@ -634,6 +639,9 @@ async function editProduct(env: Env, farm: FarmRow, productId: number, body: Rec
   if (!product) throw new HttpError('that product is not yours.', 404);
   const price = body.priceCents === undefined ? product.price_cents : money(body.priceCents);
   const stock = body.stockQty === undefined ? product.stock_qty : clampInt(body.stockQty, 0, 9999, 0);
+  if (body.active && product.needs_udaf && !product.udaf_on) {
+    throw new HttpError('this needs a udaf check. it stays off until mainz verifies the document and turns it on.');
+  }
   const active = body.active === undefined ? product.active : (body.active ? 1 : 0);
   await env.DB.prepare(
     `UPDATE products SET price_cents = ?, stock_qty = ?, active = ?, headline = ?, note = ?, dek = ?, unit = ?, grown_note = ? WHERE id = ?`,
@@ -695,7 +703,7 @@ async function resolveCart(env: Env, body: CartBody) {
   const ids = [...new Set(items.map((item) => Number(item.productId)).filter((id) => Number.isInteger(id) && id > 0))];
   if (!ids.length) throw new HttpError('your bag is empty.');
   const products = await env.DB.prepare(
-    `SELECT p.id, p.farm_id, p.price_cents, p.unit, p.stock_qty, p.active AS product_active, p.note, p.dek, p.headline,
+    `SELECT p.id, p.farm_id, p.price_cents, p.unit, p.stock_qty, p.active AS product_active, p.needs_udaf, p.udaf_on, p.note, p.dek, p.headline,
             c.name AS food_name, c.photo_key,
             f.name AS farm_name, f.slug AS farm_slug, f.city, f.status, f.active AS farm_active,
             f.offers_pickup, f.offers_delivery, f.pickup_summary, f.delivery_summary, f.windows_json, f.stripe_account_id,
@@ -722,7 +730,7 @@ async function resolveCart(env: Env, body: CartBody) {
   const incoming: IncomingItem[] = [];
   for (const item of items) {
     const product = byId.get(Number(item.productId));
-    if (!product || !product.product_active || !isShopVisible(product.status, product.farm_active)) {
+    if (!product || !shopperCanSeeProduct({ active: product.product_active, needsUdaf: product.needs_udaf, udafOn: product.udaf_on }) || !isShopVisible(product.status, product.farm_active)) {
       throw new HttpError('something in your bag is no longer for sale.');
     }
     const qty = Math.floor(Number(item.qty));
@@ -864,6 +872,9 @@ async function shapeOwned(env: Env, product: Record<string, unknown>) {
     unit: product.unit,
     stockQty: product.stock_qty,
     active: !!product.active,
+    needsUdaf: !!product.needs_udaf,
+    udafOn: !!product.udaf_on,
+    udafLabel: product.needs_udaf ? 'needs UDAF check' : '',
     grownNote: product.grown_note,
     photo: photos.results[0]?.photo_key || product.photo_key,
     photos: photos.results.map((photo) => ({ role: photo.role, photo: photo.photo_key, isStock: !!photo.is_stock })),

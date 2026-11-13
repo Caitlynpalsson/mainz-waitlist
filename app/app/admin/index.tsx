@@ -20,6 +20,12 @@ type Brief = {
   isDemo: boolean;
   whatYouSell: string;
   conditionsNote: string;
+  overdue: boolean;
+  dueAt: string | null;
+  dueWaiting: string;
+  quarterlyOverdue: boolean;
+  paused: boolean;
+  removed: boolean;
 };
 
 type WindowTotals = { orders: number; merchandiseCents: number; totalCents: number };
@@ -34,8 +40,10 @@ type Dashboard = {
     active: number;
     waitlist: number;
     declined: number;
+    overdue: number;
     pipeline: Record<string, number>;
   };
+  overdue: Brief[];
   newApplications: Brief[];
   inReview: Brief[];
   approved: Brief[];
@@ -109,6 +117,11 @@ export default function AdminHome() {
             <View style={banner}>
               <Text style={bannerText}>{data.testLabel}</Text>
             </View>
+            {data.overdue.length ? (
+              <View style={[banner, { backgroundColor: '#F8E6E6' }]}>
+                <Text style={bannerText}>{data.overdue.length} overdue. {data.overdue.filter((farm) => farm.quarterlyOverdue).length ? 'includes a quarterly re-check.' : 'a goal time has passed.'}</Text>
+              </View>
+            ) : null}
             <View style={{ flexDirection: desktop ? 'row' : 'column', gap: 12, marginTop: 16 }}>
               <Stat label="all-time" window={data.sales.allTime} />
               <Stat label="last 7 days" window={data.sales.last7Days} />
@@ -177,7 +190,10 @@ function FarmList({ title, farms, empty, extra }: { title: string; farms: Brief[
       {farms.map((farm) => (
         <Pressable key={farm.id} onPress={() => router.push(`/admin/${farm.id}`)} style={card}>
           <Text style={name}>{farm.name.toLowerCase()}{farm.isDemo ? ' · sample' : ''}</Text>
-          <Text style={small}>{farm.city.toLowerCase()} · {stageLabel.get(farm.stage as 'new') || farm.stage}{farm.decision ? ` · ${farm.decision.replace('_', ' ')}` : ''}</Text>
+          <Text style={small}>{farm.city.toLowerCase()} · {stageLabel.get(farm.stage as 'application_received') || farm.stage}{farm.decision ? ` · ${farm.decision.replace(/_/g, ' ')}` : ''}{farm.paused ? ' · paused' : ''}{farm.removed ? ' · removed' : ''}</Text>
+          {farm.overdue ? <Text style={[small, { color: colors.red }]}>{farm.quarterlyOverdue ? 'quarterly re-check overdue' : `overdue${farm.dueAt ? ` · ${farm.dueAt.slice(0, 10)}` : ''}`}</Text> : null}
+          {!farm.overdue && farm.dueAt ? <Text style={small}>due {farm.dueAt.slice(0, 10)}</Text> : null}
+          {!farm.dueAt && farm.dueWaiting ? <Text style={small}>{farm.dueWaiting}</Text> : null}
           {farm.whatYouSell ? <Text style={small}>{farm.whatYouSell}</Text> : null}
           {extra ? extra(farm) : null}
         </Pressable>

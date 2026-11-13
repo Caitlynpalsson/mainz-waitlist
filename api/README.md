@@ -59,7 +59,13 @@ npx wrangler d1 migrations apply mainz --local
 npx wrangler d1 migrations apply mainz --remote
 ```
 
-The stages, the five standards, and the document list are in `src/review.ts`. Change them there.
+The stages, the five standards, the document list, the goal times, and the message templates are in `src/review.ts`. Change them there.
+
+`0005_approval_process.sql` renames the stage keys to the written checklist and adds due-date fields, pause, remove, and the UDAF flag. It does not delete farms. Apply it the same way:
+
+```bash
+npx wrangler d1 migrations apply mainz --remote
+```
 
 ## Sample data
 
