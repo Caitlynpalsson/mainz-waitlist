@@ -46,6 +46,21 @@ The shop reads `EXPO_PUBLIC_API_URL`. For local work that value is `http://127.0
 
 Browse accepts `lat` and `lng`. Distances are miles as the crow flies, and farms are sorted nearest first. The count in the header is farms within 40 miles (`NEAR_MILES` in `src/geo.ts`). Towns and ZIPs come from the Census 2023 Gazetteer, which is public domain. See `data/README.md`. The phone asks for location only after a tap. A denied or failed lookup tells the shopper to type a zip or city.
 
+## Admin review
+
+The desk is `/admin` in the shop. The same `ADMIN_TOKEN` opens it.
+
+`0004_review.sql` adds the pipeline, the scorecard, the Utah document list, and the activity log. It does not delete farms. An application you already submitted stays, and lands in the "new" stage. Approved sample farms are marked as already decided.
+
+Apply it on the database you already have:
+
+```bash
+npx wrangler d1 migrations apply mainz --local
+npx wrangler d1 migrations apply mainz --remote
+```
+
+The stages, the five standards, and the document list are in `src/review.ts`. Change them there.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

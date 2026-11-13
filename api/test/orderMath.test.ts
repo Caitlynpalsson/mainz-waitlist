@@ -10,6 +10,8 @@ test('a farm is public only when it is approved and switched on', () => {
   assert.equal(isShopVisible('approved', 0), false);
   assert.equal(isShopVisible('pending', 1), false);
   assert.equal(isShopVisible('rejected', 1), false);
+  assert.equal(isShopVisible('waitlist', 1), false);
+  assert.equal(isShopVisible('declined', 1), false);
   assert.equal(isShopVisible('pending', 0), false);
 });
 

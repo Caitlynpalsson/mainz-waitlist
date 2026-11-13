@@ -127,5 +127,51 @@ assert(saved.status === 200 && saved.data.order.groups.length === 2, 'saved orde
 const wasatch = await api('/api/farms/wasatch-dairy');
 assert(wasatch.status === 404, 'pending demo dairy should stay off the shop');
 
+const dash = await api('/api/admin/dashboard', { headers: { authorization: `Bearer ${admin}` } });
+assert(dash.status === 200 && dash.data.test === true, 'dashboard should label totals as test orders');
+assert(typeof dash.data.sales.allTime.orders === 'number', 'dashboard is missing all-time orders');
+assert(typeof dash.data.sales.last7Days.totalCents === 'number', 'dashboard is missing the 7 day total');
+assert(typeof dash.data.sales.last30Days.totalCents === 'number', 'dashboard is missing the 30 day total');
+assert(dash.data.sales.allTime.orders >= dash.data.sales.last30Days.orders, 'all-time should cover the 30 day window');
+assert(dash.data.sales.last30Days.orders >= dash.data.sales.last7Days.orders, '30 days should cover 7 days');
+
+const conditionsMissing = await api(`/api/admin/farms/${pending.id}/decision`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ decision: 'approve_conditions', note: '   ' }),
+});
+assert(conditionsMissing.status === 400, 'approve with conditions should require a note');
+
+const waiting = await api(`/api/admin/farms/${pending.id}/decision`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ decision: 'waitlist', note: 'full this season' }),
+});
+assert(waiting.status === 200 && waiting.data.status === 'waitlist' && waiting.data.active === false, 'waitlist failed');
+const hiddenWait = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
+assert(!hiddenWait.data.farms.some((farm) => farm.slug === pending.slug), 'waitlisted farm showed up in browse');
+
+const declined = await api(`/api/admin/farms/${pending.id}/decision`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ decision: 'decline', note: 'not a fit' }),
+});
+assert(declined.status === 200 && declined.data.active === false, 'decline failed');
+const hiddenDecline = await api(`/api/farms/${pending.slug}`);
+assert(hiddenDecline.status === 404, 'declined farm should stay off the shop');
+
+const withConditions = await api(`/api/admin/farms/${pending.id}/decision`, {
+  method: 'POST',
+  headers: { authorization: `Bearer ${admin}` },
+  body: JSON.stringify({ decision: 'approve_conditions', note: 'send the cooler photo' }),
+});
+assert(withConditions.status === 200 && withConditions.data.active === true, 'approve with conditions failed');
+assert(withConditions.data.conditionsNote === 'send the cooler photo', 'conditions note was not saved');
+const visibleConditions = await api(`/api/browse?q=${encodeURIComponent(farmName)}`);
+assert(visibleConditions.data.farms.some((farm) => farm.slug === pending.slug), 'conditional approval did not appear');
+const record = await api(`/api/admin/farms/${pending.id}`, { headers: { authorization: `Bearer ${admin}` } });
+assert(record.status === 200 && record.data.farm.conditionsNote === 'send the cooler photo', 'conditions are missing on the farm record');
+assert(record.data.activity.some((row) => row.kind === 'decision'), 'decisions should be in the activity log');
+
 console.log('smoke ok');
 console.log(`order ${order.data.order.publicId} total $${(order.data.order.totalCents / 100).toFixed(2)}`);

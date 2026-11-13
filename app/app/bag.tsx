@@ -83,7 +83,7 @@ export default function Bag() {
         method: 'POST',
         body: JSON.stringify({
           ...payload(store),
-          customer: { name: store.customerName, email: store.customerEmail },
+          customer: { name: store.customerName, email: store.customerEmail, phone: store.customerPhone },
           address: { line1: store.address1, cityZip: store.cityZip },
         }),
       });
@@ -126,8 +126,9 @@ export default function Bag() {
         <Hair />
         <Fee label="total" value={dollars(money.totalCents)} strong />
       </View>
-      <Field label="your name" value={store.customerName} onChange={(value) => store.setCustomer(value, store.customerEmail)} />
-      <Field label="email" value={store.customerEmail} onChange={(value) => store.setCustomer(store.customerName, value)} />
+      <Field label="your name" value={store.customerName} onChange={(value) => store.setCustomer(value, store.customerEmail, store.customerPhone)} />
+      <Field label="email" value={store.customerEmail} onChange={(value) => store.setCustomer(store.customerName, value, store.customerPhone)} />
+      <Field label="phone" value={store.customerPhone} keyboardType="phone-pad" onChange={(value) => store.setCustomer(store.customerName, store.customerEmail, value)} />
       {formError ? <Text style={errText}>{formError}</Text> : null}
       {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
       <View style={{ marginTop: 18 }}>
@@ -262,7 +263,7 @@ function Fee({ label, value, strong = false }: { label: string; value: string; s
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function Field({ label, value, onChange, keyboardType }: { label: string; value: string; onChange: (value: string) => void; keyboardType?: 'default' | 'phone-pad' | 'email-address' }) {
   return (
     <TextInput
       value={value}
@@ -270,6 +271,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
       placeholder={label}
       placeholderTextColor={colors.gray}
       autoCapitalize="none"
+      keyboardType={keyboardType}
       style={{ fontFamily: 'Inter', fontSize: 14, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 8, marginTop: 8 }}
     />
   );

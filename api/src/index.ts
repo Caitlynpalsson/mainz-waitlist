@@ -1,4 +1,6 @@
+import { handleAdmin } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
+import { HttpError, json } from './http';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
@@ -12,14 +14,6 @@ export interface Env {
 const PLACE = 'spanish fork, ut';
 const CATEGORIES = new Set(['produce', 'eggs', 'honey', 'dairy', 'meat']);
 const PHOTO_ROLES = new Set(['hero', 'hands', 'farm', 'packaging']);
-
-class HttpError extends Error {
-  status: number;
-  constructor(message: string, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
 
 type FarmRow = {
   id: number;
@@ -135,7 +129,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && path === '/api/orders') return placeOrder(env, await readJson(request));
   if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
 
-  if (path.startsWith('/api/admin/')) return admin(request, env, method, path);
+  if (path.startsWith('/api/admin/')) return handleAdmin(request, env, method, path);
   if (path.startsWith('/api/farm/')) return farmDesk(request, env, method, path);
 
   throw new HttpError('not found.', 404);
@@ -541,53 +535,6 @@ async function apply(env: Env, body: Record<string, unknown>): Promise<Response>
     offersPickup, offersDelivery, `${contact}. ${what}`.slice(0, 240), what,
   ).run();
   return json({ ok: true, status: 'pending', slug: farmSlug }, 201);
-}
-
-async function admin(request: Request, env: Env, method: string, path: string): Promise<Response> {
-  requireAdmin(request, env);
-  if (method === 'GET' && path === '/api/admin/farms') {
-    const farms = await env.DB.prepare(
-      `SELECT * FROM farms ORDER BY CASE status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, created_at DESC`,
-    ).all<FarmRow>();
-    return json({
-      farms: farms.results.map((farm) => ({
-        ...farmDetailCard(farm, 0),
-        email: farm.email,
-        phone: farm.phone,
-        status: farm.status,
-        active: !!farm.active,
-        whatYouSell: farm.what_you_sell,
-        sellNow: farm.sell_now,
-        fulfillmentPref: farm.fulfillment_pref,
-        link: farm.link,
-        accessToken: farm.access_token,
-        createdAt: farm.created_at,
-        reviewedAt: farm.reviewed_at,
-      })),
-    });
-  }
-  const approve = path.match(/^\/api\/admin\/farms\/(\d+)\/approve$/);
-  if (method === 'POST' && approve) return setReview(env, Number(approve[1]), 'approved');
-  const reject = path.match(/^\/api\/admin\/farms\/(\d+)\/reject$/);
-  if (method === 'POST' && reject) return setReview(env, Number(reject[1]), 'rejected');
-  const active = path.match(/^\/api\/admin\/farms\/(\d+)\/active$/);
-  if (method === 'POST' && active) {
-    const body = await readJson<{ active?: boolean }>(request);
-    const farm = await mustFarm(env, Number(active[1]));
-    if (farm.status !== 'approved') throw new HttpError('approve the farm before switching it on.');
-    await env.DB.prepare(`UPDATE farms SET active = ? WHERE id = ?`).bind(body.active ? 1 : 0, farm.id).run();
-    return json({ ok: true, active: !!body.active });
-  }
-  throw new HttpError('not found.', 404);
-}
-
-async function setReview(env: Env, id: number, status: 'approved' | 'rejected'): Promise<Response> {
-  const farm = await mustFarm(env, id);
-  const token = status === 'approved' ? (farm.access_token || crypto.randomUUID()) : farm.access_token;
-  await env.DB.prepare(
-    `UPDATE farms SET status = ?, active = ?, access_token = ?, reviewed_at = datetime('now') WHERE id = ?`,
-  ).bind(status, status === 'approved' ? 1 : 0, token, id).run();
-  return json({ ok: true, status, active: status === 'approved', accessToken: token, slug: farm.slug, name: farm.name });
 }
 
 async function farmDesk(request: Request, env: Env, method: string, path: string): Promise<Response> {
@@ -1033,13 +980,6 @@ function readRates(env: Env): Rates {
   };
 }
 
-function requireAdmin(request: Request, env: Env) {
-  if (!env.ADMIN_TOKEN) throw new HttpError('admin token is not set on the worker.', 503);
-  const header = request.headers.get('authorization') || '';
-  const token = header.replace(/^Bearer\s+/i, '').trim();
-  if (!token || !safeEqual(token, env.ADMIN_TOKEN)) throw new HttpError('that admin token does not match.', 401);
-}
-
 async function requireFarm(request: Request, env: Env): Promise<FarmRow> {
   const token = (request.headers.get('x-farm-token') || '').trim();
   if (!token) throw new HttpError('add the farm token.', 401);
@@ -1102,13 +1042,6 @@ function makePublicId(): string {
   return `mz_${[...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i += 1) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return out === 0;
-}
-
 async function readJson<T>(request: Request, max = 20_000): Promise<T> {
   const text = await request.text();
   if (text.length > max) throw new HttpError('that is too large.');
@@ -1117,13 +1050,6 @@ async function readJson<T>(request: Request, max = 20_000): Promise<T> {
   } catch {
     throw new HttpError('that was not valid.');
   }
-}
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
-  });
 }
 
 function withCors(response: Response): Response {

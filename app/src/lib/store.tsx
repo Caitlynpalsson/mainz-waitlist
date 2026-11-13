@@ -37,6 +37,7 @@ type State = {
   cityZip: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string;
   saved: number[];
   follows: string[];
 };
@@ -48,6 +49,7 @@ const empty: State = {
   cityZip: 'spanish fork, ut 84660',
   customerName: '',
   customerEmail: '',
+  customerPhone: '',
   saved: [],
   follows: [],
 };
@@ -60,7 +62,7 @@ type Store = State & {
   setAllFulfillment: (fulfillment: Fulfillment) => void;
   setWindow: (farmId: number, windowLabel: string) => void;
   setAddress: (address1: string, cityZip: string) => void;
-  setCustomer: (customerName: string, customerEmail: string) => void;
+  setCustomer: (customerName: string, customerEmail: string, customerPhone?: string) => void;
   clearLines: () => void;
   toggleSaved: (productId: number) => void;
   toggleFollow: (slug: string) => void;
@@ -158,7 +160,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
     },
     setAddress: (address1, cityZip) => setState((current) => ({ ...current, address1, cityZip })),
-    setCustomer: (customerName, customerEmail) => setState((current) => ({ ...current, customerName, customerEmail })),
+    setCustomer: (customerName, customerEmail, customerPhone) => setState((current) => ({
+      ...current,
+      customerName,
+      customerEmail,
+      customerPhone: customerPhone === undefined ? current.customerPhone : customerPhone,
+    })),
     clearLines: () => setState((current) => ({ ...current, lines: [], choices: {} })),
     toggleSaved: (productId) => setState((current) => ({
       ...current,
