@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 import { usePlace } from '../lib/place';
 import { PrimaryButton } from './ui';
@@ -7,16 +8,20 @@ import { PrimaryButton } from './ui';
 export function LocationSheet() {
   const place = usePlace();
   const [draft, setDraft] = useState('');
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={place.open} transparent animationType="fade" onRequestClose={place.closePicker}>
-      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+      >
         <Pressable
           accessibilityLabel="close location"
           onPress={place.closePicker}
           style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(20,33,61,0.35)' }}
         />
-        <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 36 }}>
+        <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 36 + insets.bottom }}>
           <Text style={{ fontFamily: 'Inter', fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase', color: colors.gray }}>
             where are you
           </Text>
@@ -38,6 +43,7 @@ export function LocationSheet() {
             placeholderTextColor={colors.gray}
             autoCapitalize="none"
             autoCorrect={false}
+            returnKeyType="go"
             accessibilityLabel="zip or city"
             onSubmitEditing={() => place.useQuery(draft)}
             style={{ fontFamily: 'Inter', fontSize: 16, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.navy, paddingVertical: 10, marginTop: 8 }}
@@ -54,7 +60,7 @@ export function LocationSheet() {
             <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 13 }}>close</Text>
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

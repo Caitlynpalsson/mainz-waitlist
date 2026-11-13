@@ -7,12 +7,28 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
+    "primaryColor": "#14213D",
+    "description": "Mainz. Farms near you, with the price the farmer set.",
+    "extra": {
+      "bundleIdStatus": "placeholder",
+      "bundleIdNote": "co.themainz.app is a placeholder for both Apple and Google. Confirm it before any store listing. Expo Go does not use it."
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.themainz.app"
+      "bundleIdentifier": "co.themainz.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Mainz uses your location to sort farms near you.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "co.themainz.app",
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#14213D",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,15 +39,45 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "backgroundColor": "#F3F0E4"
     },
     "plugins": [
       "expo-router",
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Inter.ttf",
+            "./assets/fonts/MonsieurLaDoulaise-Regular.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F3F0E4",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Mainz uses a photo only when a farm replaces the stock picture."
+          "photosPermission": "Mainz uses a photo only when a farm replaces the stock picture.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Mainz uses your location to sort farms near you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
         }
       ]
     ]

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useGlobalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, useLayout } from '../theme';
@@ -31,6 +31,10 @@ export function Shell({
   const { desktop } = useLayout();
   const insets = useSafeAreaInsets();
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+    >
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       {desktop ? <DesktopNav current={nav} /> : null}
       {!desktop && top === 'browse' ? <MobileBrowseHeader /> : null}
@@ -51,6 +55,7 @@ export function Shell({
         </View>
       ) : null}
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -122,8 +127,9 @@ function Badge({ n }: { n: number }) {
 function MobileBrowseHeader() {
   const [note, setNote] = useState(false);
   const { openPicker } = usePlace();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingTop: 8, paddingHorizontal: 18, paddingBottom: 6, backgroundColor: colors.white }}>
+    <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: 6, backgroundColor: colors.white }}>
       <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Pressable accessibilityRole="button" accessibilityLabel="location pin" onPress={openPicker} hitSlop={10}>
           <IconPin size={18} />
@@ -139,8 +145,9 @@ function MobileBrowseHeader() {
 }
 
 function BarHeader({ title }: { title: string }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={{ height: 58, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
+    <View style={{ height: 58 + insets.top, paddingTop: insets.top, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.white }}>
       <CircleBack />
       <Text style={{ flex: 1, textAlign: 'center', fontFamily: 'Inter', fontSize: 11, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase', color: colors.navy }}>{title}</Text>
       <View style={{ width: 36 }} />
