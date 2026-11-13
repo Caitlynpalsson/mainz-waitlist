@@ -6,6 +6,7 @@ import { Cap, FulfillmentPills, FoodImage, Grid, Hair, Pill, ShopCard, Wrap, use
 import { IconHeart, IconShare } from '../../src/components/icons';
 import { CircleButton } from '../../src/components/ui';
 import { useApi } from '../../src/lib/useApi';
+import { originQuery, usePlace } from '../../src/lib/place';
 import { useStore } from '../../src/lib/store';
 import type { FarmDetail, ProductCard } from '../../src/lib/types';
 import { miles } from '../../src/lib/money';
@@ -15,7 +16,10 @@ type Payload = { farm: FarmDetail; products: ProductCard[] };
 
 export default function FarmPage() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { data, error, loading } = useApi<Payload>(slug ? `/api/farms/${slug}` : null);
+  const here = usePlace();
+  const { data, error, loading } = useApi<Payload>(
+    slug && here.ready ? `/api/farms/${slug}?${originQuery(here.place)}` : null,
+  );
   const { desktop, shopCols } = useLayout();
   const { follows, toggleFollow } = useStore();
   const [tab, setTab] = useState<'shop' | 'about' | 'pickup' | 'reviews'>('shop');

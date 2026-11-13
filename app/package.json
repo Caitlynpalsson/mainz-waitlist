@@ -9,7 +9,8 @@
     "export:web": "expo export -p web",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
@@ -33,6 +34,7 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/react": "~19.3.0",
     "typescript": "~6.0.3"
   }

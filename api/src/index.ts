@@ -1,3 +1,4 @@
+import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
@@ -36,6 +37,8 @@ type FarmRow = {
   bio: string;
   about: string;
   miles_away: number | null;
+  lat: number | null;
+  lng: number | null;
   hero_photo: string;
   card_foods: string;
   offers_pickup: number;
@@ -120,7 +123,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'GET' && path === '/api/catalog') return catalog(env, url);
 
   const farmPage = path.match(/^\/api\/farms\/([a-z0-9-]+)$/);
-  if (method === 'GET' && farmPage) return farmDetail(env, farmPage[1]);
+  if (method === 'GET' && farmPage) return farmDetail(env, farmPage[1], url);
 
   const productPage = path.match(/^\/api\/products\/(\d+)$/);
   if (method === 'GET' && productPage) return productDetail(env, Number(productPage[1]));
@@ -181,9 +184,14 @@ async function browse(env: Env, url: URL): Promise<Response> {
     for (let i = 0; i < 9; i += 1) farmBinds.push(like);
   }
 
+  const origin = readOrigin(url);
   const farms = await env.DB.prepare(
-    `SELECT f.* FROM farms f WHERE ${farmWhere.join(' AND ')} ORDER BY f.miles_away IS NULL, f.miles_away, f.name`,
+    `SELECT f.* FROM farms f WHERE ${farmWhere.join(' AND ')}`,
   ).bind(...farmBinds).all<FarmRow>();
+  const farmCards = sortByDistance(farms.results.map((row) => farmCard(row, origin)));
+  const nearIds = new Set(
+    farmCards.filter((farm) => farm.milesAway != null && farm.milesAway <= NEAR_MILES).map((farm) => farm.id),
+  );
 
   const productWhere = [`f.status = 'approved'`, `f.active = 1`, `p.active = 1`];
   const productBinds: unknown[] = [];
@@ -220,16 +228,17 @@ async function browse(env: Env, url: URL): Promise<Response> {
      LIMIT 60`,
   ).bind(...productBinds).all<ProductJoin>();
 
-  const countRow = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM farms WHERE status = 'approved' AND active = 1`,
-  ).first<{ n: number }>();
+  const visibleProducts = origin && !q
+    ? products.results.filter((row) => nearIds.has(row.farm_id))
+    : products.results;
 
   return json({
     place: PLACE,
-    farmCount: countRow?.n ?? 0,
+    nearMiles: NEAR_MILES,
+    farmCount: origin ? nearIds.size : farmCards.length,
     weekday: day,
-    products: products.results.map(productCard),
-    farms: farms.results.map(farmCard),
+    products: visibleProducts.map(productCard),
+    farms: origin && !q ? farmCards.filter((farm) => nearIds.has(farm.id)) : farmCards,
   });
 }
 
@@ -238,17 +247,23 @@ async function listFarms(env: Env, url: URL): Promise<Response> {
   const where = [`status = 'approved'`, `active = 1`];
   if (fulfillment === 'pickup') where.push('offers_pickup = 1');
   if (fulfillment === 'delivery') where.push('offers_delivery = 1');
+  const origin = readOrigin(url);
   const farms = await env.DB.prepare(
-    `SELECT * FROM farms WHERE ${where.join(' AND ')} ORDER BY miles_away IS NULL, miles_away, name`,
+    `SELECT * FROM farms WHERE ${where.join(' AND ')}`,
   ).all<FarmRow>();
-  return json({ place: PLACE, farms: farms.results.map(farmCard) });
+  return json({
+    place: PLACE,
+    nearMiles: NEAR_MILES,
+    farms: sortByDistance(farms.results.map((row) => farmCard(row, origin))),
+  });
 }
 
-async function farmDetail(env: Env, slug: string): Promise<Response> {
+async function farmDetail(env: Env, slug: string, url: URL): Promise<Response> {
   const farm = await env.DB.prepare(
     `SELECT * FROM farms WHERE slug = ? AND status = 'approved' AND active = 1`,
   ).bind(slug).first<FarmRow>();
   if (!farm) throw new HttpError('that farm is not on mainz.', 404);
+  const origin = readOrigin(url);
   const products = await env.DB.prepare(
     `SELECT ${PRODUCT_CARD}
      FROM products p
@@ -258,7 +273,7 @@ async function farmDetail(env: Env, slug: string): Promise<Response> {
      ORDER BY p.shop_order, p.id`,
   ).bind(farm.id).all<ProductJoin>();
   return json({
-    farm: farmDetailCard(farm, products.results.length),
+    farm: farmDetailCard(farm, products.results.length, origin),
     products: products.results.map(productCard),
   });
 }
@@ -934,14 +949,17 @@ function productCard(row: ProductJoin) {
   };
 }
 
-function farmCard(row: FarmRow) {
+function farmCard(row: FarmRow, origin: LatLng | null) {
+  const milesAway = origin && row.lat != null && row.lng != null
+    ? roundMiles(haversineMiles(origin, { lat: row.lat, lng: row.lng }))
+    : null;
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     city: row.city,
     state: row.state,
-    milesAway: row.miles_away,
+    milesAway,
     offersPickup: !!row.offers_pickup,
     offersDelivery: !!row.offers_delivery,
     pickupSummary: row.pickup_summary,
@@ -955,9 +973,9 @@ function farmCard(row: FarmRow) {
   };
 }
 
-function farmDetailCard(row: FarmRow, productCount: number) {
+function farmDetailCard(row: FarmRow, productCount: number, origin: LatLng | null = null) {
   return {
-    ...farmCard(row),
+    ...farmCard(row, origin),
     farmerNames: row.farmer_names,
     bio: row.bio,
     about: row.about,
@@ -987,6 +1005,23 @@ function parseWindows(raw: string): { pickup: { day: string; label: string }[]; 
   } catch {
     return { pickup: [], delivery: [] };
   }
+}
+
+function readOrigin(url: URL): LatLng | null {
+  const lat = Number(url.searchParams.get('lat'));
+  const lng = Number(url.searchParams.get('lng'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+function sortByDistance<T extends { milesAway: number | null; name: string }>(farms: T[]): T[] {
+  return farms.sort((a, b) => {
+    if (a.milesAway == null && b.milesAway == null) return a.name.localeCompare(b.name);
+    if (a.milesAway == null) return 1;
+    if (b.milesAway == null) return -1;
+    return a.milesAway - b.milesAway || a.name.localeCompare(b.name);
+  });
 }
 
 function readRates(env: Env): Rates {

@@ -3,13 +3,16 @@ import { Text, View } from 'react-native';
 import { Shell } from '../../src/components/chrome';
 import { Cap, FarmTile, Pill, Wrap, useBoxWidth } from '../../src/components/ui';
 import { useApi } from '../../src/lib/useApi';
+import { originQuery, usePlace } from '../../src/lib/place';
 import type { FarmCard } from '../../src/lib/types';
 import { colors, useLayout } from '../../src/theme';
 
 export default function Farms() {
   const [mode, setMode] = useState<'all' | 'pickup' | 'delivery'>('all');
+  const here = usePlace();
+  const filter = mode === 'all' ? '' : `fulfillment=${mode}&`;
   const { data, error, loading } = useApi<{ farms: FarmCard[] }>(
-    `/api/farms${mode === 'all' ? '' : `?fulfillment=${mode}`}`,
+    here.ready ? `/api/farms?${filter}${originQuery(here.place)}` : null,
   );
   const { desktop, farmCols } = useLayout();
   const gap = 18;

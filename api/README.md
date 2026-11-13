@@ -42,6 +42,10 @@ npx wrangler dev --port 8787 --local
 
 The shop reads `EXPO_PUBLIC_API_URL`. For local work that value is `http://127.0.0.1:8787`.
 
+## Where the shopper is
+
+Browse accepts `lat` and `lng`. Distances are miles as the crow flies, and farms are sorted nearest first. The count in the header is farms within 40 miles (`NEAR_MILES` in `src/geo.ts`). Towns and ZIPs come from the Census 2023 Gazetteer, which is public domain. See `data/README.md`. The phone asks for location only after a tap. A denied or failed lookup tells the shopper to type a zip or city.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

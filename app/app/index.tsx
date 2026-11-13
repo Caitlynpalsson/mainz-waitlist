@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Shell } from '../src/components/chrome';
+import { Logo } from '../src/components/logo';
 import { Cap, FarmTile, Grid, Pill, SeasonCard, Wrap, useBoxWidth } from '../src/components/ui';
-import { IconSearch } from '../src/components/icons';
+import { IconPin, IconSearch } from '../src/components/icons';
 import { useApi } from '../src/lib/useApi';
+import { originQuery, usePlace } from '../src/lib/place';
 import { useStore } from '../src/lib/store';
 import type { BrowseResponse, ProductCard } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
@@ -17,8 +19,11 @@ export default function Browse() {
   const category = CATS.includes(one(params.category)) ? one(params.category) : 'all';
   const pickup = params.pickup === 'today';
   const season = params.season === 'all' ? 'all' : 'week';
+  const here = usePlace();
   const { data, error, loading } = useApi<BrowseResponse>(
-    `/api/browse?q=${encodeURIComponent(q)}&category=${category}&pickup=${pickup ? 'today' : ''}&season=${season}`,
+    here.ready
+      ? `/api/browse?q=${encodeURIComponent(q)}&category=${category}&pickup=${pickup ? 'today' : ''}&season=${season}&${originQuery(here.place)}`
+      : null,
   );
   const { desktop, seasonCols } = useLayout();
   const { saved, toggleSaved } = useStore();
@@ -39,11 +44,20 @@ export default function Browse() {
 
   return (
     <Shell nav="browse" tab="browse" showTabs top="browse">
-      <Wrap style={{ paddingTop: desktop ? 72 : 12 }}>
+      <Wrap style={{ paddingTop: desktop ? 36 : 8 }}>
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontFamily: 'Inter', fontSize: 11, fontWeight: '600', letterSpacing: 1.6, textTransform: 'uppercase', color: colors.gray }}>
-            {data ? `${data.place} · ${data.farmCount} farm${data.farmCount === 1 ? '' : 's'} near you` : 'spanish fork, ut'}
-          </Text>
+          <Logo size={desktop ? 16 : 15} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="change location"
+            onPress={here.openPicker}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: desktop ? 22 : 16 }}
+          >
+            <IconPin size={14} />
+            <Text style={{ fontFamily: 'Inter', fontSize: 11, fontWeight: '600', letterSpacing: 1.6, textTransform: 'uppercase', color: colors.gray }}>
+              {here.place.name.toLowerCase()}, ut · {data ? data.farmCount : '–'} farm{data?.farmCount === 1 ? '' : 's'} near you
+            </Text>
+          </Pressable>
           <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', letterSpacing: -0.3, color: colors.navy, marginTop: 14, textAlign: 'center' }}>
             real food. from people with names.
           </Text>
@@ -98,6 +112,9 @@ export default function Browse() {
             <Pressable onPress={() => router.push('/farms')}><Text style={see}>see all {data?.farmCount || ''}</Text></Pressable>
           </View>
           <FarmGrid farms={farms.slice(0, 3)} />
+          {!loading && farms.length === 0 ? (
+            <Text style={quiet}>no farms within 40 miles of {here.place.name.toLowerCase()} yet.</Text>
+          ) : null}
         </View>
 
         {!q ? (

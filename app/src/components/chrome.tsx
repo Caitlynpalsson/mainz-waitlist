@@ -3,6 +3,7 @@ import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-nat
 import { router, useGlobalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, useLayout } from '../theme';
+import { usePlace } from '../lib/place';
 import { useStore } from '../lib/store';
 import { Logo } from './logo';
 import { IconBag, IconBarn, IconBell, IconChevron, IconHome, IconPerson, IconPin, IconSearch } from './icons';
@@ -61,8 +62,8 @@ function DesktopNav({ current }: { current: NavKey }) {
   const { width } = useLayout();
   return (
     <View style={{ height: 78, borderBottomWidth: 1, borderBottomColor: colors.hair, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: width > 1200 ? 56 : 28, gap: 18, backgroundColor: colors.white }}>
-      <View style={{ width: 150 }}><Logo size={12} /></View>
-      <View style={{ flexDirection: 'row', gap: width > 1100 ? 32 : 18 }}>
+      {current !== 'browse' ? <View style={{ width: 150 }}><Logo size={12} /></View> : null}
+      <View style={{ flexDirection: 'row', gap: width > 1100 ? 32 : 18, flex: current === 'browse' ? 1 : undefined }}>
         <NavLink label="browse" on={current === 'browse'} href="/" />
         <NavLink label="farms" on={current === 'farms'} href="/farms" />
         <NavLink label="the mainz standard" on={current === 'standard'} href="/standard" />
@@ -120,11 +121,13 @@ function Badge({ n }: { n: number }) {
 
 function MobileBrowseHeader() {
   const [note, setNote] = useState(false);
+  const { openPicker } = usePlace();
   return (
     <View style={{ paddingTop: 8, paddingHorizontal: 18, paddingBottom: 6, backgroundColor: colors.white }}>
       <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <IconPin size={18} />
-        <Logo size={13} />
+        <Pressable accessibilityRole="button" accessibilityLabel="location pin" onPress={openPicker} hitSlop={10}>
+          <IconPin size={18} />
+        </Pressable>
         <Pressable onPress={() => setNote(true)} accessibilityLabel="notes">
           <IconBell />
           <View style={{ position: 'absolute', top: -1, right: -1, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.red }} />
