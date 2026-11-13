@@ -1,0 +1,20 @@
+{
+  "name": "mainz-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "migrate": "wrangler d1 migrations apply mainz --local",
+    "test": "node --experimental-strip-types --test",
+    "smoke": "node scripts/smoke.mjs",
+    "seed": "node seed/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261110.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.45.0"
+  }
+}
