@@ -88,6 +88,8 @@ export const UDAF_TYPES = [
   { key: 'homemade', label: 'needs UDAF check', detail: 'homemade food act / cottage food', document: 'cottage_food', words: ['bread', 'jam', 'jelly', 'cookie', 'cake', 'granola', 'pickle', 'salsa', 'cottage', 'honey', 'loaf', 'muffin', 'pie', 'dried herb', 'homemade'] },
 ] as const;
 
+export const UDAF_NOTE = 'Rules change. Utah updated its raw milk law in 2026. When in doubt, call UDAF Regulatory Services at (801) 982-2200. Confirm raw milk with UDAF Dairy (UDAF-Dairy@utah.gov) before listing it. Cottage food registration is the simpler path. The Homemade Food Act requires in-person sales, so ask UDAF before listing those items on Mainz.';
+
 export const QUICK_SCREEN = [
   { key: 'local', title: 'is it local?', lines: ['utah county first, especially spanish fork.', 'nearby counties can wait for later.'] },
   { key: 'real', title: 'is it real?', lines: ['instagram or a website with real photos of the farm, animals, or food.', 'the phone and email work.', 'they already sell somewhere: a market, a stand, or a csa.'] },

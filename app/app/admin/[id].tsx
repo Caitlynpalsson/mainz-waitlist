@@ -16,6 +16,7 @@ import {
   SCORE_READING,
   STANDARDS,
   TEMPLATES,
+  UDAF_NOTE,
   WEEKLY_CHECKS,
   fillTemplate,
 } from '../../../api/src/review';
@@ -269,6 +270,7 @@ export default function AdminFarm() {
 
               <View style={{ marginTop: 32 }}><Cap>utah documents</Cap></View>
               <Text style={meta}>a hint is a guess from what they sell. you set the status.</Text>
+              <Text style={meta}>{UDAF_NOTE}</Text>
               {docs.map((doc, index) => (
                 <View key={doc.key} style={block}>
                   <Text style={rowTitle}>{label(DOCUMENTS, doc.key)}{doc.hinted ? ' · likely' : ''}</Text>
