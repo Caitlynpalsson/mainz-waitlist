@@ -95,6 +95,12 @@ The worker fits the free tier: one Worker, one D1 database, static assets, and n
 | `public/` | Staff dashboard. |
 | `migrations/` | D1 schema and sample seed. |
 
+## Email
+
+Every thank-you, application status note, and magic link is inserted into `email_outbox` and shown on the outbox page. Staff can copy a magic link from that preview.
+
+Sending is off. `disabledEmailSender` throws if called, and `dispatchEmail` leaves every note `queued`. A real provider would implement `EmailSender` in `src/email.ts`, keep its credential in a worker secret, and still require an explicit enable flag before `dispatchEmail` could do anything. This worker does not include that provider, a domain, or a secret. Do not turn delivery on until that exists. No email leaves the dashboard.
+
 ## Phase plan
 
 ### Phase 2 — richer replies, still no live SMS

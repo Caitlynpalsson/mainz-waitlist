@@ -1,11 +1,16 @@
 import { HttpError } from "./http.ts";
 import type { InventoryAudit, NewIssue, NewMessage, OverviewCounts, Repo } from "./repo.ts";
+import { assertInventoryWrite, isSellable } from "./sellable.ts";
 import type {
+  Application,
+  ApplicationStatus,
   AuditEntry,
   AuditWrite,
   Consent,
+  ContactMethod,
   Conversation,
   ConvState,
+  EmailMessage,
   Farmer,
   FarmerListItem,
   InventoryRow,
@@ -13,11 +18,13 @@ import type {
   InventoryWrite,
   Issue,
   IssueKind,
+  MagicLink,
   MarketWeek,
   Message,
   NewFarmer,
   NewProduct,
   Product,
+  StaffCall,
 } from "./types.ts";
 
 type Sql = string | number | null;
@@ -62,10 +69,11 @@ export class D1Repo implements Repo {
     try {
       const result = await this.run(
         `INSERT INTO farmers (
-          farm_name, contact_name, phone, email, preferred_contact_times, pickup_location,
-          pickup_availability, sms_consent, sms_consent_at, sms_consent_source, assigned_staff,
-          automation_paused, is_sample, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          farm_name, contact_name, phone, email, preferred_contact_times, preferred_contact_days,
+          contact_method, delegate_name, delegate_phone, pickup_location, pickup_availability,
+          sms_consent, sms_consent_at, sms_consent_source, assigned_staff, automation_paused,
+          is_sample, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         farmerBinds(input, at, at),
       );
       const farmer = await this.getFarmer(result);
@@ -84,11 +92,12 @@ export class D1Repo implements Repo {
       await this.run(
         `UPDATE farmers SET
           farm_name = ?, contact_name = ?, phone = ?, email = ?, preferred_contact_times = ?,
+          preferred_contact_days = ?, contact_method = ?, delegate_name = ?, delegate_phone = ?,
           pickup_location = ?, pickup_availability = ?, sms_consent = ?, sms_consent_at = ?,
           sms_consent_source = ?, assigned_staff = ?, automation_paused = ?, is_sample = ?,
           notes = ?, updated_at = ?
         WHERE id = ?`,
-        [...farmerBinds(input, existing.createdAt, at).slice(0, 14), at, id],
+        [...farmerBinds(input, existing.createdAt, at).slice(0, 18), at, id],
       );
     } catch (err) {
       if (isUnique(err)) throw new HttpError(409, "a farm with that phone already exists");
@@ -111,8 +120,10 @@ export class D1Repo implements Repo {
 
   async insertProduct(input: NewProduct, at: string): Promise<Product> {
     const id = await this.run(
-      `INSERT INTO products (farmer_id, name, unit, default_price_cents, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-      [input.farmerId, input.name, input.unit, input.defaultPriceCents, at, at],
+      `INSERT INTO products (
+        farmer_id, name, unit, default_price_cents, review_status, photo_url, published, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [input.farmerId, input.name, input.unit, input.defaultPriceCents, input.reviewStatus, input.photoUrl, input.published ? 1 : 0, at, at],
     );
     const product = await this.getProduct(id);
     if (!product) throw new HttpError(500, "product was not saved");
@@ -121,8 +132,8 @@ export class D1Repo implements Repo {
 
   async updateProduct(id: number, patch: Omit<NewProduct, "farmerId">, at: string): Promise<Product> {
     await this.run(
-      `UPDATE products SET name = ?, unit = ?, default_price_cents = ?, updated_at = ? WHERE id = ?`,
-      [patch.name, patch.unit, patch.defaultPriceCents, at, id],
+      `UPDATE products SET name = ?, unit = ?, default_price_cents = ?, review_status = ?, photo_url = ?, published = ?, updated_at = ? WHERE id = ?`,
+      [patch.name, patch.unit, patch.defaultPriceCents, patch.reviewStatus, patch.photoUrl, patch.published ? 1 : 0, at, id],
     );
     const product = await this.getProduct(id);
     if (!product) throw new HttpError(404, "product not found");
@@ -210,13 +221,22 @@ export class D1Repo implements Repo {
       [write.farmerId, write.productId, write.marketWeekId],
     );
     const beforeRow = existing ? await this.getInventoryById(num(existing, "id")) : null;
+    const product = await this.getProduct(write.productId);
+    if (!product) throw new HttpError(404, "product not found");
+    assertInventoryWrite(write);
+    const sellable = isSellable({
+      status: write.status,
+      sourceHedged: write.sourceHedged,
+      published: product.published,
+      reviewStatus: product.reviewStatus,
+    });
     let id: number;
     if (!existing) {
       id = await this.run(
         `INSERT INTO inventory (
           farmer_id, product_id, market_week_id, quantity, unit, price_cents, status,
-          source_message_id, updated_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          source_hedged, sellable, source_message_id, updated_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           write.farmerId,
           write.productId,
@@ -225,6 +245,8 @@ export class D1Repo implements Repo {
           write.unit,
           write.priceCents,
           write.status,
+          write.sourceHedged ? 1 : 0,
+          sellable ? 1 : 0,
           write.sourceMessageId,
           write.updatedBy,
           audit.at,
@@ -234,8 +256,8 @@ export class D1Repo implements Repo {
     } else {
       id = num(existing, "id");
       await this.run(
-        `UPDATE inventory SET quantity = ?, unit = ?, price_cents = ?, status = ?, source_message_id = ?, updated_by = ?, updated_at = ? WHERE id = ?`,
-        [write.quantity, write.unit, write.priceCents, write.status, write.sourceMessageId, write.updatedBy, audit.at, id],
+        `UPDATE inventory SET quantity = ?, unit = ?, price_cents = ?, status = ?, source_hedged = ?, sellable = ?, source_message_id = ?, updated_by = ?, updated_at = ? WHERE id = ?`,
+        [write.quantity, write.unit, write.priceCents, write.status, write.sourceHedged ? 1 : 0, sellable ? 1 : 0, write.sourceMessageId, write.updatedBy, audit.at, id],
       );
     }
     const row = await this.getInventoryById(id);
@@ -363,7 +385,8 @@ export class D1Repo implements Repo {
        WHERE c.state IN ('awaiting_availability', 'awaiting_price', 'awaiting_confirm')
          AND f.automation_paused = 0
          AND c.taken_over_by_staff IS NULL
-         AND f.sms_consent = 'granted'`,
+         AND f.sms_consent = 'granted'
+         AND f.contact_method != 'call'`,
     );
     const confirmed = await this.one(
       `SELECT COUNT(*) AS n FROM inventory i
@@ -389,6 +412,10 @@ export class D1Repo implements Repo {
 
   async deleteSampleFarmers(): Promise<void> {
     const sample = "(SELECT id FROM farmers WHERE is_sample = 1)";
+    await this.run(`DELETE FROM magic_links WHERE farmer_id IN ${sample}`);
+    await this.run(`DELETE FROM staff_calls WHERE farmer_id IN ${sample}`);
+    await this.run(`DELETE FROM email_outbox WHERE farmer_id IN ${sample}`);
+    await this.run(`UPDATE applications SET farmer_id = NULL WHERE farmer_id IN ${sample}`);
     await this.run(`DELETE FROM change_log WHERE farmer_id IN ${sample}`);
     await this.run(`DELETE FROM issues WHERE farmer_id IN ${sample}`);
     await this.run(`DELETE FROM messages WHERE farmer_id IN ${sample}`);
@@ -396,6 +423,145 @@ export class D1Repo implements Repo {
     await this.run(`DELETE FROM conversations WHERE farmer_id IN ${sample}`);
     await this.run(`DELETE FROM products WHERE farmer_id IN ${sample}`);
     await this.run(`DELETE FROM farmers WHERE is_sample = 1`);
+  }
+
+  async listConversations(): Promise<Conversation[]> {
+    const rows = await this.many("SELECT * FROM conversations");
+    return rows.map(conversationFrom);
+  }
+
+  async listAllProducts(): Promise<Product[]> {
+    const rows = await this.many("SELECT * FROM products ORDER BY name COLLATE NOCASE");
+    return rows.map(productFrom);
+  }
+
+  async clearSellableForProduct(productId: number): Promise<void> {
+    await this.run("UPDATE inventory SET sellable = 0 WHERE product_id = ?", [productId]);
+  }
+
+  async markConfirmedSellable(productId: number): Promise<void> {
+    const product = await this.getProduct(productId);
+    if (!product?.published || product.reviewStatus !== "approved") return;
+    await this.run(
+      "UPDATE inventory SET sellable = 1 WHERE product_id = ? AND status = 'confirmed' AND source_hedged = 0",
+      [productId],
+    );
+  }
+
+  async addCall(input: { farmerId: number; reason: string; at: string }): Promise<StaffCall> {
+    const existing = await this.one(
+      "SELECT id FROM staff_calls WHERE farmer_id = ? AND status = 'open' AND reason = ?",
+      [input.farmerId, input.reason],
+    );
+    if (!existing) {
+      await this.run(
+        "INSERT INTO staff_calls (farmer_id, reason, status, created_at) VALUES (?, ?, 'open', ?)",
+        [input.farmerId, input.reason, input.at],
+      );
+    }
+    const row = await this.one(
+      `SELECT c.*, f.farm_name FROM staff_calls c JOIN farmers f ON f.id = c.farmer_id
+       WHERE c.farmer_id = ? AND c.status = 'open' AND c.reason = ? ORDER BY c.id DESC LIMIT 1`,
+      [input.farmerId, input.reason],
+    );
+    if (!row) throw new HttpError(500, "call was not saved");
+    return callFrom(row);
+  }
+
+  async listCalls(status: "open" | "done" | "all"): Promise<StaffCall[]> {
+    const rows = await this.many(
+      `SELECT c.*, f.farm_name FROM staff_calls c JOIN farmers f ON f.id = c.farmer_id
+       WHERE c.status = ? OR ? = 'all' ORDER BY c.id DESC`,
+      [status, status],
+    );
+    return rows.map(callFrom);
+  }
+
+  async completeCall(id: number, actor: string, at: string): Promise<StaffCall> {
+    const existing = await this.one("SELECT id FROM staff_calls WHERE id = ?", [id]);
+    if (!existing) throw new HttpError(404, "call not found");
+    await this.run(
+      "UPDATE staff_calls SET status = 'done', completed_at = ?, completed_by = ? WHERE id = ?",
+      [at, actor, id],
+    );
+    const row = await this.one(
+      `SELECT c.*, f.farm_name FROM staff_calls c JOIN farmers f ON f.id = c.farmer_id WHERE c.id = ?`,
+      [id],
+    );
+    if (!row) throw new HttpError(404, "call not found");
+    return callFrom(row);
+  }
+
+  async insertApplication(input: Omit<Application, "id" | "farmerId" | "createdAt" | "updatedAt"> & { at: string }): Promise<Application> {
+    const id = await this.run(
+      `INSERT INTO applications (
+        farm_name, contact_name, email, phone, city, what_you_sell, fulfillment, status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [input.farmName, input.contactName, input.email, input.phone, input.city, input.whatYouSell, input.fulfillment, input.status, input.at, input.at],
+    );
+    const application = await this.getApplication(id);
+    if (!application) throw new HttpError(500, "application was not saved");
+    return application;
+  }
+
+  async listApplications(): Promise<Application[]> {
+    const rows = await this.many("SELECT * FROM applications ORDER BY id DESC");
+    return rows.map(applicationFrom);
+  }
+
+  async getApplication(id: number): Promise<Application | null> {
+    const row = await this.one("SELECT * FROM applications WHERE id = ?", [id]);
+    return row ? applicationFrom(row) : null;
+  }
+
+  async updateApplication(id: number, patch: { status: ApplicationStatus; farmerId: number | null }, at: string): Promise<Application> {
+    const existing = await this.getApplication(id);
+    if (!existing) throw new HttpError(404, "application not found");
+    await this.run("UPDATE applications SET status = ?, farmer_id = ?, updated_at = ? WHERE id = ?", [patch.status, patch.farmerId, at, id]);
+    const application = await this.getApplication(id);
+    if (!application) throw new HttpError(404, "application not found");
+    return application;
+  }
+
+  async enqueueEmail(input: Omit<EmailMessage, "id" | "status" | "sentAt" | "createdAt"> & { at: string }): Promise<EmailMessage> {
+    const id = await this.run(
+      `INSERT INTO email_outbox (to_email, subject, body, kind, farmer_id, application_id, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'queued', ?)`,
+      [input.toEmail, input.subject, input.body, input.kind, input.farmerId, input.applicationId, input.at],
+    );
+    const email = await this.getEmail(id);
+    if (!email) throw new HttpError(500, "email was not saved");
+    return email;
+  }
+
+  async listEmails(): Promise<EmailMessage[]> {
+    const rows = await this.many("SELECT * FROM email_outbox ORDER BY id DESC");
+    return rows.map(emailFrom);
+  }
+
+  async getEmail(id: number): Promise<EmailMessage | null> {
+    const row = await this.one("SELECT * FROM email_outbox WHERE id = ?", [id]);
+    return row ? emailFrom(row) : null;
+  }
+
+  async createMagicLink(farmerId: number, token: string, expiresAt: string, at: string): Promise<MagicLink> {
+    const id = await this.run(
+      "INSERT INTO magic_links (farmer_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)",
+      [farmerId, token, expiresAt, at],
+    );
+    return { id, farmerId, token, expiresAt, createdAt: at };
+  }
+
+  async findMagicLink(token: string): Promise<MagicLink | null> {
+    const row = await this.one("SELECT * FROM magic_links WHERE token = ?", [token]);
+    if (!row) return null;
+    return {
+      id: num(row, "id"),
+      farmerId: num(row, "farmer_id"),
+      token: str(row, "token"),
+      expiresAt: str(row, "expires_at"),
+      createdAt: str(row, "created_at"),
+    };
   }
 
   private async one(sql: string, params: Sql[] = []): Promise<Row | null> {
@@ -432,6 +598,10 @@ function farmerBinds(input: NewFarmer, createdAt: string, updatedAt: string): Sq
     input.phone,
     input.email,
     input.preferredContactTimes,
+    input.preferredContactDays,
+    input.contactMethod,
+    input.delegateName,
+    input.delegatePhone,
     input.pickupLocation,
     input.pickupAvailability,
     input.smsConsent,
@@ -467,6 +637,10 @@ function farmerFrom(row: Row): Farmer {
     phone: str(row, "phone"),
     email: str(row, "email"),
     preferredContactTimes: str(row, "preferred_contact_times"),
+    preferredContactDays: str(row, "preferred_contact_days"),
+    contactMethod: contactMethodFrom(str(row, "contact_method")),
+    delegateName: str(row, "delegate_name"),
+    delegatePhone: str(row, "delegate_phone"),
     pickupLocation: str(row, "pickup_location"),
     pickupAvailability: str(row, "pickup_availability"),
     smsConsent: consent as Consent,
@@ -488,6 +662,9 @@ function productFrom(row: Row): Product {
     name: str(row, "name"),
     unit: str(row, "unit"),
     defaultPriceCents: row.default_price_cents == null ? null : num(row, "default_price_cents"),
+    reviewStatus: str(row, "review_status") === "needs_verification" ? "needs_verification" : "approved",
+    photoUrl: str(row, "photo_url"),
+    published: bool(row.published),
     createdAt: str(row, "created_at"),
     updatedAt: str(row, "updated_at"),
   };
@@ -522,6 +699,8 @@ function inventoryFrom(row: Row): InventoryRow {
     unit: row.unit == null ? null : str(row, "unit"),
     priceCents: row.price_cents == null ? null : num(row, "price_cents"),
     status: status as InventoryStatus,
+    sourceHedged: bool(row.source_hedged),
+    sellable: bool(row.sellable),
     sourceMessageId: row.source_message_id == null ? null : num(row, "source_message_id"),
     updatedBy: str(row, "updated_by"),
     createdAt: str(row, "created_at"),
@@ -581,6 +760,59 @@ function parseJson(value: unknown): unknown {
   } catch {
     return null;
   }
+}
+
+function applicationFrom(row: Row): Application {
+  const status = str(row, "status");
+  const allowed: ApplicationStatus[] = ["received", "in_review", "approved", "needs_info", "declined"];
+  return {
+    id: num(row, "id"),
+    farmName: str(row, "farm_name"),
+    contactName: str(row, "contact_name"),
+    email: str(row, "email"),
+    phone: str(row, "phone"),
+    city: str(row, "city"),
+    whatYouSell: str(row, "what_you_sell"),
+    fulfillment: str(row, "fulfillment"),
+    status: (allowed.includes(status as ApplicationStatus) ? status : "received") as ApplicationStatus,
+    farmerId: row.farmer_id == null ? null : num(row, "farmer_id"),
+    createdAt: str(row, "created_at"),
+    updatedAt: str(row, "updated_at"),
+  };
+}
+
+function emailFrom(row: Row): EmailMessage {
+  const status = str(row, "status");
+  return {
+    id: num(row, "id"),
+    toEmail: str(row, "to_email"),
+    subject: str(row, "subject"),
+    body: str(row, "body"),
+    kind: str(row, "kind"),
+    farmerId: row.farmer_id == null ? null : num(row, "farmer_id"),
+    applicationId: row.application_id == null ? null : num(row, "application_id"),
+    status: status === "sent" || status === "failed" ? status : "queued",
+    createdAt: str(row, "created_at"),
+    sentAt: row.sent_at == null ? null : str(row, "sent_at"),
+  };
+}
+
+function callFrom(row: Row): StaffCall {
+  return {
+    id: num(row, "id"),
+    farmerId: num(row, "farmer_id"),
+    farmName: str(row, "farm_name"),
+    reason: str(row, "reason"),
+    status: str(row, "status") === "done" ? "done" : "open",
+    createdAt: str(row, "created_at"),
+    completedAt: row.completed_at == null ? null : str(row, "completed_at"),
+    completedBy: row.completed_by == null ? null : str(row, "completed_by"),
+  };
+}
+
+function contactMethodFrom(value: string): ContactMethod {
+  if (value === "call" || value === "delegate") return value;
+  return "text";
 }
 
 function stateFrom(value: string): ConvState {

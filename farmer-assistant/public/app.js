@@ -1,5 +1,6 @@
 const TOKEN_KEY = "mainz.staffToken";
 const NAME_KEY = "mainz.staffName";
+const FARM_KEY = "mainz.farmToken";
 
 const app = document.querySelector("#app");
 const view = { name: "signin", error: "", notice: "" };
@@ -13,30 +14,54 @@ document.addEventListener("change", onChange);
 window.addEventListener("hashchange", route);
 start();
 
+function hashPage() {
+  const raw = (location.hash || "#/desk").replace(/^#\//, "");
+  const [path, query] = raw.split("?");
+  const params = new URLSearchParams(query || "");
+  const bits = (path || "desk").split("/");
+  return { page: bits[0] || "desk", rest: bits.slice(1), params };
+}
+
 function start() {
+  const { page } = hashPage();
+  if (page === "apply" || page === "farm") return route();
   if (!localStorage.getItem(TOKEN_KEY)) {
     view.name = "signin";
     render();
     return;
   }
-  if (!location.hash) location.hash = "#/overview";
+  if (!location.hash) location.hash = "#/desk";
   route();
 }
 
 function route() {
+  const { page, rest, params } = hashPage();
+  if (page === "apply") {
+    view.name = "apply";
+    view.data = {};
+    view.error = "";
+    render();
+    return;
+  }
+  if (page === "farm") {
+    const token = params.get("token") || sessionStorage.getItem(FARM_KEY) || "";
+    if (params.get("token")) sessionStorage.setItem(FARM_KEY, params.get("token"));
+    return loadFarmPortal(token);
+  }
   if (!localStorage.getItem(TOKEN_KEY)) {
     view.name = "signin";
     render();
     return;
   }
-  const parts = (location.hash || "#/overview").replace(/^#\//, "").split("/");
-  const page = parts[0] || "overview";
-  if (page === "farmers" && parts[1]) return loadFarmer(Number(parts[1]));
+  if (page === "farmers" && rest[0]) return loadFarmer(Number(rest[0]));
   if (page === "farmers") return loadFarmers();
   if (page === "inventory") return loadInventory();
   if (page === "issues") return loadIssues();
   if (page === "simulator") return loadSimulator();
-  return loadOverview();
+  if (page === "outbox") return loadOutbox();
+  if (page === "applications") return loadApplications();
+  if (page === "overview") return loadOverview();
+  return loadDesk();
 }
 
 async function api(path, opts = {}) {
@@ -66,6 +91,63 @@ async function api(path, opts = {}) {
     error.status = res.status;
     throw error;
   }
+  return data;
+}
+
+async function loadDesk() {
+  try {
+    const data = await api("/api/desk");
+    if (!signedIn()) return;
+    setView("desk", data);
+  } catch (err) {
+    fail(err, "desk");
+  }
+}
+
+async function loadApplications() {
+  try {
+    const data = await api("/api/applications");
+    if (!signedIn()) return;
+    setView("applications", data);
+  } catch (err) {
+    fail(err, "applications");
+  }
+}
+
+async function loadOutbox() {
+  try {
+    const emails = await api("/api/outbox");
+    if (!signedIn()) return;
+    const selected = view.data?.selected;
+    setView("outbox", { emails, selected });
+  } catch (err) {
+    fail(err, "outbox");
+  }
+}
+
+async function loadFarmPortal(token) {
+  try {
+    const data = await farmApi("/api/farm/me", {}, token);
+    view.name = "farmportal";
+    view.data = data;
+    view.error = "";
+    render();
+  } catch (err) {
+    view.name = "farmportal";
+    view.data = null;
+    view.error = err.message;
+    render();
+  }
+}
+
+async function farmApi(path, opts = {}, token = sessionStorage.getItem(FARM_KEY) || "") {
+  const res = await fetch(path, {
+    method: opts.method || "GET",
+    headers: { "Content-Type": "application/json", "X-Farm-Token": token || "" },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "request failed");
   return data;
 }
 
@@ -158,15 +240,26 @@ function signedIn() {
 }
 
 function render() {
+  if (view.name === "apply") {
+    app.innerHTML = applyHtml();
+    return;
+  }
+  if (view.name === "farmportal") {
+    app.innerHTML = farmPortalHtml();
+    return;
+  }
   if (view.name === "signin" || !signedIn()) {
     app.innerHTML = signInHtml();
     return;
   }
   const pages = [
+    ["desk", "desk"],
     ["overview", "overview"],
     ["farmers", "farmers"],
+    ["applications", "applications"],
     ["inventory", "inventory"],
     ["issues", "issues"],
+    ["outbox", "outbox"],
     ["simulator", "simulator"],
   ];
   const current = view.name === "farmer" ? "farmers" : view.name;
@@ -191,7 +284,10 @@ function render() {
 
 function bodyHtml() {
   if (!view.data && view.error) return `<p class="lede">could not load this page.</p>`;
+  if (view.name === "desk") return deskHtml(view.data);
   if (view.name === "overview") return overviewHtml(view.data);
+  if (view.name === "applications") return applicationsHtml(view.data);
+  if (view.name === "outbox") return outboxHtml(view.data);
   if (view.name === "farmers") return farmersHtml(view.data);
   if (view.name === "farmer") return farmerHtml(view.data);
   if (view.name === "inventory") return inventoryHtml(view.data);
@@ -231,7 +327,7 @@ function farmersHtml(farmers) {
         .map(
           (farmer) => `<a class="row" href="#/farmers/${farmer.id}">
             <strong>${esc(farmer.farmName)}</strong>
-            <div class="meta">${esc(farmer.contactName)} · ${esc(farmer.phone)} · ${esc(stateLabel(farmer))}${farmer.isSample ? " · sample" : ""}</div>
+            <div class="meta">${esc(farmer.contactName)} · ${esc(farmer.contactMethod || "text")} · ${esc(farmer.phone)} · ${esc(stateLabel(farmer))}${farmer.isSample ? " · sample" : ""}</div>
           </a>`,
         )
         .join("") || `<p class="meta">no farms yet.</p>`}
@@ -255,6 +351,7 @@ function farmerHtml(data) {
     <div class="actions">
       <button type="button" class="quiet" data-action="pause" data-id="${farmer.id}" data-paused="${farmer.automationPaused ? "0" : "1"}">${farmer.automationPaused ? "resume automation" : "pause automation"}</button>
       <button type="button" class="quiet" data-action="takeover" data-id="${farmer.id}" data-active="${taken ? "0" : "1"}">${taken ? "release conversation" : "take over conversation"}</button>
+      <button type="button" class="quiet" data-action="magic-link" data-id="${farmer.id}">make sign-in link</button>
     </div>
     ${
       taken
@@ -349,7 +446,7 @@ function inventoryCards(rows) {
           <strong>${esc(row.farmName)} · ${esc(row.productName)}</strong>
           <span class="tag ${esc(row.status)}">${esc(row.status.replaceAll("_", " "))}</span>
         </div>
-        <div class="meta">${row.quantity == null ? "no quantity" : esc(String(row.quantity)) + " " + esc(row.unit || "")} · ${row.priceCents == null ? "no price" : esc(money(row.priceCents))} · ${esc(denver(row.updatedAt))} · ${esc(row.updatedBy)}</div>
+        <div class="meta">${row.quantity == null ? "no quantity" : esc(String(row.quantity)) + " " + esc(row.unit || "")} · ${row.priceCents == null ? "no price" : esc(money(row.priceCents))} · ${row.sellable ? "for sale" : "not for sale"} · ${esc(denver(row.updatedAt))} · ${esc(row.updatedBy)}</div>
         <div class="fields">
           <div><label>quantity</label><input name="quantity" inputmode="decimal" value="${row.quantity == null ? "" : esc(String(row.quantity))}"></div>
           <div><label>unit</label><input name="unit" value="${esc(row.unit || "")}"></div>
@@ -462,6 +559,7 @@ function signInHtml() {
       <p class="eyebrow">farmer assistant</p>
       <h1 style="margin-top:28px">staff sign in</h1>
       <p class="lede">the token is the worker secret. it stays in this browser.</p>
+      <p class="lede"><a href="#/apply">apply as a farm</a></p>
       ${view.error ? `<p class="banner bad" role="alert">${esc(view.error)}</p>` : ""}
       <label for="staff-name">your name</label>
       <input id="staff-name" name="name" autocomplete="name" value="${esc(localStorage.getItem(NAME_KEY) || "")}" required>
@@ -479,7 +577,11 @@ function farmerFields(farmer) {
     <div><label>contact name</label><input name="contactName" value="${esc(farmer.contactName || "")}" required></div>
     <div><label>phone</label><input name="phone" value="${esc(farmer.phone || "")}" required></div>
     <div><label>email</label><input name="email" type="email" value="${esc(farmer.email || "")}"></div>
-    <div><label>preferred contact times</label><input name="preferredContactTimes" value="${esc(farmer.preferredContactTimes || "")}"></div>
+    <div><label>how to reach them</label><select name="contactMethod">${["text", "call", "delegate"].map((item) => `<option value="${item}"${(farmer.contactMethod || "text") === item ? " selected" : ""}>${item === "delegate" ? "family or employee" : item}</option>`).join("")}</select></div>
+    <div><label>preferred days</label><input name="preferredContactDays" value="${esc(farmer.preferredContactDays || "")}" placeholder="mon,tue,wed"></div>
+    <div><label>preferred times</label><input name="preferredContactTimes" value="${esc(farmer.preferredContactTimes || "")}" placeholder="09:00-11:00 or mornings"></div>
+    <div><label>family or employee name</label><input name="delegateName" value="${esc(farmer.delegateName || "")}"></div>
+    <div><label>their phone</label><input name="delegatePhone" value="${esc(farmer.delegatePhone || "")}"></div>
     <div><label>assigned staff</label><input name="assignedStaff" value="${esc(farmer.assignedStaff || "")}"></div>
     <div><label>pickup location</label><input name="pickupLocation" value="${esc(farmer.pickupLocation || "")}"></div>
     <div><label>pickup availability</label><input name="pickupAvailability" value="${esc(farmer.pickupAvailability || "")}"></div>
@@ -536,6 +638,33 @@ async function onSubmit(event) {
       await api(`/api/farmers/${form.dataset.id}/reply`, { method: "POST", body: { body: data.body } });
       return loadFarmer(Number(form.dataset.id));
     }
+    if (form.dataset.form === "apply") {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, company: data.company || "" }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || "request failed");
+      view.notice = "application received. the thank-you is in the staff outbox. no email was sent.";
+      view.name = "apply";
+      view.data = { done: true };
+      render();
+      return;
+    }
+    if (form.dataset.form === "farm-profile") {
+      await farmApi("/api/farm/me", { method: "PATCH", body: data });
+      view.notice = "saved";
+      return loadFarmPortal(sessionStorage.getItem(FARM_KEY));
+    }
+    if (form.dataset.form === "farm-product") {
+      await farmApi("/api/farm/products", {
+        method: "POST",
+        body: { name: data.name, unit: data.unit, defaultPriceCents: cents(data.price), photoUrl: data.photoUrl || "" },
+      });
+      view.notice = "saved for staff to check. it is not for sale yet.";
+      return loadFarmPortal(sessionStorage.getItem(FARM_KEY));
+    }
     if (form.dataset.form === "sim-send") {
       await api("/api/simulator/inbound", {
         method: "POST",
@@ -585,6 +714,35 @@ async function onClick(event) {
     if (action === "start-check") {
       await api("/api/simulator/start", { method: "POST", body: { farmerId: Number(sim.farmerId), productId: Number(sim.productId) } });
       return loadSimulator();
+    }
+    if (action === "magic-link") {
+      const result = await api(`/api/farmers/${target.dataset.id}/magic-link`, { method: "POST", body: {} });
+      view.notice = result.url;
+      render();
+      return;
+    }
+    if (action === "copy-email") {
+      const email = view.data?.emails?.find((item) => String(item.id) === target.dataset.id) || view.data;
+      const text = email?.body || "";
+      if (navigator.clipboard) await navigator.clipboard.writeText(text);
+      view.notice = "copied";
+      render();
+      return;
+    }
+    if (action === "approve-catalog") {
+      await api(`/api/products/${target.dataset.id}/approve`, { method: "POST", body: {} });
+      noteSaved();
+      return reload();
+    }
+    if (action === "application-status") {
+      await api(`/api/applications/${target.dataset.id}/status`, { method: "POST", body: { status: target.dataset.status } });
+      noteSaved();
+      return loadApplications();
+    }
+    if (action === "call-done") {
+      await api(`/api/calls/${target.dataset.id}/done`, { method: "POST", body: {} });
+      noteSaved();
+      return loadDesk();
     }
     if (action === "reset-samples") {
       if (!window.confirm("reset sample farms? this clears their messages, inventory, and issues.")) return;
@@ -640,6 +798,9 @@ function reload() {
   if (view.name === "issues") return loadIssues();
   if (view.name === "simulator") return loadSimulator();
   if (view.name === "farmers") return loadFarmers();
+  if (view.name === "applications") return loadApplications();
+  if (view.name === "outbox") return loadOutbox();
+  if (view.name === "desk") return loadDesk();
   return loadOverview();
 }
 
@@ -654,6 +815,10 @@ function farmerBody(data) {
     phone: data.phone,
     email: data.email,
     preferredContactTimes: data.preferredContactTimes,
+    preferredContactDays: data.preferredContactDays,
+    contactMethod: data.contactMethod,
+    delegateName: data.delegateName,
+    delegatePhone: data.delegatePhone,
     pickupLocation: data.pickupLocation,
     pickupAvailability: data.pickupAvailability,
     smsConsent: data.smsConsent,
@@ -703,6 +868,112 @@ function denver(iso) {
 
 function simId() {
   return `sim-${sim.farmerId}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function deskHtml(data) {
+  const items = data?.items || [];
+  if (!items.length) return `<h1>desk</h1><p class="lede">nothing needs you. routine work stays off this page.</p>`;
+  return `<h1>desk</h1><p class="lede">only exceptions. missing replies, checks, open issues, and decisions.</p>
+    <div class="stack" style="margin-top:22px">${items.map((item) => `<div class="card">
+      <div class="rowline"><strong>${esc(item.title)}</strong><span class="tag ${item.urgency === 1 ? "needs_verification" : ""}">${esc(item.kind.replaceAll("_", " "))}</span></div>
+      <p style="margin-top:8px">${esc(item.detail)}</p>
+      <div class="actions">
+        ${item.farmerId ? `<a class="button quiet" href="#/farmers/${item.farmerId}">open farm</a>` : ""}
+        ${item.kind === "application" ? `<a class="button quiet" href="#/applications">applications</a>` : ""}
+        ${item.kind === "catalog" ? `<button type="button" data-action="approve-catalog" data-id="${item.refId}">approve catalog</button>` : ""}
+        ${item.actionable ? `<button type="button" class="quiet" data-action="call-done" data-id="${item.refId}">mark called</button>` : ""}
+      </div>
+    </div>`).join("")}</div>`;
+}
+
+function applicationsHtml(rows) {
+  const list = rows || [];
+  return `<h1>applications</h1><p class="lede">a thank-you and a status note are queued. nothing is emailed.</p>
+    <div class="stack" style="margin-top:22px">${list.map((item) => `<div class="card">
+      <strong>${esc(item.farmName)}</strong>
+      <div class="meta">${esc(item.contactName)} · ${esc(item.email)} · ${esc(item.status.replaceAll("_", " "))}</div>
+      <div class="actions">
+        ${["received", "in_review", "approved", "needs_info", "declined"].map((status) => `<button type="button" class="quiet" data-action="application-status" data-id="${item.id}" data-status="${status}">${status.replaceAll("_", " ")}</button>`).join("")}
+      </div>
+    </div>`).join("") || `<p class="meta">no applications yet.</p>`}</div>`;
+}
+
+function outboxHtml(data) {
+  const emails = data?.emails || [];
+  const selected = data?.selected;
+  return `<h1>outbox</h1><p class="lede">queued notes stay here so you can read them and copy a sign-in link. delivery is off.</p>
+    <div class="stack" style="margin-top:22px">${emails.map((email) => `<div class="card">
+      <strong>${esc(email.subject)}</strong>
+      <div class="meta">${esc(email.toEmail)} · ${esc(email.kind.replaceAll("_", " "))} · ${esc(email.status)} · ${esc(denver(email.createdAt))}</div>
+      <pre style="white-space:pre-wrap;margin-top:12px">${esc(email.body)}</pre>
+      <div class="actions"><button type="button" class="quiet" data-action="copy-email" data-id="${email.id}">copy</button></div>
+    </div>`).join("") || `<p class="meta">nothing queued.</p>`}
+    ${selected ? "" : ""}</div>`;
+}
+
+function applyHtml() {
+  if (view.data?.done) {
+    return `<div class="signin"><a class="mark" href="#/apply">mainz</a><h1 style="margin-top:28px">got it.</h1><p class="lede">thank you. a person will read this. no email was sent.</p></div>`;
+  }
+  return `<form class="signin" data-form="apply">
+    <a class="mark" href="#/apply">mainz</a>
+    <p class="eyebrow">apply</p>
+    <h1 style="margin-top:28px">apply to sell on mainz.</h1>
+    ${view.error ? `<p class="banner bad">${esc(view.error)}</p>` : ""}
+    ${view.notice ? `<p class="banner ok">${esc(view.notice)}</p>` : ""}
+    <label>farm name</label><input name="farmName" required>
+    <label>your name</label><input name="contactName" required>
+    <label>email</label><input name="email" type="email" required>
+    <label>phone</label><input name="phone">
+    <label>city</label><input name="city">
+    <label>what you sell</label><input name="whatYouSell">
+    <input name="company" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div class="actions"><button type="submit">apply</button></div>
+  </form>`;
+}
+
+function farmPortalHtml() {
+  if (!view.data) return `<div class="signin"><h1>sign in</h1><p class="lede">${esc(view.error || "open the link from mainz.")}</p></div>`;
+  const farmer = view.data.farmer;
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  return `<div>
+    <a class="mark" href="#/farm">mainz</a>
+    <p class="eyebrow">your farm</p>
+    <h1 style="margin-top:28px">${esc(farmer.farmName)}</h1>
+    <p class="lede">nothing here is for sale until mainz confirms it.</p>
+    ${view.error ? `<p class="banner bad">${esc(view.error)}</p>` : ""}
+    ${view.notice ? `<p class="banner ok">${esc(view.notice)}</p>` : ""}
+    <form data-form="farm-profile">
+      <div class="fields">
+        <div><label>your name</label><input name="contactName" value="${esc(farmer.contactName)}"></div>
+        <div><label>phone</label><input name="phone" value="${esc(farmer.phone)}"></div>
+        <div><label>email</label><input name="email" value="${esc(farmer.email)}"></div>
+        <div><label>how to reach you</label><select name="contactMethod">${["text", "call", "delegate"].map((item) => `<option value="${item}"${farmer.contactMethod === item ? " selected" : ""}>${item === "delegate" ? "family or employee" : item}</option>`).join("")}</select></div>
+        <div><label>preferred days</label><input name="preferredContactDays" value="${esc(farmer.preferredContactDays)}" placeholder="${days.join(",")}"></div>
+        <div><label>preferred times</label><input name="preferredContactTimes" value="${esc(farmer.preferredContactTimes)}"></div>
+        <div><label>family or employee</label><input name="delegateName" value="${esc(farmer.delegateName)}"></div>
+        <div><label>their phone</label><input name="delegatePhone" value="${esc(farmer.delegatePhone)}"></div>
+        <div class="span2"><label>notes</label><textarea name="notes">${esc(farmer.notes)}</textarea></div>
+      </div>
+      <div class="actions"><button type="submit">save</button></div>
+    </form>
+    <section class="block"><h2>this week</h2>
+      ${(view.data.inventory || []).map((row) => `<div class="card"><strong>${esc(row.productName)}</strong><div class="meta">${esc(row.status.replaceAll("_", " "))} · ${row.sellable ? "for sale" : "not for sale"}</div></div>`).join("") || `<p class="meta">no inventory yet.</p>`}
+    </section>
+    <section class="block"><h2>your products</h2>
+      <p class="hint">a new or changed product waits for staff. it is not published.</p>
+      ${(view.data.products || []).map((product) => `<div class="card"><strong>${esc(product.name)}</strong><div class="meta">${esc(product.unit)} · ${product.published ? "published" : "not published"} · ${esc(product.reviewStatus.replaceAll("_", " "))}</div></div>`).join("")}
+      <form data-form="farm-product">
+        <div class="fields">
+          <div><label>name</label><input name="name" required></div>
+          <div><label>unit</label><input name="unit" required></div>
+          <div><label>price</label><input name="price" inputmode="decimal" placeholder="6.00"></div>
+          <div class="span2"><label>photo link</label><input name="photoUrl" placeholder="https://"></div>
+        </div>
+        <div class="actions"><button type="submit">add product</button></div>
+      </form>
+    </section>
+  </div>`;
 }
 
 function esc(value) {

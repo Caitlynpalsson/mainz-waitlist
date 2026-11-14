@@ -13,6 +13,7 @@ function database() {
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(readFileSync(join(root, "migrations/0001_init.sql"), "utf8"));
   db.exec(readFileSync(join(root, "migrations/0002_seed.sql"), "utf8"));
+  db.exec(readFileSync(join(root, "migrations/0003_desk.sql"), "utf8"));
   return db;
 }
 
@@ -42,6 +43,19 @@ test("seed migration matches the sample catalog and dedupes provider ids", () =>
   db.prepare(outbound).run();
   const count = db.prepare("SELECT COUNT(*) AS n FROM messages").get() as { n: number };
   assert.equal(count.n, 3);
+
+  const product = db.prepare("SELECT id FROM products WHERE name = 'strawberries'").get() as { id: number };
+  db.prepare("INSERT INTO market_weeks (week_start, created_at) VALUES ('2026-11-16', '2026-01-01T00:00:00.000Z')").run();
+  const week = db.prepare("SELECT id FROM market_weeks WHERE week_start = '2026-11-16'").get() as { id: number };
+  const insertInventory = `INSERT INTO inventory (
+    farmer_id, product_id, market_week_id, quantity, unit, price_cents, status, source_hedged, sellable, updated_by, created_at, updated_at
+  ) VALUES (1, ?, ?, 40, 'box', 600, ?, ?, ?, 'bot', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`;
+  assert.throws(() => db.prepare(insertInventory).run(product.id, week.id, "estimate", 0, 1), /sellable/);
+  assert.throws(() => db.prepare(insertInventory).run(product.id, week.id, "confirmed", 1, 0), /hedged/);
+  db.prepare(insertInventory).run(product.id, week.id, "confirmed", 0, 1);
+  const sellable = db.prepare("SELECT sellable, status FROM inventory").get() as { sellable: number; status: string };
+  assert.equal(sellable.status, "confirmed");
+  assert.equal(sellable.sellable, 1);
 
   assert.throws(
     () =>

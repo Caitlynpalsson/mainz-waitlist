@@ -1,16 +1,28 @@
+import { textingGate, textTarget } from "./contact.ts";
+import { buildDesk, type DeskItem } from "./desk.ts";
+import {
+  disabledEmailSender,
+  dispatchEmail,
+  magicLinkEmail,
+  statusEmail,
+  thankYouEmail,
+} from "./email.ts";
 import {
   openingMessage,
   stopReply,
 } from "./format.ts";
 import { HttpError } from "./http.ts";
 import { step } from "./machine.ts";
-import { parseMessage } from "./parser.ts";
+import { isHedgedMessage, parseMessage } from "./parser.ts";
 import type { Repo } from "./repo.ts";
 import { seedSamples } from "./seed.ts";
 import { activeMarketWeekStart } from "./time.ts";
 import type {
+  Application,
+  ApplicationStatus,
   Channel,
   Consent,
+  ContactMethod,
   Farmer,
   InventoryRow,
   InventoryStatus,
@@ -140,6 +152,7 @@ export async function handleInbound(repo: Repo, input: InboundInput, now: Date):
     pendingPriceCents: conversation.pendingPriceCents,
     parsed,
     rawText: body,
+    hedged: isHedgedMessage(body),
   });
 
   if (output.inventory && conversation.productId && conversation.marketWeekId) {
@@ -160,6 +173,7 @@ export async function handleInbound(repo: Repo, input: InboundInput, now: Date):
         unit: output.inventory.unit,
         priceCents: output.inventory.priceCents,
         status: output.inventory.status,
+        sourceHedged: isHedgedMessage(body),
         sourceMessageId: inserted.message.id,
         updatedBy: "bot",
       },
@@ -215,6 +229,11 @@ export async function startWeeklyCheck(
   if (options.simulator) assertSampleFarmer(farmer);
   const product = await repo.getProduct(productId);
   if (!product || product.farmerId !== farmer.id) throw new HttpError(404, "product not found");
+  const gate = textingGate(farmer, now);
+  if (!gate.allowText) {
+    if (gate.recordCall) await repo.addCall({ farmerId: farmer.id, reason: gate.reason, at: now.toISOString() });
+    throw new HttpError(409, gate.reason);
+  }
   if (farmer.automationPaused) throw new HttpError(409, "automation is paused. the bot stays silent.");
   if (farmer.smsConsent !== "granted") throw new HttpError(409, "sms consent is not granted, so the bot will not start.");
   const conversation = await repo.getConversation(farmer.id);
@@ -239,7 +258,7 @@ export async function startWeeklyCheck(
     },
     at,
   );
-  const body = openingMessage(farmer.contactName, product.name);
+  const body = openingMessage(textTarget(farmer).name, product.name);
   const { message } = await say(repo, farmer.id, "simulator", body, at);
   return { message, weekStart: week.weekStart };
 }
@@ -333,7 +352,7 @@ export async function approveInventory(repo: Repo, id: number, actor: string, no
   }
   const at = now.toISOString();
   return repo.saveInventory(
-    { ...row, status: "confirmed", updatedBy: staffActor(actor) },
+    { ...row, status: "confirmed", sourceHedged: false, updatedBy: staffActor(actor) },
     { actor: staffActor(actor), action: "inventory_approved", at },
   );
 }
@@ -370,6 +389,7 @@ export async function editInventory(
       unit: patch.unit,
       priceCents: patch.priceCents,
       status: patch.status,
+      sourceHedged: false,
       sourceMessageId: row.sourceMessageId,
       updatedBy: staffActor(actor),
     },
@@ -383,6 +403,10 @@ export interface FarmerInput {
   phone: string;
   email: string;
   preferredContactTimes: string;
+  preferredContactDays: string;
+  contactMethod: ContactMethod;
+  delegateName: string;
+  delegatePhone: string;
   pickupLocation: string;
   pickupAvailability: string;
   smsConsent: Consent;
@@ -462,7 +486,13 @@ export async function addProduct(
 ): Promise<Product> {
   await mustFarmer(repo, farmerId);
   const at = now.toISOString();
-  const product = await repo.insertProduct({ ...input, farmerId }, at);
+  const product = await repo.insertProduct({
+    ...input,
+    farmerId,
+    reviewStatus: "approved",
+    photoUrl: "",
+    published: true,
+  }, at);
   await repo.addAudit({
     farmerId,
     actor: staffActor(actor),
@@ -486,7 +516,12 @@ export async function updateProduct(
   const existing = await repo.getProduct(id);
   if (!existing) throw new HttpError(404, "product not found");
   const at = now.toISOString();
-  const product = await repo.updateProduct(id, input, at);
+  const product = await repo.updateProduct(id, {
+    ...input,
+    reviewStatus: existing.reviewStatus,
+    photoUrl: existing.photoUrl,
+    published: existing.published,
+  }, at);
   await repo.addAudit({
     farmerId: existing.farmerId,
     actor: staffActor(actor),
@@ -576,6 +611,10 @@ function toNew(farmer: Farmer): NewFarmer {
     phone: farmer.phone,
     email: farmer.email,
     preferredContactTimes: farmer.preferredContactTimes,
+    preferredContactDays: farmer.preferredContactDays,
+    contactMethod: farmer.contactMethod,
+    delegateName: farmer.delegateName,
+    delegatePhone: farmer.delegatePhone,
     pickupLocation: farmer.pickupLocation,
     pickupAvailability: farmer.pickupAvailability,
     smsConsent: farmer.smsConsent,
@@ -595,6 +634,10 @@ function farmerSnapshot(farmer: Farmer) {
     phone: farmer.phone,
     email: farmer.email,
     preferredContactTimes: farmer.preferredContactTimes,
+    preferredContactDays: farmer.preferredContactDays,
+    contactMethod: farmer.contactMethod,
+    delegateName: farmer.delegateName,
+    delegatePhone: farmer.delegatePhone,
     pickupLocation: farmer.pickupLocation,
     pickupAvailability: farmer.pickupAvailability,
     smsConsent: farmer.smsConsent,
@@ -607,6 +650,222 @@ function farmerSnapshot(farmer: Farmer) {
 
 function silent(messageId: number, suppressed: NonNullable<InboundResult["suppressed"]>): InboundResult {
   return { deduped: false, replies: [], suppressed, consentRevoked: false, issueCreated: false, messageId };
+}
+
+const APPLICATION_STATUSES: ApplicationStatus[] = ["received", "in_review", "approved", "needs_info", "declined"];
+const CONTACT_METHODS: ContactMethod[] = ["text", "call", "delegate"];
+
+export function parseContactMethod(value: string): ContactMethod {
+  if (CONTACT_METHODS.includes(value as ContactMethod)) return value as ContactMethod;
+  throw new HttpError(400, "contact method must be text, call, or delegate");
+}
+
+export async function submitApplication(
+  repo: Repo,
+  input: {
+    farmName: string;
+    contactName: string;
+    email: string;
+    phone: string;
+    city: string;
+    whatYouSell: string;
+    fulfillment: string;
+    company: string;
+  },
+  now: Date,
+): Promise<{ ok: true; id?: number }> {
+  if (input.company.trim()) return { ok: true };
+  if (!input.farmName.trim() || !input.contactName.trim() || !input.email.includes("@")) {
+    throw new HttpError(400, "farm name, contact name, and email are required");
+  }
+  const at = now.toISOString();
+  const application = await repo.insertApplication({
+    farmName: input.farmName.trim(),
+    contactName: input.contactName.trim(),
+    email: input.email.trim(),
+    phone: input.phone.trim(),
+    city: input.city.trim(),
+    whatYouSell: input.whatYouSell.trim(),
+    fulfillment: input.fulfillment.trim(),
+    status: "received",
+    at,
+  });
+  await queueEmail(repo, thankYouEmail(application), "thank_you", null, application.id, at);
+  await queueEmail(repo, statusEmail({ ...application, status: "received" }), "application_received", null, application.id, at);
+  return { ok: true, id: application.id };
+}
+
+export async function setApplicationStatus(
+  repo: Repo,
+  id: number,
+  status: ApplicationStatus,
+  actor: string,
+  now: Date,
+): Promise<Application> {
+  if (!APPLICATION_STATUSES.includes(status)) throw new HttpError(400, "invalid application status");
+  const existing = await repo.getApplication(id);
+  if (!existing) throw new HttpError(404, "application not found");
+  const at = now.toISOString();
+  let farmerId = existing.farmerId;
+  if (status === "approved" && farmerId == null) {
+    const phone = existing.phone || `app-${existing.id}`;
+    const farmer = await repo.insertFarmer(
+      {
+        farmName: existing.farmName,
+        contactName: existing.contactName,
+        phone,
+        email: existing.email,
+        preferredContactTimes: "",
+        preferredContactDays: "",
+        contactMethod: "text",
+        delegateName: "",
+        delegatePhone: "",
+        pickupLocation: existing.city,
+        pickupAvailability: existing.fulfillment,
+        smsConsent: "none",
+        smsConsentAt: null,
+        smsConsentSource: null,
+        assignedStaff: "",
+        automationPaused: false,
+        isSample: false,
+        notes: existing.whatYouSell,
+      },
+      at,
+    );
+    farmerId = farmer.id;
+  }
+  const updated = await repo.updateApplication(id, { status, farmerId }, at);
+  if (existing.status !== status) {
+    await queueEmail(repo, statusEmail(updated), `application_${status}`, farmerId, updated.id, at);
+  }
+  await repo.addAudit({
+    farmerId,
+    actor: staffActor(actor),
+    action: "application_status",
+    entity: "application",
+    entityId: id,
+    before: { status: existing.status },
+    after: { status },
+    at,
+  });
+  return updated;
+}
+
+export async function issueMagicLink(repo: Repo, farmerId: number, origin: string, now: Date): Promise<{ url: string }> {
+  const farmer = await mustFarmer(repo, farmerId);
+  if (!farmer.email.includes("@")) throw new HttpError(400, "this farm needs an email before a link can be made");
+  const at = now.toISOString();
+  const token = newToken();
+  const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  await repo.createMagicLink(farmer.id, token, expires, at);
+  const url = `${origin.replace(/\/$/, "")}/#/farm?token=${token}`;
+  await queueEmail(repo, magicLinkEmail({ email: farmer.email, contactName: textTarget(farmer).name, url }), "magic_link", farmer.id, null, at);
+  return { url };
+}
+
+export async function farmerFromToken(repo: Repo, token: string, now: Date): Promise<Farmer> {
+  const link = await repo.findMagicLink(token.trim());
+  if (!link || link.expiresAt <= now.toISOString()) throw new HttpError(401, "that link has expired");
+  const farmer = await repo.getFarmer(link.farmerId);
+  if (!farmer) throw new HttpError(401, "that link has expired");
+  return farmer;
+}
+
+export async function saveFarmCatalog(
+  repo: Repo,
+  farmerId: number,
+  input: { id?: number; name: string; unit: string; defaultPriceCents: number | null; photoUrl: string },
+  now: Date,
+): Promise<Product> {
+  if (input.photoUrl.length > 150_000) throw new HttpError(400, "that photo is too large");
+  const at = now.toISOString();
+  const fields = {
+    name: input.name.trim(),
+    unit: input.unit.trim(),
+    defaultPriceCents: input.defaultPriceCents,
+    reviewStatus: "needs_verification" as const,
+    photoUrl: input.photoUrl.trim(),
+    published: false,
+  };
+  if (!fields.name || !fields.unit) throw new HttpError(400, "product name and unit are required");
+  if (input.id) {
+    const existing = await repo.getProduct(input.id);
+    if (!existing || existing.farmerId !== farmerId) throw new HttpError(404, "product not found");
+    const product = await repo.updateProduct(input.id, fields, at);
+    await repo.clearSellableForProduct(product.id);
+    return product;
+  }
+  return repo.insertProduct({ ...fields, farmerId }, at);
+}
+
+export async function approveCatalog(repo: Repo, id: number, actor: string, now: Date): Promise<Product> {
+  const existing = await repo.getProduct(id);
+  if (!existing) throw new HttpError(404, "product not found");
+  const at = now.toISOString();
+  const product = await repo.updateProduct(
+    id,
+    {
+      name: existing.name,
+      unit: existing.unit,
+      defaultPriceCents: existing.defaultPriceCents,
+      reviewStatus: "approved",
+      photoUrl: existing.photoUrl,
+      published: true,
+    },
+    at,
+  );
+  await repo.markConfirmedSellable(product.id);
+  await repo.addAudit({
+    farmerId: product.farmerId,
+    actor: staffActor(actor),
+    action: "catalog_approved",
+    entity: "product",
+    entityId: product.id,
+    before: { reviewStatus: existing.reviewStatus, published: existing.published },
+    after: { reviewStatus: "approved", published: true },
+    at,
+  });
+  return product;
+}
+
+export async function staffDesk(repo: Repo, weekStart: string): Promise<DeskItem[]> {
+  const [farmers, conversations, inventory, products, issues, applications, calls] = await Promise.all([
+    repo.listFarmers(),
+    repo.listConversations(),
+    repo.listInventoryByWeek(weekStart),
+    repo.listAllProducts(),
+    repo.listIssues("open"),
+    repo.listApplications(),
+    repo.listCalls("open"),
+  ]);
+  return buildDesk({ farmers, conversations, inventory, products, issues, applications, calls });
+}
+
+async function queueEmail(
+  repo: Repo,
+  email: { to: string; subject: string; body: string },
+  kind: string,
+  farmerId: number | null,
+  applicationId: number | null,
+  at: string,
+) {
+  const delivery = dispatchEmail(email, { enabled: false, sender: disabledEmailSender });
+  if (delivery !== "queued") throw new Error("email must stay queued");
+  return repo.enqueueEmail({
+    toEmail: email.to,
+    subject: email.subject,
+    body: email.body,
+    kind,
+    farmerId,
+    applicationId,
+    at,
+  });
+}
+
+function newToken(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function say(repo: Repo, farmerId: number, channel: Channel, body: string, at: string) {

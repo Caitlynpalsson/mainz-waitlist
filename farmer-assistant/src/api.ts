@@ -5,24 +5,32 @@ import { HttpError, json } from "./http.ts";
 import type { Repo } from "./repo.ts";
 import {
   addProduct,
+  approveCatalog,
   approveInventory,
   assertSampleFarmer,
   createFarmer,
   createStaffIssue,
   editInventory,
+  farmerFromToken,
   handleInbound,
+  issueMagicLink,
+  parseContactMethod,
   resetSamples,
   resolveStaffIssue,
+  saveFarmCatalog,
+  setApplicationStatus,
   setAutomationPaused,
   setTakeover,
+  staffDesk,
   staffReply,
   startWeeklyCheck,
+  submitApplication,
   updateFarmerProfile,
   updateProduct,
   type FarmerInput,
 } from "./service.ts";
 import { activeMarketWeekStart, formatWeekLabel, isYmd } from "./time.ts";
-import type { Consent, InventoryStatus } from "./types.ts";
+import type { ApplicationStatus, Consent, InventoryStatus } from "./types.ts";
 
 export interface Env {
   DB: D1Database;
@@ -55,6 +63,23 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     );
   }
 
+  if (method === "POST" && path === "/api/applications") {
+    try {
+      const body = await readJson(request);
+      const result = await submitApplication(repoFrom(env), applicationBody(body), new Date());
+      return json(result, 201);
+    } catch (err) {
+      return apiError(err);
+    }
+  }
+  if (path === "/api/farm/session" || path === "/api/farm/me" || path === "/api/farm/products" || path.startsWith("/api/farm/products/")) {
+    try {
+      return await farmRoute(request, method, path, repoFrom(env), new Date());
+    } catch (err) {
+      return apiError(err);
+    }
+  }
+
   if (!authorized(request, env.STAFF_TOKEN)) return json({ error: "unauthorized" }, 401);
   if (!env.DB) return json({ error: "database is not configured" }, 500);
 
@@ -80,6 +105,31 @@ async function route(
   now: Date,
 ): Promise<Response> {
   if (method === "GET" && path === "/api/session") return json({ ok: true, name: actor });
+  if (method === "GET" && path === "/api/desk") {
+    const weekStart = activeMarketWeekStart(now);
+    return json({ weekStart, items: await staffDesk(repo, weekStart) });
+  }
+  if (method === "GET" && path === "/api/outbox") return json(await repo.listEmails());
+  const emailPath = path.match(/^\/api\/outbox\/(\d+)$/);
+  if (emailPath && method === "GET") {
+    const email = await repo.getEmail(parseId(emailPath[1]));
+    if (!email) throw new HttpError(404, "email not found");
+    return json(email);
+  }
+  if (method === "GET" && path === "/api/applications") return json(await repo.listApplications());
+  const applicationStatus = path.match(/^\/api\/applications\/(\d+)\/status$/);
+  if (applicationStatus && method === "POST") {
+    const body = await readJson(request);
+    const status = String(body.status || "");
+    if (!["received", "in_review", "approved", "needs_info", "declined"].includes(status)) {
+      throw new HttpError(400, "invalid application status");
+    }
+    return json(await setApplicationStatus(repo, parseId(applicationStatus[1]), status as ApplicationStatus, actor, now));
+  }
+  if (method === "GET" && path === "/api/calls") return json(await repo.listCalls("open"));
+  const callDone = path.match(/^\/api\/calls\/(\d+)\/done$/);
+  if (callDone && method === "POST") return json(await repo.completeCall(parseId(callDone[1]), actor, now.toISOString()));
+
   if (method === "GET" && path === "/api/overview") {
     const weekStart = activeMarketWeekStart(now);
     const counts = await repo.overview(weekStart);
@@ -90,7 +140,7 @@ async function route(
     return json(await createFarmer(repo, await farmerInput(request), actor, now), 201);
   }
 
-  const farmerAction = path.match(/^\/api\/farmers\/(\d+)\/(pause|takeover|reply|products)$/);
+  const farmerAction = path.match(/^\/api\/farmers\/(\d+)\/(pause|takeover|reply|products|magic-link)$/);
   if (farmerAction) {
     const id = parseId(farmerAction[1]);
     const action = farmerAction[2];
@@ -112,6 +162,9 @@ async function route(
     if (method === "POST" && action === "products") {
       return json(await addProduct(repo, id, await productInput(request), actor, now), 201);
     }
+    if (method === "POST" && action === "magic-link") {
+      return json(await issueMagicLink(repo, id, url.origin, now), 201);
+    }
   }
 
   const farmerPath = path.match(/^\/api\/farmers\/(\d+)$/);
@@ -120,6 +173,9 @@ async function route(
     if (method === "GET") return json(await farmerPayload(repo, id, now, url.searchParams.get("week")));
     if (method === "PATCH") return json(await updateFarmerProfile(repo, id, await farmerInput(request), actor, now));
   }
+
+  const productApprove = path.match(/^\/api\/products\/(\d+)\/approve$/);
+  if (productApprove && method === "POST") return json(await approveCatalog(repo, parseId(productApprove[1]), actor, now));
 
   const productPath = path.match(/^\/api\/products\/(\d+)$/);
   if (productPath && method === "PATCH") {
@@ -216,6 +272,10 @@ async function farmerInput(request: Request): Promise<FarmerInput> {
     phone,
     email: text(body.email, 160),
     preferredContactTimes: text(body.preferredContactTimes, 160),
+    preferredContactDays: text(body.preferredContactDays, 80),
+    contactMethod: parseContactMethod(String(body.contactMethod || "text")),
+    delegateName: text(body.delegateName, 120),
+    delegatePhone: text(body.delegatePhone, 40),
     pickupLocation: text(body.pickupLocation, 160),
     pickupAvailability: text(body.pickupAvailability, 160),
     smsConsent: smsConsent as Consent,
@@ -245,10 +305,92 @@ async function inventoryInput(request: Request) {
   };
 }
 
+function repoFrom(env: Env): D1Repo {
+  if (!env.DB) throw new HttpError(500, "database is not configured");
+  return new D1Repo(env.DB);
+}
+
+async function farmRoute(request: Request, method: string, path: string, repo: D1Repo, now: Date): Promise<Response> {
+  const token = farmToken(request);
+  const farmer = await farmerFromToken(repo, token, now);
+  if (method === "GET" && (path === "/api/farm/session" || path === "/api/farm/me")) {
+    const products = await repo.listProducts(farmer.id);
+    const weekStart = activeMarketWeekStart(now);
+    const inventory = await repo.listInventoryForFarmerWeek(farmer.id, weekStart);
+    return json({ farmer, products, inventory, weekStart, weekLabel: formatWeekLabel(weekStart) });
+  }
+  if (method === "PATCH" && path === "/api/farm/me") {
+    const body = await readJson(request);
+    const updated = await updateFarmerProfile(repo, farmer.id, {
+      farmName: farmer.farmName,
+      contactName: text(body.contactName, 120) || farmer.contactName,
+      phone: text(body.phone, 40) || farmer.phone,
+      email: text(body.email, 160) || farmer.email,
+      preferredContactTimes: text(body.preferredContactTimes, 160),
+      preferredContactDays: text(body.preferredContactDays, 80),
+      contactMethod: parseContactMethod(String(body.contactMethod || farmer.contactMethod)),
+      delegateName: text(body.delegateName, 120),
+      delegatePhone: text(body.delegatePhone, 40),
+      pickupLocation: text(body.pickupLocation, 160),
+      pickupAvailability: text(body.pickupAvailability, 160),
+      smsConsent: farmer.smsConsent,
+      assignedStaff: farmer.assignedStaff,
+      notes: note(body.notes),
+    }, "farmer", now);
+    return json(updated);
+  }
+  if (method === "POST" && path === "/api/farm/products") {
+    const body = await readJson(request);
+    return json(await saveFarmCatalog(repo, farmer.id, catalogBody(body), now), 201);
+  }
+  const edit = path.match(/^\/api\/farm\/products\/(\d+)$/);
+  if (edit && method === "PATCH") {
+    const body = await readJson(request);
+    return json(await saveFarmCatalog(repo, farmer.id, { ...catalogBody(body), id: parseId(edit[1]) }, now));
+  }
+  return json({ error: "not found" }, 404);
+}
+
+function farmToken(request: Request): string {
+  const header = request.headers.get("X-Farm-Token") || "";
+  if (header.trim()) return header.trim();
+  const auth = request.headers.get("Authorization") || "";
+  if (auth.startsWith("Bearer ")) return auth.slice("Bearer ".length).trim();
+  throw new HttpError(401, "that link has expired");
+}
+
+function applicationBody(body: Record<string, unknown>) {
+  return {
+    farmName: text(body.farmName, 120),
+    contactName: text(body.contactName, 120),
+    email: text(body.email, 160),
+    phone: text(body.phone, 40),
+    city: text(body.city, 80),
+    whatYouSell: text(body.whatYouSell, 500),
+    fulfillment: text(body.fulfillment, 40),
+    company: text(body.company, 120),
+  };
+}
+
+function catalogBody(body: Record<string, unknown>) {
+  return {
+    name: text(body.name, 80),
+    unit: text(body.unit, 40),
+    defaultPriceCents: nullableInt(body.defaultPriceCents),
+    photoUrl: typeof body.photoUrl === "string" ? body.photoUrl.trim() : "",
+  };
+}
+
 function weekParam(value: string | null, now: Date): string {
   if (!value) return activeMarketWeekStart(now);
   if (!isYmd(value)) throw new HttpError(400, "week must be YYYY-MM-DD");
   return value;
+}
+
+function apiError(err: unknown): Response {
+  if (err instanceof HttpError) return json({ error: err.message }, err.status);
+  console.error(err);
+  return json({ error: "something went wrong" }, 500);
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {

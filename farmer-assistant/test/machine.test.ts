@@ -10,6 +10,7 @@ const opening = {
   pendingQuantity: null,
   pendingUnit: null,
   pendingPriceCents: null,
+  hedged: false,
 };
 
 function run(extra: Partial<MachineInput>, text: string) {

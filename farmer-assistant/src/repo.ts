@@ -1,18 +1,23 @@
 import type {
+  Application,
+  ApplicationStatus,
   AuditEntry,
   AuditWrite,
   Conversation,
+  EmailMessage,
   Farmer,
   FarmerListItem,
   InventoryRow,
   InventoryWrite,
   Issue,
   IssueKind,
+  MagicLink,
   MarketWeek,
   Message,
   NewFarmer,
   NewProduct,
   Product,
+  StaffCall,
 } from "./types.ts";
 
 export interface InventoryAudit {
@@ -87,4 +92,25 @@ export interface Repo {
 
   overview(weekStart: string): Promise<OverviewCounts>;
   deleteSampleFarmers(): Promise<void>;
+
+  listConversations(): Promise<Conversation[]>;
+  listAllProducts(): Promise<Product[]>;
+  clearSellableForProduct(productId: number): Promise<void>;
+  markConfirmedSellable(productId: number): Promise<void>;
+
+  addCall(input: { farmerId: number; reason: string; at: string }): Promise<StaffCall>;
+  listCalls(status: "open" | "done" | "all"): Promise<StaffCall[]>;
+  completeCall(id: number, actor: string, at: string): Promise<StaffCall>;
+
+  insertApplication(input: Omit<Application, "id" | "farmerId" | "createdAt" | "updatedAt"> & { at: string }): Promise<Application>;
+  listApplications(): Promise<Application[]>;
+  getApplication(id: number): Promise<Application | null>;
+  updateApplication(id: number, patch: { status: ApplicationStatus; farmerId: number | null }, at: string): Promise<Application>;
+
+  enqueueEmail(input: Omit<EmailMessage, "id" | "status" | "sentAt" | "createdAt"> & { at: string }): Promise<EmailMessage>;
+  listEmails(): Promise<EmailMessage[]>;
+  getEmail(id: number): Promise<EmailMessage | null>;
+
+  createMagicLink(farmerId: number, token: string, expiresAt: string, at: string): Promise<MagicLink>;
+  findMagicLink(token: string): Promise<MagicLink | null>;
 }

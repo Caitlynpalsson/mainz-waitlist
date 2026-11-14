@@ -37,6 +37,13 @@ interface Span {
   end: number;
 }
 
+const HEDGE = /\b(probably|maybe|about|around)\b/i;
+
+/** Hedge words may become an estimate. They must never confirm a row. */
+export function isHedgedMessage(raw: string): boolean {
+  return HEDGE.test(raw);
+}
+
 export function parseMessage(raw: string): Parsed {
   const text = raw.trim().replace(/\s+/g, " ");
   if (!text) return { type: "unknown" };

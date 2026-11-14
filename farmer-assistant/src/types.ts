@@ -12,6 +12,12 @@ export type ConvState =
 
 export type Channel = "simulator" | "sms";
 
+export type ContactMethod = "text" | "call" | "delegate";
+
+export type ReviewStatus = "approved" | "needs_verification";
+
+export type ApplicationStatus = "received" | "in_review" | "approved" | "needs_info" | "declined";
+
 export interface Farmer {
   id: number;
   farmName: string;
@@ -19,6 +25,10 @@ export interface Farmer {
   phone: string;
   email: string;
   preferredContactTimes: string;
+  preferredContactDays: string;
+  contactMethod: ContactMethod;
+  delegateName: string;
+  delegatePhone: string;
   pickupLocation: string;
   pickupAvailability: string;
   smsConsent: Consent;
@@ -44,6 +54,9 @@ export interface Product {
   name: string;
   unit: string;
   defaultPriceCents: number | null;
+  reviewStatus: ReviewStatus;
+  photoUrl: string;
+  published: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +79,8 @@ export interface InventoryRow {
   unit: string | null;
   priceCents: number | null;
   status: InventoryStatus;
+  sourceHedged: boolean;
+  sellable: boolean;
   sourceMessageId: number | null;
   updatedBy: string;
   createdAt: string;
@@ -138,6 +153,10 @@ export interface NewFarmer {
   phone: string;
   email: string;
   preferredContactTimes: string;
+  preferredContactDays: string;
+  contactMethod: ContactMethod;
+  delegateName: string;
+  delegatePhone: string;
   pickupLocation: string;
   pickupAvailability: string;
   smsConsent: Consent;
@@ -154,6 +173,9 @@ export interface NewProduct {
   name: string;
   unit: string;
   defaultPriceCents: number | null;
+  reviewStatus: ReviewStatus;
+  photoUrl: string;
+  published: boolean;
 }
 
 export interface InventoryWrite {
@@ -164,8 +186,56 @@ export interface InventoryWrite {
   unit: string | null;
   priceCents: number | null;
   status: InventoryStatus;
+  sourceHedged: boolean;
   sourceMessageId: number | null;
   updatedBy: string;
+}
+
+export interface Application {
+  id: number;
+  farmName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  city: string;
+  whatYouSell: string;
+  fulfillment: string;
+  status: ApplicationStatus;
+  farmerId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailMessage {
+  id: number;
+  toEmail: string;
+  subject: string;
+  body: string;
+  kind: string;
+  farmerId: number | null;
+  applicationId: number | null;
+  status: "queued" | "sent" | "failed";
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export interface MagicLink {
+  id: number;
+  farmerId: number;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface StaffCall {
+  id: number;
+  farmerId: number;
+  farmName: string;
+  reason: string;
+  status: "open" | "done";
+  createdAt: string;
+  completedAt: string | null;
+  completedBy: string | null;
 }
 
 export interface AuditWrite {

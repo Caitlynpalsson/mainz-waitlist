@@ -27,6 +27,7 @@ export interface MachineInput {
   pendingPriceCents: number | null;
   parsed: Parsed;
   rawText: string;
+  hedged: boolean;
 }
 
 export interface InventoryEffect {
@@ -126,6 +127,13 @@ function onConfirm(input: MachineInput, base: MachineOutput): MachineOutput {
   const product = input.productName || "that";
   if (parsed.type === "unavailable") return markUnavailable(product);
   if (parsed.type === "change") return restart(product);
+
+  if (parsed.type === "yes" && input.hedged) {
+    return {
+      ...base,
+      replies: ["i can only keep a hedge as an estimate. reply YES alone, with no probably, maybe, about, or around, to publish."],
+    };
+  }
 
   if (parsed.type === "yes") {
     const quantity = input.pendingQuantity;

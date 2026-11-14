@@ -1,21 +1,27 @@
 import { HttpError } from "./http.ts";
 import type { InventoryAudit, NewIssue, NewMessage, OverviewCounts, Repo } from "./repo.ts";
+import { assertInventoryWrite, isSellable } from "./sellable.ts";
 import type {
+  Application,
+  ApplicationStatus,
   AuditEntry,
   AuditWrite,
   Conversation,
   ConvState,
+  EmailMessage,
   Farmer,
   FarmerListItem,
   InventoryRow,
   InventoryStatus,
   InventoryWrite,
   Issue,
+  MagicLink,
   MarketWeek,
   Message,
   NewFarmer,
   NewProduct,
   Product,
+  StaffCall,
 } from "./types.ts";
 
 function clone<T>(value: T): T {
@@ -46,7 +52,11 @@ export class MemoryRepo implements Repo {
   private messages: Message[] = [];
   private issues: Issue[] = [];
   private audits: AuditEntry[] = [];
-  private seq = { farmer: 1, product: 1, week: 1, inventory: 1, message: 1, issue: 1, audit: 1 };
+  private applications: Application[] = [];
+  private emails: EmailMessage[] = [];
+  private links: MagicLink[] = [];
+  private calls: StaffCall[] = [];
+  private seq = { farmer: 1, product: 1, week: 1, inventory: 1, message: 1, issue: 1, audit: 1, application: 1, email: 1, link: 1, call: 1 };
 
   async listFarmers(): Promise<FarmerListItem[]> {
     return this.farmers
@@ -161,6 +171,13 @@ export class MemoryRepo implements Repo {
     const product = this.products.find((item) => item.id === write.productId);
     const week = this.weeks.find((item) => item.id === write.marketWeekId);
     if (!farmer || !product || !week) throw new HttpError(404, "inventory target not found");
+    assertInventoryWrite(write);
+    const sellable = isSellable({
+      status: write.status,
+      sourceHedged: write.sourceHedged,
+      published: product.published,
+      reviewStatus: product.reviewStatus,
+    });
     const index = this.inventory.findIndex(
       (item) => item.farmerId === write.farmerId && item.productId === write.productId && item.marketWeekId === write.marketWeekId,
     );
@@ -179,6 +196,8 @@ export class MemoryRepo implements Repo {
         unit: write.unit,
         priceCents: write.priceCents,
         status: write.status,
+        sourceHedged: write.sourceHedged,
+        sellable,
         sourceMessageId: write.sourceMessageId,
         updatedBy: write.updatedBy,
         createdAt: audit.at,
@@ -195,6 +214,8 @@ export class MemoryRepo implements Repo {
         unit: write.unit,
         priceCents: write.priceCents,
         status: write.status,
+        sourceHedged: write.sourceHedged,
+        sellable,
         sourceMessageId: write.sourceMessageId,
         updatedBy: write.updatedBy,
         updatedAt: audit.at,
@@ -307,7 +328,8 @@ export class MemoryRepo implements Repo {
           awaitingStates.includes(conversation.state) &&
           !farmer.automationPaused &&
           !conversation.takenOverByStaff &&
-          farmer.smsConsent === "granted"
+          farmer.smsConsent === "granted" &&
+          farmer.contactMethod !== "call"
         );
       }).length,
       confirmedThisWeek: this.inventory.filter((item) => item.weekStart === weekStart && item.status === "confirmed").length,
@@ -325,6 +347,132 @@ export class MemoryRepo implements Repo {
     this.messages = this.messages.filter((item) => !ids.has(item.farmerId));
     this.issues = this.issues.filter((item) => !ids.has(item.farmerId));
     this.audits = this.audits.filter((item) => item.farmerId == null || !ids.has(item.farmerId));
+    this.calls = this.calls.filter((item) => !ids.has(item.farmerId));
+    this.links = this.links.filter((item) => !ids.has(item.farmerId));
+    this.emails = this.emails.filter((item) => item.farmerId == null || !ids.has(item.farmerId));
+    this.applications = this.applications.map((item) => (item.farmerId != null && ids.has(item.farmerId) ? { ...item, farmerId: null } : item));
+  }
+
+  async listConversations(): Promise<Conversation[]> {
+    return this.conversations.map(clone);
+  }
+
+  async listAllProducts(): Promise<Product[]> {
+    return this.products.map(clone);
+  }
+
+  async clearSellableForProduct(productId: number): Promise<void> {
+    this.inventory = this.inventory.map((row) => (row.productId === productId ? { ...row, sellable: false } : row));
+  }
+
+  async markConfirmedSellable(productId: number): Promise<void> {
+    const product = this.products.find((item) => item.id === productId);
+    if (!product || !product.published || product.reviewStatus !== "approved") return;
+    this.inventory = this.inventory.map((row) =>
+      row.productId === productId && row.status === "confirmed" && !row.sourceHedged ? { ...row, sellable: true } : row,
+    );
+  }
+
+  async addCall(input: { farmerId: number; reason: string; at: string }): Promise<StaffCall> {
+    const farmer = this.farmers.find((item) => item.id === input.farmerId);
+    if (!farmer) throw new HttpError(404, "farmer not found");
+    const open = this.calls.find((item) => item.farmerId === input.farmerId && item.status === "open" && item.reason === input.reason);
+    if (open) return clone(open);
+    const call: StaffCall = {
+      id: this.seq.call++,
+      farmerId: input.farmerId,
+      farmName: farmer.farmName,
+      reason: input.reason,
+      status: "open",
+      createdAt: input.at,
+      completedAt: null,
+      completedBy: null,
+    };
+    this.calls.push(call);
+    return clone(call);
+  }
+
+  async listCalls(status: "open" | "done" | "all"): Promise<StaffCall[]> {
+    return this.calls.filter((item) => status === "all" || item.status === status).map(clone);
+  }
+
+  async completeCall(id: number, actor: string, at: string): Promise<StaffCall> {
+    const index = this.calls.findIndex((item) => item.id === id);
+    if (index < 0) throw new HttpError(404, "call not found");
+    this.calls[index] = { ...this.calls[index], status: "done", completedAt: at, completedBy: actor };
+    return clone(this.calls[index]);
+  }
+
+  async insertApplication(input: Omit<Application, "id" | "farmerId" | "createdAt" | "updatedAt"> & { at: string }): Promise<Application> {
+    const application: Application = {
+      id: this.seq.application++,
+      farmName: input.farmName,
+      contactName: input.contactName,
+      email: input.email,
+      phone: input.phone,
+      city: input.city,
+      whatYouSell: input.whatYouSell,
+      fulfillment: input.fulfillment,
+      status: input.status,
+      farmerId: null,
+      createdAt: input.at,
+      updatedAt: input.at,
+    };
+    this.applications.push(application);
+    return clone(application);
+  }
+
+  async listApplications(): Promise<Application[]> {
+    return [...this.applications].sort((a, b) => b.id - a.id).map(clone);
+  }
+
+  async getApplication(id: number): Promise<Application | null> {
+    const found = this.applications.find((item) => item.id === id);
+    return found ? clone(found) : null;
+  }
+
+  async updateApplication(id: number, patch: { status: ApplicationStatus; farmerId: number | null }, at: string): Promise<Application> {
+    const index = this.applications.findIndex((item) => item.id === id);
+    if (index < 0) throw new HttpError(404, "application not found");
+    this.applications[index] = { ...this.applications[index], status: patch.status, farmerId: patch.farmerId, updatedAt: at };
+    return clone(this.applications[index]);
+  }
+
+  async enqueueEmail(input: Omit<EmailMessage, "id" | "status" | "sentAt" | "createdAt"> & { at: string }): Promise<EmailMessage> {
+    const email: EmailMessage = {
+      id: this.seq.email++,
+      toEmail: input.toEmail,
+      subject: input.subject,
+      body: input.body,
+      kind: input.kind,
+      farmerId: input.farmerId,
+      applicationId: input.applicationId,
+      status: "queued",
+      createdAt: input.at,
+      sentAt: null,
+    };
+    this.emails.push(email);
+    return clone(email);
+  }
+
+  async listEmails(): Promise<EmailMessage[]> {
+    return [...this.emails].sort((a, b) => b.id - a.id).map(clone);
+  }
+
+  async getEmail(id: number): Promise<EmailMessage | null> {
+    const found = this.emails.find((item) => item.id === id);
+    return found ? clone(found) : null;
+  }
+
+  async createMagicLink(farmerId: number, token: string, expiresAt: string, at: string): Promise<MagicLink> {
+    const link: MagicLink = { id: this.seq.link++, farmerId, token, expiresAt, createdAt: at };
+    this.links.push(link);
+    return clone(link);
+  }
+
+  async findMagicLink(token: string): Promise<MagicLink | null> {
+    const found = this.links.find((item) => item.token === token);
+    return found ? clone(found) : null;
   }
 }
 

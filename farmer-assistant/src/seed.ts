@@ -90,7 +90,13 @@ export async function seedSamples(repo: Repo, at: string): Promise<void> {
   for (const sample of SAMPLE_FARMS) {
     const farmer = await repo.insertFarmer(sampleFarmer(sample, at), at);
     for (const product of sample.products) {
-      await repo.insertProduct({ ...product, farmerId: farmer.id }, at);
+      await repo.insertProduct({
+        ...product,
+        farmerId: farmer.id,
+        reviewStatus: "approved",
+        photoUrl: "",
+        published: true,
+      }, at);
     }
   }
 }
@@ -102,6 +108,10 @@ function sampleFarmer(sample: SampleFarm, at: string): NewFarmer {
     phone: sample.phone,
     email: sample.email,
     preferredContactTimes: sample.preferredContactTimes,
+    preferredContactDays: "",
+    contactMethod: "text",
+    delegateName: "",
+    delegatePhone: "",
     pickupLocation: sample.pickupLocation,
     pickupAvailability: sample.pickupAvailability,
     smsConsent: "granted",
