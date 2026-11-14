@@ -1,0 +1,3 @@
+# Local only. Wrangler reads this file and does not upload it.
+# Generate a long random string. Never commit the real .dev.vars.
+STAFF_TOKEN=replace-with-a-long-random-string
