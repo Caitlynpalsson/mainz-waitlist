@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../src/components/chrome';
-import { Cap, FoodImage, Pill, PrimaryButton, Wrap } from '../src/components/ui';
+import { FoodImage, PrimaryButton, Wrap } from '../src/components/ui';
 import { api } from '../src/lib/api';
 import { dollars } from '../src/lib/money';
 import { prepareFarmerPhoto } from '../src/lib/uploadPhoto';
@@ -172,77 +172,73 @@ export default function Dashboard() {
     }
   }
 
+  const schedule = !me ? '' : [
+    me.farm.offersPickup && me.farm.pickupSummary ? `${me.farm.pickupSummary} pickup` : '',
+    me.farm.offersDelivery && me.farm.deliverySummary ? `${me.farm.deliverySummary} delivery` : '',
+  ].filter(Boolean).join(', ');
+  const how = me
+    ? (me.farm.offersPickup && me.farm.offersDelivery ? 'pickup and delivery' : me.farm.offersPickup ? 'pickup' : me.farm.offersDelivery ? 'delivery' : 'pickup or delivery')
+    : '';
+
   return (
     <Shell top="bar" title="your stand">
-      <Wrap style={{ paddingTop: desktop ? 48 : 12 }}>
-        <View style={{ maxWidth: 720, alignSelf: 'center', width: '100%' }}>
-          <Cap>farm dashboard</Cap>
-          <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.ink, marginTop: 10, lineHeight: 21 }}>
-            a token from mainz opens this. it is a stand-in for a magic link.
-          </Text>
-          <TextInput value={draft} onChangeText={setDraft} placeholder="farm token" placeholderTextColor={colors.gray} autoCapitalize="none" style={input} />
-          <View style={{ marginTop: 12, maxWidth: 200 }}>
-            <PrimaryButton label="open" onPress={async () => {
-              const next = draft.trim();
-              await AsyncStorage.setItem(TOKEN_KEY, next);
-              setToken(next);
-            }} />
-          </View>
-          {error ? <Text style={{ fontFamily: 'Inter', color: colors.red, marginTop: 12 }}>{error}</Text> : null}
-          {message ? <Text style={{ fontFamily: 'Inter', color: colors.navy, marginTop: 12 }}>{message}</Text> : null}
-
+      <Wrap style={{ paddingTop: desktop ? 56 : 20 }}>
+        <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
           {me ? (
             <>
-              <Text style={{ fontFamily: 'Inter', fontSize: 22, fontWeight: '700', color: colors.navy, marginTop: 28 }}>{me.farm.name}</Text>
-              <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 4 }}>{me.farm.status}{me.farm.active ? ' · on' : ' · off'}</Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-                <Pill label="pickup" on={me.farm.offersPickup} onPress={() => saveFarm({ offersPickup: !me.farm.offersPickup })} />
-                <Pill label="delivery" on={me.farm.offersDelivery} onPress={() => saveFarm({ offersDelivery: !me.farm.offersDelivery })} />
-              </View>
-              <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 8, fontSize: 12 }}>
-                pickup {me.farm.pickupSummary || '—'} · delivery {me.farm.deliverySummary || '—'}
-              </Text>
-
-              <Text style={head}>your food</Text>
+              <Text style={farmName}>{me.farm.name.toLowerCase()}</Text>
+              <Text style={statusLine}>{me.farm.status}{me.farm.active ? '' : ' · hidden'}</Text>
+              <Pressable onPress={() => saveFarm({ offersPickup: !me.farm.offersPickup })}>
+                <Text style={[quiet, { marginTop: 22 }]}>{how}</Text>
+              </Pressable>
+              <Pressable onPress={() => saveFarm({ offersDelivery: !me.farm.offersDelivery })}>
+                {schedule ? <Text style={quiet}>{schedule}</Text> : null}
+              </Pressable>
+              <Text style={[kicker, { marginTop: 48 }]}>your food</Text>
               {me.products.map((product) => (
                 <ProductEditor key={product.id} product={product} onSave={savePrice} onPhoto={replacePhoto} />
               ))}
-
-              <Text style={head}>add from the catalog</Text>
+              <Text style={[kicker, { marginTop: 36 }]}>add a food</Text>
               <TextInput value={query} onChangeText={setQuery} placeholder="peaches, honey, eggs" placeholderTextColor={colors.gray} style={input} />
-              {foods.slice(0, 8).map((food) => (
-                <Pressable key={food.id} onPress={() => { setPicked(food); setVarieties([]); }} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10 }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, overflow: 'hidden' }}>
-                    <FoodImage photo={food.photo} name={food.name} width={44} height={44} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: picked?.id === food.id ? '700' : '500' }}>{food.name}</Text>
-                    <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{udafType(`${food.name} ${food.category}`) ? 'needs UDAF check · stays off until mainz verifies it' : (food.needsLicensedPhoto ? 'stock photo coming' : 'mainz photo')}</Text>
-                  </View>
+              {foods.slice(0, 6).map((food) => (
+                <Pressable key={food.id} onPress={() => { setPicked(food); setVarieties([]); }} style={{ paddingVertical: 8 }}>
+                  <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: picked?.id === food.id ? '600' : '400', textAlign: 'center' }}>{food.name}</Text>
+                  {udafType(`${food.name} ${food.category}`) ? <Text style={quiet}>needs UDAF check · stays off until mainz verifies it</Text> : null}
                 </Pressable>
               ))}
               {picked ? (
-                <View style={{ marginTop: 8 }}>
+                <View style={{ marginTop: 8, width: '100%', alignItems: 'center' }}>
                   <Text style={{ fontFamily: 'Inter', color: colors.navy }}>adding {picked.name}</Text>
-                  <TextInput value={price} onChangeText={setPrice} placeholder="price in dollars" style={input} keyboardType="decimal-pad" />
-                  <TextInput value={stock} onChangeText={setStock} placeholder="how many" style={input} keyboardType="number-pad" />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  <TextInput value={price} onChangeText={setPrice} placeholder="price in dollars" placeholderTextColor={colors.gray} style={input} keyboardType="decimal-pad" />
+                  <TextInput value={stock} onChangeText={setStock} placeholder="how many" placeholderTextColor={colors.gray} style={input} keyboardType="number-pad" />
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginTop: 16 }}>
                     {picked.varieties.map((name) => (
-                      <Pill
-                        key={name}
-                        label={name}
-                        on={varieties.includes(name)}
-                        onPress={() => setVarieties((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name])}
-                      />
+                      <Pressable key={name} onPress={() => setVarieties((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name])}>
+                        <Text style={{ fontFamily: 'Inter', fontSize: 14, color: varieties.includes(name) ? colors.navy : colors.gray, fontWeight: varieties.includes(name) ? '600' : '400' }}>{name}</Text>
+                      </Pressable>
                     ))}
                   </View>
-                  <View style={{ marginTop: 16, maxWidth: 220 }}>
+                  <View style={{ marginTop: 18, width: '100%', maxWidth: 220 }}>
                     <PrimaryButton label="add it" onPress={addFood} />
                   </View>
                 </View>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <>
+              <Text style={quiet}>a token from mainz opens this.</Text>
+              <TextInput value={draft} onChangeText={setDraft} placeholder="farm token" placeholderTextColor={colors.gray} autoCapitalize="none" autoCorrect={false} style={input} />
+              <View style={{ marginTop: 18, width: '100%', maxWidth: 220 }}>
+                <PrimaryButton label="open" onPress={async () => {
+                  const next = draft.trim();
+                  await AsyncStorage.setItem(TOKEN_KEY, next);
+                  setToken(next);
+                }} />
+              </View>
+            </>
+          )}
+          {error ? <Text style={[quiet, { color: colors.red, marginTop: 16 }]}>{error}</Text> : null}
+          {message ? <Text style={[quiet, { color: colors.navy, marginTop: 16 }]}>{message}</Text> : null}
         </View>
       </Wrap>
     </Shell>
@@ -261,34 +257,39 @@ function ProductEditor({
   const [price, setPrice] = useState((product.priceCents / 100).toFixed(2));
   const [stock, setStock] = useState(String(product.stockQty));
   return (
-    <View style={{ borderTopWidth: 1, borderTopColor: colors.hair, paddingVertical: 14 }}>
-      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-        <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' }}>
-          <FoodImage photo={product.photo} name={product.name} width={48} height={48} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: 'Inter', fontWeight: '600', color: colors.navy }}>{product.name}</Text>
-          <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 12 }}>{dollars(product.priceCents, 'auto')} / {product.unit}{product.active ? '' : ' · off'}</Text>
-          {product.needsUdaf ? (
-            <Text style={{ fontFamily: 'Inter', color: colors.red, fontSize: 12, marginTop: 2 }}>
-              {product.udafLabel || 'needs UDAF check'}{product.udafOn ? ' · on the shop' : ' · hidden until mainz verifies the document'}
-            </Text>
-          ) : null}
-        </View>
+    <View style={{ alignItems: 'center', marginTop: 36, width: '100%' }}>
+      <View style={frame}>
+        <FoodImage photo={product.photo} name={product.name} width={168} height={168} />
       </View>
-      <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-        <TextInput value={price} onChangeText={setPrice} style={[input, { flex: 1 }]} />
-        <TextInput value={stock} onChangeText={setStock} style={[input, { flex: 1 }]} />
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-        <Pill label="save price" on onPress={() => onSave(product, price, stock)} />
+      <Text style={foodName}>{product.name}</Text>
+      <Text style={quiet}>
+        {dollars(product.priceCents, 'auto')} / {product.unit} · {product.stockQty} left{product.active ? '' : ' · off'}
+      </Text>
+      {product.needsUdaf ? (
+        <Text style={[quiet, { color: colors.red }]}>
+          {product.udafLabel || 'needs UDAF check'}{product.udafOn ? ' · on the shop' : ' · hidden until mainz verifies the document'}
+        </Text>
+      ) : null}
+      <TextInput value={price} onChangeText={setPrice} placeholder="price" placeholderTextColor={colors.gray} style={input} keyboardType="decimal-pad" />
+      <TextInput value={stock} onChangeText={setStock} placeholder="how many left" placeholderTextColor={colors.gray} style={input} keyboardType="number-pad" />
+      <Pressable onPress={() => onSave(product, price, stock)} style={{ marginTop: 12 }}>
+        <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.navy, fontWeight: '600' }}>save</Text>
+      </Pressable>
+      <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
         {product.photos.map((photo) => (
-          <Pill key={photo.role} label={`${photo.role}${photo.isStock ? '' : ' · yours'}`} onPress={() => onPhoto(product, photo.role)} />
+          <Pressable key={photo.role} onPress={() => onPhoto(product, photo.role)}>
+            <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.gray }}>{photo.role}{photo.isStock ? '' : ' · yours'}</Text>
+          </Pressable>
         ))}
       </View>
     </View>
   );
 }
 
-const input = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 8, marginTop: 10 };
-const head = { fontFamily: 'Inter' as const, fontSize: 13, fontWeight: '600' as const, letterSpacing: 1.2, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 32 };
+const farmName = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600' as const, letterSpacing: -0.6, color: colors.navy, textAlign: 'center' as const };
+const statusLine = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.peri, marginTop: 10, textAlign: 'center' as const };
+const kicker = { fontFamily: 'Inter' as const, fontSize: 11, fontWeight: '600' as const, letterSpacing: 1.6, textTransform: 'uppercase' as const, color: colors.navy, textAlign: 'center' as const };
+const foodName = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '600' as const, color: colors.navy, marginTop: 14, textAlign: 'center' as const };
+const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 4 };
+const frame = { width: 168, height: 168, borderRadius: 22, overflow: 'hidden' as const, backgroundColor: colors.cream };
+const input = { fontFamily: 'Inter' as const, fontSize: 15, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 10, marginTop: 8, width: '100%' as const };
