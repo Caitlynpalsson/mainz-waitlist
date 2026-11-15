@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
   digitsZip,
+  PICKUP_COMING_SOON,
+  canContinueWhere,
   checkoutSpots,
   pickupCardLine,
   pickupChoiceLabel,
@@ -50,22 +52,30 @@ export function WhereStep({
   const [browsing, setBrowsing] = useState(false);
   const [rankedZip, setRankedZip] = useState('');
   const clean = digitsZip(zip);
-  const spots = clean.length === 5 ? checkoutSpots(options, clean) : { nearest: null, alternative: null, all: [] as PickupOption[] };
-  const selected = spots.all.find((option) => pickupChoiceLabel(option) === selectedLabel) || spots.nearest;
-  const showAlternative = !!spots.alternative && !!selected && pickupChoiceLabel(selected) === pickupChoiceLabel(spots.nearest!);
+  const hasSpots = options.length > 0;
+  const spots = hasSpots && clean.length === 5
+    ? checkoutSpots(options, clean)
+    : { nearest: null, alternative: null, others: [] as PickupOption[], visible: [] as PickupOption[] };
+  const selected = spots.visible.find((option) => pickupChoiceLabel(option) === selectedLabel) || spots.nearest;
+  const showAlternative = !!spots.alternative && !!selected && !!spots.nearest && pickupChoiceLabel(selected) === pickupChoiceLabel(spots.nearest);
   const delivering = fulfillment === 'delivery' && routeMatched;
 
   useEffect(() => {
-    if (clean.length !== 5 || !spots.all.length || !spots.nearest) return;
+    if (!hasSpots || clean.length !== 5 || !spots.visible.length || !spots.nearest) return;
     const nearest = pickupChoiceLabel(spots.nearest);
-    const known = spots.all.some((option) => pickupChoiceLabel(option) === selectedLabel);
+    const known = spots.visible.some((option) => pickupChoiceLabel(option) === selectedLabel);
     if (rankedZip === clean && known) return;
     setRankedZip(clean);
     setBrowsing(false);
     if (selectedLabel !== nearest) onSelect(nearest);
-  }, [clean, spots.all.map((option) => pickupChoiceLabel(option)).join('|')]);
+  }, [clean, hasSpots, spots.visible.map((option) => pickupChoiceLabel(option)).join('|')]);
 
-  const ready = delivering ? street.trim().length >= 4 : (options.length === 0 ? clean.length === 5 : !!selected);
+  const ready = canContinueWhere({
+    hasPickupOptions: hasSpots,
+    delivering,
+    streetReady: street.trim().length >= 4,
+    spotChosen: !!selected,
+  });
 
   return (
     <View>
@@ -91,6 +101,7 @@ export function WhereStep({
         style={zipField}
       />
       {clean.length === 5 && routeNote && !routeMatched ? <Text style={note}>{routeNote}</Text> : null}
+      {!hasSpots && !delivering ? <Text style={note}>{PICKUP_COMING_SOON}</Text> : null}
       {delivering ? (
         <TextInput
           value={street}
@@ -102,7 +113,7 @@ export function WhereStep({
           style={fieldBox}
         />
       ) : null}
-      {!delivering && selected && !browsing ? (
+      {!delivering && hasSpots && selected && !browsing ? (
         <View style={card}>
           <Text style={cardText}>{pickupCardLine(selected)}</Text>
         </View>
@@ -110,14 +121,14 @@ export function WhereStep({
       {!delivering && showAlternative && !browsing ? (
         <Text style={quietAlt}>{pickupCardLine(spots.alternative!)}</Text>
       ) : null}
-      {!delivering && !browsing && spots.all.length > 1 ? (
+      {!delivering && hasSpots && !browsing && spots.others.length > 0 ? (
         <Pressable onPress={() => setBrowsing(true)} accessibilityRole="button" style={linkHit}>
           <Text style={link}>see other spots</Text>
         </Pressable>
       ) : null}
-      {!delivering && browsing ? (
+      {!delivering && hasSpots && browsing ? (
         <View style={{ marginTop: 16 }}>
-          {spots.all.map((option) => {
+          {spots.others.map((option) => {
             const label = pickupChoiceLabel(option);
             return (
               <Pressable

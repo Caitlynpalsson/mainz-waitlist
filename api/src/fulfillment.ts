@@ -122,10 +122,29 @@ export function nearestPickupChoices(options: PickupOption[], shopperZip: string
   return orderPickupOptions(options, shopperZip).slice(0, Math.max(0, limit));
 }
 
-/** Card is the nearest stop. `all` is every stop, nearest first, so a farther one can still be chosen. */
-export function checkoutSpots(options: PickupOption[], shopperZip: string): { nearest: PickupOption | null; alternative: PickupOption | null; all: PickupOption[] } {
-  const all = orderPickupOptions(options, shopperZip);
-  return { nearest: all[0] || null, alternative: all[1] || null, all };
+export const PICKUP_COMING_SOON = 'pickup details coming soon';
+
+/** Nearest stop is the card. `others` is only the next two, so at most three stops are visible. */
+export function checkoutSpots(options: PickupOption[], shopperZip: string): {
+  nearest: PickupOption | null;
+  alternative: PickupOption | null;
+  others: PickupOption[];
+  visible: PickupOption[];
+} {
+  const visible = orderPickupOptions(options, shopperZip).slice(0, 3);
+  return {
+    nearest: visible[0] || null,
+    alternative: visible[1] || null,
+    others: visible.slice(1),
+    visible,
+  };
+}
+
+/** Pickup with no stops cannot continue. Delivery can, once a route covers the zip and a street is entered. */
+export function canContinueWhere(input: { hasPickupOptions: boolean; delivering: boolean; streetReady: boolean; spotChosen: boolean }): boolean {
+  if (input.delivering) return input.streetReady;
+  if (!input.hasPickupOptions) return false;
+  return input.spotChosen;
 }
 
 export function defaultFulfillment(hasPickupOptions: boolean, offersDelivery: boolean): 'pickup' | 'delivery' {

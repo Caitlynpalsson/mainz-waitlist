@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import {
   checkoutChoices,
   defaultFulfillment,
+  PICKUP_COMING_SOON,
+  canContinueWhere,
   checkoutSpots,
   nearestPickupChoices,
   orderPickupOptions,
@@ -98,13 +100,23 @@ test('the farm page names pickup towns once, and does not list the stops', () =>
   assert.notEqual(near[1].name, 'the farm');
 });
 
-test('see other spots lists every stop, with the nearest one first', () => {
+test('see other spots shows only the next two nearest', () => {
   const spots = checkoutSpots(farms.options, '84119');
   assert.equal(spots.nearest?.name, 'Vanguard');
   assert.equal(spots.alternative?.name, 'Vanguard');
-  assert.equal(spots.all.length, farms.options.length);
-  assert.equal(spots.all[spots.all.length - 1].name, 'the farm');
-  assert.ok(spots.all.some((option) => option.address.includes('Huntington')));
+  assert.equal(spots.others.length, 2);
+  assert.equal(spots.visible.length, 3);
+  assert.equal(spots.others[0], spots.alternative);
+  assert.equal(spots.visible.some((option) => option.name === 'the farm'), false);
+  assert.equal(checkoutSpots([], '84119').visible.length, 0);
+});
+
+test('a farm with no pickup spots waits unless a route can deliver', () => {
+  assert.equal(PICKUP_COMING_SOON, 'pickup details coming soon');
+  assert.equal(canContinueWhere({ hasPickupOptions: false, delivering: false, streetReady: true, spotChosen: false }), false);
+  assert.equal(canContinueWhere({ hasPickupOptions: false, delivering: true, streetReady: false, spotChosen: false }), false);
+  assert.equal(canContinueWhere({ hasPickupOptions: false, delivering: true, streetReady: true, spotChosen: false }), true);
+  assert.equal(canContinueWhere({ hasPickupOptions: true, delivering: false, streetReady: false, spotChosen: true }), true);
 });
 
 test('a farm with its own pickup spots starts on pickup, and the delivery fee waits', () => {
