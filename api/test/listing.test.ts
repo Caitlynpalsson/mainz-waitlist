@@ -13,7 +13,9 @@ import {
   denyListing,
   listingCanBePublished,
   listingInvite,
+  LISTING_NEXT_BATCH,
   listingShowsForm,
+  parseAvailability,
   listingStatusLabel,
   newListingToken,
   previewFarmCsv,
@@ -177,4 +179,11 @@ test('the invite uses the first farmer name and the private link', () => {
   assert.equal(text, "hi ada, it's caty from mainz. we love what you grow and made your farm its own page. take a peek and tap approve if it feels right. if anything's off, just tell us and we'll fix it: https://mainz.example/listing/lk_abc");
   const farmOnly = listingInvite({ farmerNames: '', farmName: 'Sample Orchard Stand', link: '/listing/lk_abc' });
   assert.ok(farmOnly.startsWith('hi Sample'));
+});
+
+test('a draft product can be marked next batch coming', () => {
+  assert.equal(parseAvailability(''), '');
+  assert.equal(parseAvailability('next_batch'), LISTING_NEXT_BATCH);
+  assert.equal(parseAvailability('Next batch coming'), LISTING_NEXT_BATCH);
+  assert.throws(() => parseAvailability('sold out'), /availability/);
 });

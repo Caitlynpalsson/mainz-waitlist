@@ -8,7 +8,7 @@ import { api } from '../../src/lib/api';
 import { colors, useLayout } from '../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../api/src/listing';
 
-type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string };
+type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
 type Listing = {
   farmName: string;
@@ -248,7 +248,7 @@ export default function ListingApproval() {
                         photo: product.photoKey,
                         priceCents: shown.priceCents,
                         unit: product.unit,
-                        note: shown.updated ? 'updated, thanks' : undefined,
+                        note: shown.updated ? 'updated, thanks' : (product.availability || undefined),
                       }}
                       onPricePress={() => {
                         setEditing(product.id || 0);

@@ -9,6 +9,7 @@ import {
   listingShowsForm,
   listingStatusLabel,
   newListingToken,
+  parseAvailability,
   parsePriceStatus,
   parseUdafFlag,
   previewFarmCsv,
@@ -49,6 +50,7 @@ type ProductRow = {
   source_url: string;
   price_status: string;
   needs_udaf_check: number;
+  availability: string;
   sort_order: number;
 };
 
@@ -148,8 +150,8 @@ export async function adminSaveListing(env: Env, id: number | null, body: Record
   let sort = 0;
   for (const product of products) {
     await env.DB.prepare(
-      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order) VALUES (?, ?, ?, ?, ?, '', ?, 0, ?)`,
-    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, product.priceStatus || 'public', sort).run();
+      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order) VALUES (?, ?, ?, ?, ?, '', ?, 0, ?, ?)`,
+    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, product.priceStatus || 'public', product.availability || '', sort).run();
     sort += 1;
   }
   const saved = await byId(env, listingId);
@@ -194,7 +196,7 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
 
 async function present(env: Env, row: DraftRow) {
   const products = await env.DB.prepare(
-    `SELECT id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
+    `SELECT id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
   ).bind(row.id).all<ProductRow>();
   return {
     id: row.id,
@@ -226,6 +228,7 @@ async function present(env: Env, row: DraftRow) {
       sourceUrl: product.source_url || '',
       priceStatus: product.price_status || 'public',
       needsUdafCheck: !!product.needs_udaf_check,
+      availability: product.availability || '',
     })),
     priceFixes: (await priceFixes(env, row.id)).map((fix) => ({
       id: fix.id,
@@ -308,9 +311,9 @@ export async function importListingCsv(env: Env, body: Record<string, unknown>):
     let sort = 0;
     for (const product of products) {
       await env.DB.prepare(
-        `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(id, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, product.priceStatus, product.needsUdafCheck ? 1 : 0, sort).run();
+        `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(id, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, product.priceStatus, product.needsUdafCheck ? 1 : 0, product.availability || '', sort).run();
       sort += 1;
     }
     const saved = await byId(env, id);
@@ -361,7 +364,7 @@ async function replaceProducts(env: Env, listingId: number, products: ListingPro
   let sort = 0;
   for (const product of products) {
     await env.DB.prepare(
-      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       listingId,
       product.name,
@@ -371,6 +374,7 @@ async function replaceProducts(env: Env, listingId: number, products: ListingPro
       product.sourceUrl,
       product.priceStatus || 'public',
       product.needsUdafCheck ? 1 : 0,
+      product.availability || '',
       sort,
     ).run();
     sort += 1;
@@ -387,11 +391,18 @@ function readProducts(value: unknown): ListingProductInput[] {
       const needsUdafCheck = parseUdafFlag(raw.needsUdafCheck === true ? 'yes' : String(raw.needsUdafCheck ?? 'no'));
       if (!priceStatus) throw new Error('unknown price status');
       if (needsUdafCheck == null) throw new Error('unknown udaf check');
+      let availability = '';
+      try {
+        availability = parseAvailability(raw.availability);
+      } catch {
+        throw new Error('unknown availability');
+      }
       return {
         ...base,
         sourceUrl: String(raw.sourceUrl ?? '').trim().slice(0, 300),
         priceStatus,
         needsUdafCheck,
+        availability,
       };
     });
   } catch (error) {

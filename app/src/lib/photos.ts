@@ -5,6 +5,7 @@ import { Image } from 'react-native';
 
 const profiles = {
   'profile-87-farms': require('../../assets/photos/profile-87-farms.jpg'),
+  'profile-gilgen-farm': require('../../assets/photos/profile-gilgen-farm.jpg'),
 } as const;
 
 const originals = {
@@ -128,6 +129,11 @@ const farm87 = {
   '87-ice-cream': require('../../assets/photos/87-ice-cream.jpg'),
 } as const;
 
+const farmGilgen = {
+  'gilgen-raw-honey': require('../../assets/photos/gilgen-raw-honey.jpg'),
+  'gilgen-whole-chicken': require('../../assets/photos/gilgen-whole-chicken.jpg'),
+} as const;
+
 const stock = {
   ...profiles,
   ...originals,
@@ -135,6 +141,7 @@ const stock = {
   ...batch2,
   ...batch3,
   ...farm87,
+  ...farmGilgen,
 } as const;
 
 export type StockKey = keyof typeof stock;

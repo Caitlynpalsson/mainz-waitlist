@@ -34,6 +34,9 @@ export const LISTING_PHOTO_KEYS = [
   '87-milk',
   '87-cream',
   '87-ice-cream',
+  // Gilgen Farm store photos. Only used on that farm's draft; not in the shared catalog.
+  'gilgen-raw-honey',
+  'gilgen-whole-chicken',
 ] as const;
 
 export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
@@ -52,7 +55,17 @@ export type ListingProductInput = {
   sourceUrl?: string;
   priceStatus?: PriceStatus;
   needsUdafCheck?: boolean;
+  availability?: string;
 };
+
+export const LISTING_NEXT_BATCH = 'next batch coming';
+
+export function parseAvailability(raw: unknown): string {
+  const value = String(raw ?? '').trim().toLowerCase();
+  if (!value) return '';
+  if (value === LISTING_NEXT_BATCH || value === 'next_batch' || value === 'next-batch') return LISTING_NEXT_BATCH;
+  throw new Error('unknown availability');
+}
 
 export type PriceStatus = 'public' | 'converted' | 'suggested';
 
