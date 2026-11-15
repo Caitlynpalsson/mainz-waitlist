@@ -73,6 +73,19 @@ export function resendDeniedListing(input: { status: string; nextToken: string }
   return { status: 'sent', token: input.nextToken };
 }
 
+/** Latest farm price on their own draft. The stored listing price stays until staff accept it. */
+export function draftDisplayPrice(
+  product: { id?: number | null; name: string; priceCents: number },
+  fixes: { productId: number | null; productName: string; priceCents: number }[],
+): { priceCents: number; updated: boolean } {
+  const name = product.name.trim().toLowerCase();
+  const match = [...fixes].reverse().find((fix) => (
+    (product.id && fix.productId === product.id) || fix.productName.trim().toLowerCase() === name
+  ));
+  if (!match) return { priceCents: product.priceCents, updated: false };
+  return { priceCents: match.priceCents, updated: true };
+}
+
 export function cleanPriceFix(raw: { productId?: unknown; productName?: unknown; price?: unknown }): { productId: number | null; productName: string; priceCents: number } {
   const productName = String(raw.productName ?? '').trim().slice(0, 80);
   if (!productName) throw new Error('that product needs a name.');

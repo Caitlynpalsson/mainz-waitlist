@@ -5,6 +5,7 @@ import {
   approveListing,
   cleanListingProduct,
   cleanPriceFix,
+  draftDisplayPrice,
   listingAppearsInBrowse,
   LISTING_REMOVED_LINE,
   denyListing,
@@ -135,6 +136,12 @@ test('a price fix stores the product and the cents and does not publish the draf
   assert.throws(() => cleanPriceFix({ productName: 'eggs', price: 'nope' }), /price/);
   assert.equal(listingCanBePublished('farm_approved'), false);
   assert.equal(listingAppearsInBrowse('farm_approved', false), false);
+  const shown = draftDisplayPrice(
+    { id: 4, name: 'peaches', priceCents: 300 },
+    [{ productId: 4, productName: 'peaches', priceCents: 450 }, { productId: 4, productName: 'peaches', priceCents: 500 }],
+  );
+  assert.deepEqual(shown, { priceCents: 500, updated: true });
+  assert.deepEqual(draftDisplayPrice({ name: 'eggs', priceCents: 700 }, []), { priceCents: 700, updated: false });
 });
 
 test('the invite uses the first farmer name and the private link', () => {

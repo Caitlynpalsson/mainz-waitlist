@@ -18,7 +18,7 @@ export function Shell({
   top = 'none',
   title,
   right,
-  floating,
+  sticky,
   children,
 }: {
   nav?: NavKey;
@@ -27,7 +27,7 @@ export function Shell({
   top?: 'none' | 'browse' | 'overlay' | 'bar';
   title?: string;
   right?: ReactNode;
-  floating?: ReactNode;
+  sticky?: ReactNode;
   children: ReactNode;
 }) {
   const { desktop } = useLayout();
@@ -41,6 +41,24 @@ export function Shell({
       {desktop ? <DesktopNav current={nav} /> : null}
       {!desktop && top === 'browse' ? <MobileBrowseHeader /> : null}
       {!desktop && top === 'bar' ? <BarHeader title={title || ''} /> : null}
+      {sticky ? (
+        <View style={{
+          paddingTop: desktop ? 8 : insets.top + 8,
+          paddingBottom: 10,
+          paddingRight: desktop ? 28 : 16,
+          paddingLeft: 16,
+          backgroundColor: colors.white,
+          alignItems: 'flex-end',
+          zIndex: 5,
+          shadowColor: '#14213D',
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 3,
+        }}>
+          {sticky}
+        </View>
+      ) : null}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: !desktop && showTabs ? 96 + insets.bottom : 24 }}
@@ -54,11 +72,6 @@ export function Shell({
         <View pointerEvents="box-none" style={{ position: 'absolute', top: Math.max(insets.top, 10), left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CircleBack />
           <View style={{ flexDirection: 'row', gap: 8 }}>{right}</View>
-        </View>
-      ) : null}
-      {floating ? (
-        <View pointerEvents="box-none" style={{ position: 'absolute', top: desktop ? 90 : Math.max(insets.top, 12), right: desktop ? 28 : 16, zIndex: 5 }}>
-          {floating}
         </View>
       ) : null}
     </View>

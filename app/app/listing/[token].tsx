@@ -3,10 +3,10 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../src/components/chrome';
-import { Cap, Grid, Pill, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
+import { Cap, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { colors, useLayout } from '../../src/theme';
-import { LISTING_REMOVED_LINE } from '../../../api/src/listing';
+import { LISTING_REMOVED_LINE, draftDisplayPrice } from '../../../api/src/listing';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -22,6 +22,7 @@ type Listing = {
   needsForm: boolean;
   removed?: boolean;
   products: Product[];
+  priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
 
 const thanks = "thank you. we're so happy to have you. when your first order comes in, we'll send it straight to you and set up how you'd like to get paid. no rush, no pressure.";
@@ -163,7 +164,16 @@ export default function ListingApproval() {
   return (
     <Shell
       top="none"
-      floating={preview ? <Pill label="confirm" on onPress={() => { setSheet(true); setFormError(''); }} /> : null}
+      sticky={preview ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="confirm"
+          onPress={() => { setSheet(true); setFormError(''); }}
+          style={confirmPill}
+        >
+          <Text style={confirmText}>confirm</Text>
+        </Pressable>
+      ) : null}
     >
       <Wrap style={{ paddingTop: desktop ? 48 : 28 }}>
         {error ? <Text style={quiet}>{error}</Text> : null}
@@ -173,7 +183,6 @@ export default function ListingApproval() {
           <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
             <Text style={headline}>thank you.</Text>
             <Text style={{ ...storyStyle, marginTop: 16 }}>{thanks}</Text>
-            <NoteBox note={note} setNote={setNote} busy={busy} error={formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
           </View>
         ) : null}
         {data && !denied && !approved && filling ? (
@@ -226,7 +235,9 @@ export default function ListingApproval() {
             </View>
             <View style={{ marginTop: desktop ? 48 : 32 }}>
               <Grid cols={shopCols} gap={gap}>
-                {data.products.map((product) => (
+                {data.products.map((product) => {
+                  const shown = draftDisplayPrice(product, data.priceFixes || []);
+                  return (
                   <View key={product.id || product.name}>
                     <ShopCard
                       width={cell}
@@ -234,12 +245,13 @@ export default function ListingApproval() {
                         id: product.id || 0,
                         name: product.name,
                         photo: product.photoKey,
-                        priceCents: product.priceCents,
+                        priceCents: shown.priceCents,
                         unit: product.unit,
+                        note: shown.updated ? 'updated, thanks' : undefined,
                       }}
                       onPricePress={() => {
                         setEditing(product.id || 0);
-                        setEditPrice(product.priceCents ? (product.priceCents / 100).toFixed(2) : '');
+                        setEditPrice(shown.priceCents ? (shown.priceCents / 100).toFixed(2) : '');
                         setFormError('');
                       }}
                     />
@@ -261,7 +273,8 @@ export default function ListingApproval() {
                       </View>
                     ) : null}
                   </View>
-                ))}
+                  );
+                })}
               </Grid>
             </View>
           </>
@@ -366,26 +379,6 @@ function ConfirmSheet({
   );
 }
 
-function NoteBox({ note, setNote, busy, error, onSend }: { note: string; setNote: (value: string) => void; busy: boolean; error: string; onSend: () => void }) {
-  return (
-    <View style={{ width: '100%', alignItems: 'center', marginTop: 28 }}>
-      <TextInput
-        value={note}
-        onChangeText={setNote}
-        placeholder="ask for changes"
-        placeholderTextColor={colors.gray}
-        style={field}
-      />
-      {note.trim() ? (
-        <Pressable onPress={onSend} disabled={busy} style={{ marginTop: 10, padding: 8 }}>
-          <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.gray }}>send note</Text>
-        </Pressable>
-      ) : null}
-      {error ? <Text style={{ ...quiet, color: colors.red, marginTop: 8 }}>{error}</Text> : null}
-    </View>
-  );
-}
-
 function Field({ label, value, onChange, onBlur }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void }) {
   return (
     <TextInput
@@ -410,5 +403,21 @@ const productName = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '6
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const };
 const hint = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 16 };
 const sheetLink = { fontFamily: 'Inter' as const, fontSize: 14, fontWeight: '600' as const, color: colors.navy };
+const confirmPill = {
+  height: 32,
+  paddingHorizontal: 14,
+  borderRadius: 999,
+  backgroundColor: colors.white,
+  borderWidth: 1,
+  borderColor: colors.hair,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  shadowColor: '#14213D',
+  shadowOpacity: 0.12,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 4,
+};
+const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 12, marginTop: 16, width: '100%' as const };
 const priceField = { fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 6 };
