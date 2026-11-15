@@ -185,6 +185,7 @@ function readOption(raw: unknown): PickupOption {
 }
 
 function finiteCoord(value: unknown): number | null {
+  if (value == null || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -204,6 +205,8 @@ function haversineMiles(a: LatLng, b: LatLng): number {
 }
 
 function optionPoint(option: PickupOption): LatLng | null {
-  if (option.lat != null && option.lng != null) return { lat: option.lat, lng: option.lng };
-  return zipPoint(option.zip);
+  if (option.lat != null && option.lng != null && (option.lat !== 0 || option.lng !== 0)) {
+    return { lat: option.lat, lng: option.lng };
+  }
+  return zipPoint(option.zip || digitsZip(option.address));
 }

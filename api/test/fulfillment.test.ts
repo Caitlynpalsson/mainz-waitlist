@@ -65,6 +65,21 @@ test('nearest pickup spot is the closest zip, then the rest stay in order', () =
   assert.equal(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(farms.options.map(pickupCardLine).join('\n')), false);
 });
 
+test('missing pickup coordinates fall back to the zip, not 0,0', () => {
+  const withNulls = parseFulfillment({
+    offersDelivery: false,
+    options: [
+      { name: 'the farm', address: '987 Utah 31, Huntington, UT 84528', zip: '84528', lat: null, lng: null, schedule: 'any day by appointment', windows: [], cutoff: '', feeCents: 0 },
+      { name: "Marie's", address: '3568 New Private Drive, Riverton, UT', zip: '84065', lat: null, lng: null, schedule: 'wednesday', windows: [], cutoff: 'order by mon 5pm', feeCents: 0 },
+    ],
+  });
+  assert.equal(withNulls.options[0].lat, null);
+  assert.equal(withNulls.options[0].lng, null);
+  const provo = orderPickupOptions(withNulls.options, '84601');
+  assert.equal(provo[0].name, "Marie's");
+  assert.equal(provo[1].name, 'the farm');
+});
+
 test('a farm with its own pickup spots starts on pickup, and the delivery fee waits', () => {
   assert.equal(defaultFulfillment(true, true), 'pickup');
   assert.equal(defaultFulfillment(false, true), 'delivery');
