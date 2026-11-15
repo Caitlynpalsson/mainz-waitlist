@@ -35,6 +35,26 @@ export type RouteOffer = {
 
 type Ymd = { year: number; month: number; day: number };
 
+/** The delivery weekday when one of the farm's stops sits on a route. Empty when none do. */
+export function routeWeekdayForStops(
+  stops: { zip?: string; town?: string }[],
+  routes: { area: string[]; deliveryDay: number; active?: boolean }[],
+): string {
+  const keys = new Set<string>();
+  for (const stop of stops) {
+    const zip = (stop.zip || '').trim();
+    if (/^\d{5}$/.test(zip)) keys.add(zip);
+    const town = (stop.town || '').trim().toLowerCase();
+    if (town) keys.add(town);
+  }
+  for (const route of routes) {
+    if (route.active === false) continue;
+    const hit = route.area.some((entry) => keys.has(entry.trim().toLowerCase()));
+    if (hit && WEEKDAYS[route.deliveryDay]) return WEEKDAYS[route.deliveryDay];
+  }
+  return '';
+}
+
 export function weekdayIndex(name: string): number {
   const key = name.trim().toLowerCase().slice(0, 3);
   const index = WEEKDAYS.indexOf(key as (typeof WEEKDAYS)[number]);

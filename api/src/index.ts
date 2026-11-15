@@ -6,8 +6,8 @@ import { groupLines, isShopVisible, priceGroups, type Fulfillment, type Incoming
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
 import { deliveryFeeOnPlace, parseAddress } from './delivery';
-import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupTownLine } from './fulfillment';
-import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary } from './deliveryStore';
+import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
+import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary, weekdayForFarmStops } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
 export interface Env {
@@ -299,8 +299,13 @@ async function farmDetail(env: Env, slug: string, url: URL): Promise<Response> {
      WHERE p.farm_id = ? AND p.active = 1 AND (p.needs_udaf = 0 OR p.udaf_on = 1)
      ORDER BY p.shop_order, p.id`,
   ).bind(farm.id).all<ProductJoin>();
+  const view = farmDetailCard(farm, products.results.length, origin);
+  const stops = parseFulfillment(farm.fulfillment_json || '').options.map((option) => ({
+    zip: option.zip,
+    town: shortTown(option.address),
+  }));
   return json({
-    farm: farmDetailCard(farm, products.results.length, origin),
+    farm: { ...view, deliveryDay: await weekdayForFarmStops(env, stops) },
     products: products.results.map(productCard),
   });
 }
@@ -1014,6 +1019,7 @@ function farmCard(row: FarmRow, origin: LatLng | null) {
     heroPhoto: row.hero_photo,
     profilePhoto: row.profile_photo || '',
     pickupLine: pickupTownLine(parseFulfillment(row.fulfillment_json || '').options, row.pickup_line || ''),
+    pickupDays: pickupDayLabel(parseFulfillment(row.fulfillment_json || '').options),
     cardFoods: row.card_foods,
     isDemo: !!row.is_demo,
     statValue: row.stat_value,

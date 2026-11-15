@@ -158,6 +158,7 @@ export default function Bag() {
             routeMatched={routeMatched}
             routeNote={!routeMatched ? (quote?.route?.line || '') : ''}
             options={ownOptions}
+            deliverySlots={routeSlots}
             selectedLabel={ownFarm.choice.windowLabel}
             onSelect={(label) => {
               store.setFulfillment(ownFarm.farmId, 'pickup');

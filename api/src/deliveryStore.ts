@@ -8,6 +8,7 @@ import {
   nextDelivery,
   offerForAddress,
   parseAddress,
+  routeWeekdayForStops,
   partnerSheet,
   restoreDeliveryFee,
   runCountLabel,
@@ -186,6 +187,12 @@ export async function lookupRoute(env: Env, line1: string, cityZip: string, deli
   if (!delivering) return null;
   const routes = (await loadRoutes(env)).filter((route) => route.active);
   return offerForAddress(parseAddress(line1, cityZip), routes, now);
+}
+
+export async function weekdayForFarmStops(env: Env, stops: { zip?: string; town?: string }[]): Promise<string> {
+  if (!stops.length) return '';
+  const routes = (await loadRoutes(env)).filter((route) => route.active);
+  return routeWeekdayForStops(stops, routes);
 }
 
 export async function ensureRun(env: Env, routeId: number, runDate: string): Promise<void> {

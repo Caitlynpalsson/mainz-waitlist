@@ -11,6 +11,7 @@ import {
   nextDelivery,
   offerForAddress,
   parseAddress,
+  routeWeekdayForStops,
   partnerSheet,
   routeDeliverySlots,
   restoreDeliveryFee,
@@ -138,4 +139,11 @@ test('a new route defaults to 3 and 5, and the partner list is plain text', () =
   assert.match(text, /2 peaches/);
   assert.match(text, /note: gate code 12/);
   assert.doesNotMatch(text, /pickup:/);
+});
+
+test('a delivery pill appears only when a stop sits on a route', () => {
+  assert.equal(routeWeekdayForStops([{ zip: '84601', town: 'provo' }], [provo, fork]), 'tue');
+  assert.equal(routeWeekdayForStops([{ zip: '84660', town: 'spanish fork' }], [provo, fork]), 'thu');
+  assert.equal(routeWeekdayForStops([{ zip: '84119', town: 'west valley' }], [provo, fork]), '');
+  assert.equal(routeWeekdayForStops([], [provo]), '');
 });

@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../../src/components/chrome';
-import { Cap, FarmAvatar, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
+import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../../api/src/listing';
@@ -22,7 +22,8 @@ type Listing = {
   needsForm: boolean;
   removed?: boolean;
   profilePhoto?: string;
-  pickupLine?: string;
+  pickupDays?: string;
+  deliveryDay?: string;
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
@@ -232,8 +233,12 @@ export default function ListingApproval() {
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
-              {data.pickupLine ? <Text style={[quiet, { marginTop: 8 }]}>{data.pickupLine}</Text> : null}
               {data.story ? <Text style={bio}>{data.story}</Text> : null}
+              {data.pickupDays || data.deliveryDay ? (
+                <View style={{ marginTop: 20 }}>
+                  <FulfillmentPills pickup={data.pickupDays} delivery={data.deliveryDay} />
+                </View>
+              ) : null}
               {data.isSample ? <Text style={quiet}>sample. this farm is made up.</Text> : null}
             </View>
             <View style={{ marginTop: desktop ? 48 : 32 }}>

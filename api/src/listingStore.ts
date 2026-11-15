@@ -1,5 +1,5 @@
-import { lookupRoute } from './deliveryStore';
-import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupTownLine } from './fulfillment';
+import { lookupRoute, weekdayForFarmStops } from './deliveryStore';
+import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
@@ -304,6 +304,12 @@ async function present(env: Env, row: DraftRow) {
   const products = await env.DB.prepare(
     `SELECT id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
   ).bind(row.id).all<ProductRow>();
+  const pickupOptions = parseFulfillment(row.fulfillment_json || '').options;
+  const pickupDays = pickupDayLabel(pickupOptions);
+  const deliveryDay = await weekdayForFarmStops(env, pickupOptions.map((option) => ({
+    zip: option.zip,
+    town: shortTown(option.address),
+  })));
   return {
     id: row.id,
     token: row.token,
@@ -320,7 +326,9 @@ async function present(env: Env, row: DraftRow) {
     denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',
     profilePhoto: row.profile_photo || '',
-    pickupLine: pickupTownLine(parseFulfillment(row.fulfillment_json || '').options, row.pickup_line || ''),
+    pickupLine: pickupTownLine(pickupOptions, row.pickup_line || ''),
+    pickupDays,
+    deliveryDay,
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),

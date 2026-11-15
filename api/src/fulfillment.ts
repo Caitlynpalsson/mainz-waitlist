@@ -56,6 +56,8 @@ const DAY = {
   saturday: 'sat',
 } as Record<string, string>;
 
+const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
 export function digitsZip(raw: string): string {
   const found = raw.match(/\b(\d{5})\b/);
   if (found) return found[1];
@@ -65,6 +67,41 @@ export function digitsZip(raw: string): string {
 export function pickupChoiceLabel(option: PickupOption): string {
   const when = option.windows.length ? option.windows.join(', ') : option.schedule;
   return [option.name, when].filter(Boolean).join(' · ').toLowerCase();
+}
+
+/** Days for the farm-page pill, like "wed, sun". "by appointment" when no weekday is published. */
+export function pickupDayLabel(options: PickupOption[]): string {
+  if (!options.length) return '';
+  const found = new Set<string>();
+  let appointment = false;
+  for (const option of options) {
+    const schedule = option.schedule.toLowerCase();
+    const day = DAY[schedule];
+    if (day) found.add(day);
+    else if (schedule.includes('appointment')) appointment = true;
+  }
+  const days = DAY_ORDER.filter((day) => found.has(day));
+  if (days.length) return days.join(', ');
+  return appointment ? 'by appointment' : '';
+}
+
+export function shortTown(address: string): string {
+  return townFromAddress(address).toLowerCase().replace(/ city$/, '');
+}
+
+/** Checkout pill, like "wed 3:30-5:30pm · riverton". */
+export function pickupSpotPill(option: PickupOption): string {
+  const schedule = option.schedule.toLowerCase();
+  const day = DAY[schedule] || '';
+  const time = (option.windows[0] || '').toLowerCase();
+  const when = [day, time].filter(Boolean).join(' ') || (schedule.includes('appointment') ? 'by appointment' : schedule);
+  const town = shortTown(option.address);
+  return [when, town].filter(Boolean).join(' · ');
+}
+
+/** Quiet line under the selected pill: town and order-by cutoff. */
+export function pickupSpotNote(option: PickupOption): string {
+  return [shortTown(option.address), option.cutoff.toLowerCase()].filter(Boolean).join(' · ');
 }
 
 /** One line for the selected stop. Lowercase, no street, no phone. */

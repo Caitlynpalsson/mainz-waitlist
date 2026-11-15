@@ -11,6 +11,9 @@ import {
   orderPickupOptions,
   parseFulfillment,
   pickupCardLine,
+  pickupDayLabel,
+  pickupSpotNote,
+  pickupSpotPill,
   pickupTownLine,
   renderPickupOption,
   showDeliveryFee,
@@ -100,7 +103,19 @@ test('the farm page names pickup towns once, and does not list the stops', () =>
   assert.notEqual(near[1].name, 'the farm');
 });
 
-test('see other spots shows only the next two nearest', () => {
+test('the farm pill lists weekdays, or by appointment when there are none', () => {
+  assert.equal(pickupDayLabel(farms.options), 'wed, sun');
+  assert.equal(pickupDayLabel([]), '');
+  assert.equal(pickupDayLabel([{
+    ...farms.options[0],
+    schedule: 'any day by appointment',
+  }]), 'by appointment');
+  const pill = pickupSpotPill(farms.options.find((option) => option.name === 'Vanguard' && option.schedule === 'wednesday')!);
+  assert.equal(pill, 'wed 3:30-5:30pm · west valley');
+  assert.equal(pickupSpotNote(farms.options.find((option) => option.name === "Marie's")!), "riverton · order by mon 5pm");
+});
+
+test('checkout shows at most the three nearest spots', () => {
   const spots = checkoutSpots(farms.options, '84119');
   assert.equal(spots.nearest?.name, 'Vanguard');
   assert.equal(spots.alternative?.name, 'Vanguard');

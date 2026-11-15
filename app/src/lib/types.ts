@@ -33,6 +33,8 @@ export type FarmCard = {
   heroPhoto: string;
   profilePhoto?: string;
   pickupLine?: string;
+  pickupDays?: string;
+  deliveryDay?: string;
   cardFoods: string;
   isDemo: boolean;
   statValue: string;

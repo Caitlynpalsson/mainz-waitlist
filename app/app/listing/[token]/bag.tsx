@@ -141,6 +141,7 @@ export default function PreviewBag() {
                 routeMatched={routeMatched}
                 routeNote={quote?.route?.line || ''}
                 options={options}
+                deliverySlots={slots}
                 selectedLabel={bag.windowLabel}
                 onSelect={(label) => bag.setWindow(label)}
                 onContinue={() => setStep('info')}

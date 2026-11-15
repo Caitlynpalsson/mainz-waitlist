@@ -65,10 +65,12 @@ export default function FarmPage() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name}</Text>
-                {farm.pickupLine ? <Text style={pickupLine}>{farm.pickupLine}</Text> : null}
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
-                  <FulfillmentPills pickup={farm.offersPickup ? farm.pickupSummary : ''} delivery={farm.offersDelivery ? farm.deliverySummary : ''} />
+                  <FulfillmentPills
+                    pickup={farm.pickupDays || (farm.offersPickup ? farm.pickupSummary : '')}
+                    delivery={farm.pickupDays ? farm.deliveryDay : (farm.offersDelivery ? farm.deliverySummary : '')}
+                  />
                 </View>
                 <View style={{ marginTop: 12 }}>
                   <Pill label={followed ? 'following' : 'follow'} on onPress={() => toggleFollow(farm.slug)} />
@@ -120,7 +122,6 @@ function Stat({ n, label }: { n: string; label: string }) {
 }
 
 const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
-const pickupLine = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 8 };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const prose = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const crumb = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray };

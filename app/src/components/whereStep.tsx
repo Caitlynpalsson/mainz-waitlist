@@ -5,13 +5,14 @@ import {
   PICKUP_COMING_SOON,
   canContinueWhere,
   checkoutSpots,
-  pickupCardLine,
   pickupChoiceLabel,
+  pickupSpotNote,
+  pickupSpotPill,
   type PickupOption,
 } from '../../../api/src/fulfillment';
 import type { Fulfillment } from '../lib/orderMath';
 import { colors } from '../theme';
-import { PrimaryButton, Segment } from './ui';
+import { Pill, PrimaryButton, Segment } from './ui';
 
 export function asPickupOptions(options: Array<Omit<PickupOption, 'zip' | 'lat' | 'lng'> & { zip?: string; lat?: number | null; lng?: number | null }>): PickupOption[] {
   return options.map((option) => ({
@@ -32,6 +33,7 @@ export function WhereStep({
   routeMatched,
   routeNote,
   options,
+  deliverySlots,
   selectedLabel,
   onSelect,
   onContinue,
@@ -45,11 +47,11 @@ export function WhereStep({
   routeMatched: boolean;
   routeNote: string;
   options: PickupOption[];
+  deliverySlots?: { label: string }[];
   selectedLabel: string;
   onSelect: (label: string) => void;
   onContinue: () => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
   const [rankedZip, setRankedZip] = useState('');
   const clean = digitsZip(zip);
   const hasSpots = options.length > 0;
@@ -57,7 +59,6 @@ export function WhereStep({
     ? checkoutSpots(options, clean)
     : { nearest: null, alternative: null, others: [] as PickupOption[], visible: [] as PickupOption[] };
   const selected = spots.visible.find((option) => pickupChoiceLabel(option) === selectedLabel) || spots.nearest;
-  const showAlternative = !!spots.alternative && !!selected && !!spots.nearest && pickupChoiceLabel(selected) === pickupChoiceLabel(spots.nearest);
   const delivering = fulfillment === 'delivery' && routeMatched;
 
   useEffect(() => {
@@ -66,7 +67,6 @@ export function WhereStep({
     const known = spots.visible.some((option) => pickupChoiceLabel(option) === selectedLabel);
     if (rankedZip === clean && known) return;
     setRankedZip(clean);
-    setBrowsing(false);
     if (selectedLabel !== nearest) onSelect(nearest);
   }, [clean, hasSpots, spots.visible.map((option) => pickupChoiceLabel(option)).join('|')]);
 
@@ -102,6 +102,23 @@ export function WhereStep({
       />
       {clean.length === 5 && routeNote && !routeMatched ? <Text style={note}>{routeNote}</Text> : null}
       {!hasSpots && !delivering ? <Text style={note}>{PICKUP_COMING_SOON}</Text> : null}
+      {!delivering && hasSpots && spots.visible.length ? (
+        <View style={pillRow}>
+          {spots.visible.map((option) => {
+            const label = pickupChoiceLabel(option);
+            const on = !!selected && label === pickupChoiceLabel(selected);
+            return <Pill key={label} small cream={!on} on={on} label={pickupSpotPill(option)} onPress={() => onSelect(label)} />;
+          })}
+        </View>
+      ) : null}
+      {!delivering && hasSpots && selected ? <Text style={note}>{pickupSpotNote(selected)}</Text> : null}
+      {delivering && (deliverySlots || []).length ? (
+        <View style={pillRow}>
+          {deliverySlots!.map((slot) => (
+            <Pill key={slot.label} small cream={slot.label !== selectedLabel} on={slot.label === selectedLabel} label={slot.label} onPress={() => onSelect(slot.label)} />
+          ))}
+        </View>
+      ) : null}
       {delivering ? (
         <TextInput
           value={street}
@@ -112,39 +129,6 @@ export function WhereStep({
           autoCapitalize="words"
           style={fieldBox}
         />
-      ) : null}
-      {!delivering && hasSpots && selected && !browsing ? (
-        <View style={card}>
-          <Text style={cardText}>{pickupCardLine(selected)}</Text>
-        </View>
-      ) : null}
-      {!delivering && showAlternative && !browsing ? (
-        <Text style={quietAlt}>{pickupCardLine(spots.alternative!)}</Text>
-      ) : null}
-      {!delivering && hasSpots && !browsing && spots.others.length > 0 ? (
-        <Pressable onPress={() => setBrowsing(true)} accessibilityRole="button" style={linkHit}>
-          <Text style={link}>see other spots</Text>
-        </Pressable>
-      ) : null}
-      {!delivering && hasSpots && browsing ? (
-        <View style={{ marginTop: 16 }}>
-          {spots.others.map((option) => {
-            const label = pickupChoiceLabel(option);
-            return (
-              <Pressable
-                key={label}
-                onPress={() => {
-                  onSelect(label);
-                  setBrowsing(false);
-                }}
-                accessibilityRole="button"
-                style={listRow}
-              >
-                <Text style={cardText}>{pickupCardLine(option)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
       ) : null}
       <View style={{ marginTop: 22 }}>
         <PrimaryButton label="continue to your info" disabled={!ready} onPress={onContinue} />
@@ -222,10 +206,7 @@ const zipField = {
   textAlign: 'center' as const,
   letterSpacing: 4,
 };
-const card = { marginTop: 18, backgroundColor: colors.cream, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 16 };
-const cardText = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 21, color: colors.navy };
-const listRow = { paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.hair };
+const pillRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };
 const linkHit = { marginTop: 12, alignItems: 'center' as const, paddingVertical: 6 };
 const link = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
-const quietAlt = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 10 };
 const note = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };
