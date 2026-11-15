@@ -97,6 +97,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0023_meet_line.sql` adds an optional meet-the-farm sentence. When a draft already has a full story, that story is copied in. It does not invent new facts.
 
+`0024_meet_line_warm.sql` replaces thin meet lines with a sentence taken from that farm's own website. Farms without a readable site are left alone.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

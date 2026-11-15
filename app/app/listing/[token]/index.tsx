@@ -306,7 +306,7 @@ export default function ListingApproval() {
         {!step && preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
-              <View style={{ alignSelf: 'flex-end', marginBottom: 10 }}>
+              <View style={{ alignSelf: 'flex-end', marginBottom: 10, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="this is my farm"
@@ -323,7 +323,7 @@ export default function ListingApproval() {
                 <View style={{ marginTop: 16, width: '100%', maxWidth: 320, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
                   <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy || sheet} onPress={() => startOnboarding()} />
                 </View>
-                <View style={bannerLinks}>
+                <View style={[bannerLinks, { opacity: sheet ? 0 : 1 }]} pointerEvents={sheet ? 'none' : 'auto'}>
                   <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
                     <Text style={bannerLink}>change something</Text>
                   </Pressable>
