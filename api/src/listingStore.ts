@@ -3,7 +3,7 @@ import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, picku
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
-  PAY_PREFS,
+  payPrefFromChoice,
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
@@ -25,7 +25,6 @@ import {
   staffApproveListing,
   type CatalogMatch,
   type ListingProductInput,
-  type PayPref,
 } from './listing';
 
 type Env = { DB: D1Database };
@@ -191,7 +190,7 @@ export async function saveOnboarding(env: Env, token: string, body: Record<strin
   const typedPhone = body.reachPhone != null ? String(body.reachPhone).replace(/\D/g, '').slice(0, 15) : (listing.reach_phone || '');
   if (via === 'text' && body.reachPhone != null && typedPhone.length < 7) throw new HttpError('add a number we can text.');
   const payRaw = body.payPref != null ? String(body.payPref) : (listing.pay_pref || '');
-  const pay: '' | PayPref = (PAY_PREFS as readonly string[]).includes(payRaw) ? payRaw as PayPref : '';
+  const pay = payPrefFromChoice(payRaw);
   const pickupOk = body.pickupOk === true ? 1 : body.pickupOk === false ? 0 : (Number(listing.pickup_ok) === 1 ? 1 : 0);
   const pickupNote = body.pickupNote != null ? String(body.pickupNote).trim().slice(0, 500) : (listing.pickup_note || '');
   const done = body.done === true ? 1 : (Number(listing.onboarding_done) === 1 ? 1 : 0);

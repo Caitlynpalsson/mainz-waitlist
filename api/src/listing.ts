@@ -95,6 +95,27 @@ export const ONBOARDING_SMS = 'sms:+19725103326';
 export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch with the mainz team 💬';
 export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
 export type PayPref = (typeof PAY_PREFS)[number];
+export const PAY_STEP_TITLE = 'how do you want to get paid?';
+export const PAY_STEP_LINE = "we'll set this up right before your first order pays out. stripe keeps your bank info safe. we never see it.";
+/** Farmer-facing words. The database keeps the short pay_pref values. */
+export const PAY_PREF_LABELS: Record<PayPref, string> = {
+  'bank transfer': 'direct deposit through stripe (set up later)',
+  check: 'mail me a check',
+  'set this up later': "i'll decide later",
+};
+
+/** Map a stored value or a farmer-facing label back to pay_pref. Anything else is dropped. */
+export function payPrefFromChoice(raw: string): '' | PayPref {
+  const value = String(raw || '').trim().toLowerCase();
+  if ((PAY_PREFS as readonly string[]).includes(value)) return value as PayPref;
+  const found = (PAY_PREFS as readonly PayPref[]).find((pref) => PAY_PREF_LABELS[pref] === value);
+  return found || '';
+}
+
+export function payPrefLabel(raw: string): string {
+  const pref = payPrefFromChoice(raw);
+  return pref ? PAY_PREF_LABELS[pref] : '';
+}
 
 export function onboardingStep(raw: string | undefined | null): OnboardingStep | null {
   const value = String(raw || '').trim().toLowerCase();
@@ -116,7 +137,7 @@ export function publicOnboarding(row: {
   onboarding_done?: number;
 }): { reachVia: '' | 'text' | 'email'; reachEmail: string; payPref: '' | PayPref; pickupNote: string; pickupOk: boolean; done: boolean } {
   const via = row.reach_via === 'text' || row.reach_via === 'email' ? row.reach_via : '';
-  const pay = (PAY_PREFS as readonly string[]).includes(String(row.pay_pref || '')) ? row.pay_pref as PayPref : '';
+  const pay = payPrefFromChoice(String(row.pay_pref || ''));
   return {
     reachVia: via,
     reachEmail: String(row.reach_email || '').trim(),

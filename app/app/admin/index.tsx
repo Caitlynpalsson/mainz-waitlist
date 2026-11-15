@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { PIPELINE_STAGES } from '../../../api/src/review';
-import { listingInvite } from '../../../api/src/listing';
+import { listingInvite, payPrefLabel } from '../../../api/src/listing';
 import { Shell } from '../../src/components/chrome';
 import { RoutesPanel } from '../../src/components/RoutesPanel';
 import { Cap, Pill, PrimaryButton, Wrap } from '../../src/components/ui';
@@ -317,7 +317,7 @@ export default function AdminHome() {
                       <Text style={small}>
                         {[
                           listing.onboarding.reachVia ? `reach ${listing.onboarding.reachVia}${listing.onboarding.reachEmail ? ` ${listing.onboarding.reachEmail}` : ''}` : '',
-                          listing.onboarding.payPref ? `pay ${listing.onboarding.payPref}` : '',
+                          listing.onboarding.payPref ? `pay ${payPrefLabel(listing.onboarding.payPref)}` : '',
                           listing.onboarding.pickupOk ? 'pickup looks right' : '',
                           listing.onboarding.pickupNote || '',
                           listing.onboarding.done ? 'onboarding done' : '',

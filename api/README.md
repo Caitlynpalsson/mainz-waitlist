@@ -93,7 +93,7 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0021_pickup_line.sql` lets a farm replace the one pickup line on its page. Empty keeps the generated line.
 
-`0022_listing_onboarding.sql` stores how a farm wants to be reached, paid, and when pickup looks right. No card is charged and no text is sent. A stored phone is never sent back to the page.
+`0022_listing_onboarding.sql` stores how a farm wants to be reached, paid, and when pickup looks right. No card is charged and no text is sent. A stored phone is never sent back to the page. The payout step stores only a preference: `bank transfer`, `check`, or `set this up later`. It never collects bank, routing, or address fields.
 
 `0023_meet_line.sql` adds an optional meet-the-farm sentence. When a draft already has a full story, that story is copied in. It does not invent new facts.
 

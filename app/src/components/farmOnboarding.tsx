@@ -7,7 +7,10 @@ import {
   ONBOARDING_TEXT_LINE,
   ONBOARDING_TEXT_US,
   ONBOARDING_WELCOME,
+  PAY_PREF_LABELS,
   PAY_PREFS,
+  PAY_STEP_LINE,
+  PAY_STEP_TITLE,
   type OnboardingStep,
   type PayPref,
 } from '../../../api/src/listing';
@@ -48,7 +51,7 @@ export function FarmOnboarding({
   const [via, setVia] = useState(answers.reachVia || 'email');
   const [email, setEmail] = useState(answers.reachEmail);
   const [phone, setPhone] = useState('');
-  const [pay, setPay] = useState<'' | PayPref>(answers.payPref);
+  const [pay, setPay] = useState<PayPref>(answers.payPref || 'set this up later');
   const [editing, setEditing] = useState(false);
   const [pickupText, setPickupText] = useState(answers.pickupNote || pickupLines.join('\n'));
   const shown = answers.pickupNote || pickupLines.join('\n');
@@ -82,15 +85,26 @@ export function FarmOnboarding({
       ) : null}
       {step === 'pay' ? (
         <>
-          <Text style={headline}>how do you want to get paid?</Text>
-          <Text style={quiet}>a preference only. no bank details, and nothing is charged.</Text>
-          <View style={row}>
-            {PAY_PREFS.map((choice) => (
-              <Pill key={choice} cream={pay !== choice} on={pay === choice} label={choice} onPress={() => setPay(choice)} />
-            ))}
+          <Text style={headline}>{PAY_STEP_TITLE}</Text>
+          <Text style={quiet}>{PAY_STEP_LINE}</Text>
+          <View style={{ width: '100%', gap: 8, marginTop: 22 }}>
+            {PAY_PREFS.map((choice) => {
+              const on = pay === choice;
+              return (
+                <Pressable
+                  key={choice}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  onPress={() => setPay(choice)}
+                  style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, backgroundColor: on ? colors.navy : colors.cream, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ fontFamily: 'Inter', fontSize: 14, lineHeight: 20, fontWeight: on ? '600' : '500', color: on ? colors.white : colors.navy, textAlign: 'center' }}>{PAY_PREF_LABELS[choice]}</Text>
+                </Pressable>
+              );
+            })}
           </View>
           <View style={{ marginTop: 28, width: '100%' }}>
-            <PrimaryButton label={busy ? 'saving…' : 'next'} disabled={busy || !pay} onPress={() => onNext({ payPref: pay })} />
+            <PrimaryButton label={busy ? 'saving…' : 'next'} disabled={busy} onPress={() => onNext({ payPref: pay })} />
           </View>
         </>
       ) : null}
