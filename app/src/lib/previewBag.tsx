@@ -24,7 +24,7 @@ type PreviewBag = {
 const empty = (token = ''): PreviewBag => ({
   token,
   lines: [],
-  fulfillment: 'delivery',
+  fulfillment: 'pickup',
   windowLabel: '',
   address1: '',
   cityZip: '',

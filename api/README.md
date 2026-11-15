@@ -89,6 +89,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0019_farm_pickup_options.sql` stores each farm's own pickup options. The 87 Farms draft is filled from `samples/87-farms-fulfillment.json`. See `fulfillment.md`.
 
+`0020_pickup_option_zips.sql` adds a ZIP to each 87 Farms stop so checkout can pick the nearest one.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

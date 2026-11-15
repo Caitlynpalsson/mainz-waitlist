@@ -5,8 +5,8 @@ import { approvePublicListing, changePublicListing, denyPublicListing, fixPublic
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
-import { deliveryFeeOnPlace } from './delivery';
-import { parseFulfillment, pickupChoiceLabel } from './fulfillment';
+import { deliveryFeeOnPlace, parseAddress } from './delivery';
+import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
@@ -824,39 +824,47 @@ async function resolveCart(env: Env, body: CartBody) {
     : null;
   const routeLabels = route?.matched ? route.slots.map((slot) => slot.label) : [];
   const farmIds = [...new Set(products.results.map((row) => row.farm_id))];
-  const pickupByFarm = new Map<number, { day: string; label: string }[]>();
+  const pickupByFarm = new Map<number, ReturnType<typeof parseFulfillment>['options']>();
   if (farmIds.length) {
     const stored = await env.DB.prepare(
       `SELECT id, fulfillment_json FROM farms WHERE id IN (${placeholders(farmIds.length)})`,
     ).bind(...farmIds).all<{ id: number; fulfillment_json: string }>();
     for (const farm of stored.results) {
       const options = parseFulfillment(farm.fulfillment_json || '').options;
-      if (options.length) pickupByFarm.set(farm.id, options.map((option) => ({ day: '', label: pickupChoiceLabel(option) })));
+      if (options.length) pickupByFarm.set(farm.id, options);
     }
   }
   const requested = new Map((body.groups || []).map((group) => [Number(group.farmId), group]));
   const farms = new Map<number, ProductJoin>();
+  const shopperZip = digitsZip(parseAddress(body.address?.line1 || '', body.address?.cityZip || '').zip);
+  const rankedByFarm = new Map<number, ReturnType<typeof parseFulfillment>['options']>();
   const input = grouped.map((lines) => {
     const row = byId.get(lines[0].productId)!;
     farms.set(row.farm_id, row);
     const ask = requested.get(row.farm_id);
+    const farmPickup = pickupByFarm.get(row.farm_id) || [];
+    const ordered = orderPickupOptions(farmPickup, shopperZip);
+    const shownOptions = ordered.length ? ordered : farmPickup;
+    if (shownOptions.length) rankedByFarm.set(row.farm_id, shownOptions);
     let fulfillment: Fulfillment;
     if (ask?.fulfillment === 'pickup' || ask?.fulfillment === 'delivery') fulfillment = ask.fulfillment;
+    else if (shownOptions.length) fulfillment = 'pickup';
     else if (row.offers_delivery) fulfillment = 'delivery';
     else if (row.offers_pickup) fulfillment = 'pickup';
     else throw new HttpError(`${row.farm_name} is not selling right now.`);
     const askedDelivery = fulfillment === 'delivery';
-    if (fulfillment === 'delivery' && route?.pickupOnly && row.offers_pickup) fulfillment = 'pickup';
-    if (fulfillment === 'delivery' && !row.offers_delivery) throw new HttpError(`${row.farm_name} does not deliver.`);
-    if (fulfillment === 'pickup' && !row.offers_pickup) throw new HttpError(`${row.farm_name} does not offer pickup.`);
-    if (fulfillment === 'delivery' && route?.pickupOnly) throw new HttpError(route.line);
+    if (fulfillment === 'delivery' && !route?.matched && (row.offers_pickup || shownOptions.length)) fulfillment = 'pickup';
+    if (fulfillment === 'delivery' && !route?.matched) throw new HttpError(route?.line || "we don't deliver there yet. pickup is ready when you are.");
+    if (fulfillment === 'pickup' && !row.offers_pickup && !shownOptions.length) throw new HttpError(`${row.farm_name} does not offer pickup.`);
     const windows = parseWindows(row.windows_json);
-    const farmPickup = pickupByFarm.get(row.farm_id);
+    const pickupSlots = shownOptions.length
+      ? shownOptions.map((option) => ({ day: option.schedule, label: pickupChoiceLabel(option) }))
+      : windows.pickup;
     const choices = fulfillment === 'delivery' && routeLabels.length
       ? routeLabels.map((label) => ({ day: '', label }))
       : fulfillment === 'delivery'
         ? []
-        : (farmPickup?.length ? farmPickup : windows.pickup);
+        : pickupSlots;
     const requestedLabel = (ask?.windowLabel || '').trim();
     const switchedToPickup = askedDelivery && fulfillment === 'pickup';
     let windowLabel = choices[0]?.label || '';
@@ -869,7 +877,7 @@ async function resolveCart(env: Env, body: CartBody) {
     }
     return { farmId: row.farm_id, fulfillment, windowLabel, lines };
   });
-  return { priced: priceGroups(input, readRates(env)), byId, farms, route, pickupByFarm };
+  return { priced: priceGroups(input, readRates(env)), byId, farms, route, pickupByFarm, rankedByFarm };
 }
 
 function presentQuote(resolved: Awaited<ReturnType<typeof resolveCart>>) {
@@ -888,9 +896,12 @@ function presentQuote(resolved: Awaited<ReturnType<typeof resolveCart>>) {
         offersDelivery: !!row.offers_delivery,
         pickupSummary: row.pickup_summary,
         deliverySummary: row.delivery_summary,
+        pickupOptions: resolved.rankedByFarm.get(group.farmId) || [],
         windows: {
           ...parseWindows(row.windows_json),
-          pickup: resolved.pickupByFarm.get(group.farmId) || parseWindows(row.windows_json).pickup,
+          pickup: (resolved.rankedByFarm.get(group.farmId) || []).length
+            ? resolved.rankedByFarm.get(group.farmId)!.map((option) => ({ day: option.schedule, label: pickupChoiceLabel(option) }))
+            : parseWindows(row.windows_json).pickup,
         },
         merchandiseCents: group.merchandiseCents,
         deliveryFeeCents: group.deliveryFeeCents,

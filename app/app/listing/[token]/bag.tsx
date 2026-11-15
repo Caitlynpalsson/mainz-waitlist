@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Shell } from '../../../src/components/chrome';
-import { Cap, FoodImage, Hair, Pill, PrimaryButton, Qty, Segment, Wrap } from '../../../src/components/ui';
+import { InfoStep, WhereStep, asPickupOptions } from '../../../src/components/whereStep';
+import { Cap, FoodImage, Hair, PrimaryButton, Qty, Wrap } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { dollars } from '../../../src/lib/money';
-import { priceGroups, type Fulfillment } from '../../../src/lib/orderMath';
+import { priceGroups } from '../../../src/lib/orderMath';
 import { usePreviewBag } from '../../../src/lib/previewBag';
 import { colors, useLayout } from '../../../src/theme';
 import { PREVIEW_PAY_LINE } from '../../../../api/src/listing';
+import { pickupCardLine, pickupChoiceLabel, showDeliveryFee, shownCheckoutTotals, type PickupOption } from '../../../../api/src/fulfillment';
 
 type Quote = {
   preview?: boolean;
@@ -24,7 +26,12 @@ type Quote = {
     runDate?: string;
     slots?: { label: string }[];
   } | null;
-  groups?: { fulfillment: string; windowLabel: string; windows?: { pickup: { label: string }[]; delivery: { label: string }[] } }[];
+  groups?: {
+    fulfillment: string;
+    windowLabel: string;
+    pickupOptions?: PickupOption[];
+    windows?: { pickup: { label: string }[]; delivery: { label: string }[] };
+  }[];
 };
 
 export default function PreviewBag() {
@@ -32,6 +39,10 @@ export default function PreviewBag() {
   const bag = usePreviewBag(token || '');
   const { desktop } = useLayout();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [step, setStep] = useState<'where' | 'info' | 'review'>('where');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const local = useMemo(() => priceGroups([{
     farmId: 1,
     fulfillment: bag.fulfillment,
@@ -47,9 +58,13 @@ export default function PreviewBag() {
       unit: line.unit,
     })),
   }], { platformFeeBps: 500, deliveryFeeCents: 500 }), [bag.lines, bag.fulfillment, bag.windowLabel]);
-  const money = quote || local;
+  const quoted = quote || local;
+  const routeMatched = !!quote?.route?.matched;
+  const delivering = showDeliveryFee(bag.fulfillment, routeMatched);
+  const money = shownCheckoutTotals(quoted, delivering);
+  const options = asPickupOptions(quote?.groups?.[0]?.pickupOptions || []);
+  const selected = options.find((option) => pickupChoiceLabel(option) === bag.windowLabel);
   const slots = quote?.route?.matched ? quote.route.slots || [] : [];
-  const pickupOnly = !!quote?.route?.pickupOnly;
 
   useEffect(() => {
     if (!token || !bag.lines.length) {
@@ -75,18 +90,15 @@ export default function PreviewBag() {
   }, [token, bag.lines, bag.fulfillment, bag.windowLabel, bag.address1, bag.cityZip]);
 
   useEffect(() => {
-    if (pickupOnly && bag.fulfillment === 'delivery') bag.setFulfillment('pickup');
-  }, [pickupOnly]);
+    if (!quote?.route || quote.route.matched || bag.fulfillment !== 'delivery') return;
+    bag.setFulfillment('pickup');
+  }, [quote?.route?.matched, quote?.route?.pickupOnly]);
 
   useEffect(() => {
-    if (!quote?.route?.matched || bag.fulfillment !== 'delivery') return;
-    const label = quote.route.slots?.[0]?.label || '';
-    if (label && bag.windowLabel !== label && !quote.route.slots?.some((slot) => slot.label === bag.windowLabel)) {
-      bag.setWindow(label);
-    }
-  }, [quote?.route?.matched, quote?.route?.runDate]);
-
-  const delivering = bag.fulfillment === 'delivery' && !pickupOnly;
+    if (!delivering) return;
+    const label = slots[0]?.label || '';
+    if (label && !slots.some((slot) => slot.label === bag.windowLabel)) bag.setWindow(label);
+  }, [delivering, quote?.route?.runDate]);
 
   return (
     <Shell top={desktop ? 'none' : 'bar'} title="your bag">
@@ -118,49 +130,57 @@ export default function PreviewBag() {
                 <Text style={{ fontFamily: 'Inter', fontWeight: '600', color: colors.navy }}>{dollars(line.qty * line.unitPriceCents)}</Text>
               </View>
             ))}
-            {!pickupOnly ? (
-              <View style={{ marginTop: 18 }}>
-                <Segment
-                  track={colors.cream}
-                  value={bag.fulfillment}
-                  onChange={(value) => bag.setFulfillment(value as Fulfillment)}
-                  options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
-                />
+            {step === 'where' ? (
+              <WhereStep
+                fulfillment={bag.fulfillment}
+                onFulfillment={(value) => bag.setFulfillment(value)}
+                zip={bag.cityZip}
+                onZip={(value) => bag.setAddress(bag.address1, value)}
+                street={bag.address1}
+                onStreet={(value) => bag.setAddress(value, bag.cityZip)}
+                routeMatched={routeMatched}
+                routeNote={quote?.route?.line || ''}
+                options={options}
+                selectedLabel={bag.windowLabel}
+                onSelect={(label) => bag.setWindow(label)}
+                onContinue={() => setStep('info')}
+              />
+            ) : null}
+            {step === 'info' ? (
+              <InfoStep
+                name={name}
+                email={email}
+                phone={phone}
+                onName={setName}
+                onEmail={setEmail}
+                onPhone={setPhone}
+                onReview={() => setStep('review')}
+                onBack={() => setStep('where')}
+              />
+            ) : null}
+            {step === 'review' ? (
+              <View style={{ marginTop: 22 }}>
+                <Text style={note}>
+                  {delivering
+                    ? `delivery ${bag.windowLabel || slots[0]?.label || ''}`.trim()
+                    : (selected ? pickupCardLine(selected) : 'pickup')}
+                </Text>
+                <View style={{ marginTop: 22, gap: 10 }}>
+                  <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
+                  {delivering ? <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} /> : null}
+                  <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
+                  <Hair />
+                  <Fee label="total" value={dollars(money.totalCents)} strong />
+                </View>
+                <View style={{ marginTop: 18, height: 52, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', color: colors.gray }}>preview</Text>
+                </View>
+                <Text style={note}>{PREVIEW_PAY_LINE}</Text>
+                <Pressable onPress={() => setStep('info')} style={{ marginTop: 8, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 13 }}>back</Text>
+                </Pressable>
               </View>
             ) : null}
-            {quote?.route?.line ? <Text style={note}>{quote.route.line}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-              {(delivering ? slots : (quote?.groups?.[0]?.windows?.pickup?.length ? quote.groups[0].windows.pickup : [{ label: 'at the farm' }])).map((slot) => (
-                <Pill key={slot.label} small label={slot.label} on={slot.label === bag.windowLabel || (!bag.windowLabel && slot.label === (delivering ? slots[0]?.label : 'at the farm'))} onPress={() => bag.setWindow(slot.label)} />
-              ))}
-            </View>
-            <TextInput
-              value={bag.address1}
-              onChangeText={(value) => bag.setAddress(value, bag.cityZip)}
-              placeholder="street"
-              placeholderTextColor={colors.gray}
-              accessibilityLabel="street"
-              style={field}
-            />
-            <TextInput
-              value={bag.cityZip}
-              onChangeText={(value) => bag.setAddress(bag.address1, value)}
-              placeholder="zip or town"
-              placeholderTextColor={colors.gray}
-              accessibilityLabel="zip or town"
-              style={field}
-            />
-            <View style={{ marginTop: 22, gap: 10 }}>
-              <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
-              <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} />
-              <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
-              <Hair />
-              <Fee label="total" value={dollars(money.totalCents)} strong />
-            </View>
-            <View style={{ marginTop: 18, height: 52, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', color: colors.gray }}>preview</Text>
-            </View>
-            <Text style={note}>{PREVIEW_PAY_LINE}</Text>
             <Pressable onPress={() => router.push(`/listing/${token}`)} style={{ marginTop: 16, alignItems: 'center' }}>
               <Text style={{ fontFamily: 'Inter', color: colors.gray, fontSize: 13 }}>back to the farm</Text>
             </Pressable>
@@ -181,4 +201,3 @@ function Fee({ label, value, strong = false }: { label: string; value: string; s
 }
 
 const note = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };
-const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 10, marginTop: 12 };

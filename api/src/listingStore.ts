@@ -1,5 +1,5 @@
 import { lookupRoute } from './deliveryStore';
-import { checkoutChoices, parseFulfillment, pickupChoiceLabel } from './fulfillment';
+import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel } from './fulfillment';
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
@@ -112,7 +112,9 @@ export async function previewListingQuote(env: Env, token: string, body: Record<
   if (fulfillment === 'delivery' && route?.pickupOnly) fulfillment = 'pickup';
   const slots = route?.matched ? route.slots : [];
   const pickupOptions = parseFulfillment(listing.fulfillment_json || '').options;
-  const pickupLabels = pickupOptions.length ? pickupOptions.map(pickupChoiceLabel) : ['at the farm'];
+  const ordered = orderPickupOptions(pickupOptions, digitsZip(cityZip));
+  const shownOptions = ordered.length ? ordered : pickupOptions;
+  const pickupLabels = shownOptions.length ? shownOptions.map(pickupChoiceLabel) : ['at the farm'];
   const choices = checkoutChoices(pickupOptions, !!route?.matched);
   const requestedLabel = String(groupAsk?.windowLabel || '').trim();
   const windowLabel = fulfillment === 'delivery'
@@ -144,6 +146,7 @@ export async function previewListingQuote(env: Env, token: string, body: Record<
       offersDelivery: choices.delivery,
       pickupSummary: pickupOptions[0]?.name || 'at the farm',
       deliverySummary: '',
+      pickupOptions: shownOptions,
       windows: {
         pickup: pickupLabels.map((label) => ({ day: '', label })),
         delivery: slots.map((slot) => ({ day: '', label: slot.label })),

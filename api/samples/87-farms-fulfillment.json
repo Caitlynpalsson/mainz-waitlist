@@ -8,25 +8,33 @@
       "windows": [],
       "cutoff": "order by noon 2 days ahead",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84528"
     },
     {
       "name": "Vanguard",
       "address": "2650 S. Decker Lake Ln, West Valley City, UT 84119",
       "schedule": "sunday",
-      "windows": ["12:00-1:00pm", "3:00-4:00pm"],
+      "windows": [
+        "12:00-1:00pm",
+        "3:00-4:00pm"
+      ],
       "cutoff": "order by fri 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84119"
     },
     {
       "name": "Vanguard",
       "address": "2650 S. Decker Lake Ln, West Valley City, UT 84119",
       "schedule": "wednesday",
-      "windows": ["3:30-5:30pm"],
+      "windows": [
+        "3:30-5:30pm"
+      ],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84119"
     },
     {
       "name": "John's Marketplace",
@@ -35,7 +43,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84123"
     },
     {
       "name": "Bountify Baby",
@@ -44,7 +53,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84119"
     },
     {
       "name": "Karen's",
@@ -53,7 +63,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84119"
     },
     {
       "name": "Becca's",
@@ -62,7 +73,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84084"
     },
     {
       "name": "Jenkins Lane",
@@ -71,7 +83,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84088"
     },
     {
       "name": "Marie's",
@@ -80,7 +93,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84065"
     },
     {
       "name": "ABL Trucking",
@@ -89,7 +103,8 @@
       "windows": [],
       "cutoff": "order by mon 5pm",
       "feeCents": 0,
-      "minimumCents": null
+      "minimumCents": null,
+      "zip": "84087"
     }
   ]
 }

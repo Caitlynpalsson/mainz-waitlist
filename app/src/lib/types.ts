@@ -32,7 +32,7 @@ export type FarmCard = {
   deliverySummary: string;
   heroPhoto: string;
   profilePhoto?: string;
-  pickupOptions?: { name: string; address: string; schedule: string; windows: string[]; cutoff: string; feeCents: number; minimumCents: number | null }[];
+  pickupOptions?: { name: string; address: string; zip?: string; lat?: number | null; lng?: number | null; schedule: string; windows: string[]; cutoff: string; feeCents: number; minimumCents: number | null }[];
   cardFoods: string;
   isDemo: boolean;
   statValue: string;
@@ -121,6 +121,7 @@ export type QuoteGroup = {
   offersDelivery: boolean;
   pickupSummary: string;
   deliverySummary: string;
+  pickupOptions?: { name: string; address: string; zip?: string; lat?: number | null; lng?: number | null; schedule: string; windows: string[]; cutoff: string; feeCents: number; minimumCents: number | null }[];
   windows: Windows;
   merchandiseCents: number;
   deliveryFeeCents: number;

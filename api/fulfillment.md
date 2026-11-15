@@ -13,6 +13,7 @@ Do not put phone numbers in this file or in the JSON. The parser drops them.
     {
       "name": "the farm",
       "address": "987 Utah 31, Huntington, UT 84528",
+      "zip": "84528",
       "schedule": "any day by appointment",
       "windows": [],
       "cutoff": "order by noon 2 days ahead",
@@ -24,7 +25,8 @@ Do not put phone numbers in this file or in the JSON. The parser drops them.
 ```
 
 - `name` is required.
-- `address` can be empty.
+- `address` can be empty. It is not shown as a shopper's delivery address.
+- `zip` is the stop's ZIP, used to find the nearest spots. A lat and lng pair can be set instead. Checkout uses the bundled Utah ZIP centroids. No outside map service.
 - `schedule` is the day or a short line such as "any day by appointment".
 - `windows` can be empty. When present, each entry is a time range.
 - `cutoff` is the farm's own order-by rule, as text.

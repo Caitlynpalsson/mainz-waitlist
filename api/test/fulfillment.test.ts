@@ -3,8 +3,12 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   checkoutChoices,
+  defaultFulfillment,
+  orderPickupOptions,
   parseFulfillment,
+  pickupCardLine,
   renderPickupOption,
+  showDeliveryFee,
 } from '../src/fulfillment.ts';
 
 const raw = readFileSync(new URL('../samples/87-farms-fulfillment.json', import.meta.url), 'utf8');
@@ -40,6 +44,33 @@ test('a phone number is never rendered', () => {
   const shown = dirty.options.flatMap(renderPickupOption).join('\n');
   assert.equal(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(shown), false);
   assert.equal(shown.includes('435'), false);
+});
+
+test('nearest pickup spot is the closest zip, then the rest stay in order', () => {
+  const riverton = orderPickupOptions(farms.options, '84065');
+  assert.equal(riverton[0].name, "Marie's");
+  assert.equal(riverton[riverton.length - 1].name, 'the farm');
+  const huntington = orderPickupOptions(farms.options, '84528');
+  assert.equal(huntington[0].name, 'the farm');
+  assert.notEqual(huntington[1].name, 'the farm');
+  const woodsCross = orderPickupOptions(farms.options, '84087');
+  assert.equal(woodsCross[0].name, 'ABL Trucking');
+  const westValley = orderPickupOptions(farms.options, '84119');
+  assert.equal(westValley[0].schedule, 'sunday');
+  assert.equal(westValley[0].name, 'Vanguard');
+  assert.equal(westValley[1].name, 'Vanguard');
+  assert.ok(westValley.findIndex((option) => option.name === 'the farm') > westValley.findIndex((option) => option.name === "Marie's"));
+  const card = pickupCardLine(farms.options.find((option) => option.name === 'Vanguard' && option.schedule === 'wednesday')!);
+  assert.equal(card, 'pick up wed 3:30-5:30pm · vanguard, west valley · order by mon 5pm');
+  assert.equal(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(farms.options.map(pickupCardLine).join('\n')), false);
+});
+
+test('a farm with its own pickup spots starts on pickup, and the delivery fee waits', () => {
+  assert.equal(defaultFulfillment(true, true), 'pickup');
+  assert.equal(defaultFulfillment(false, true), 'delivery');
+  assert.equal(showDeliveryFee('pickup', true), false);
+  assert.equal(showDeliveryFee('delivery', false), false);
+  assert.equal(showDeliveryFee('delivery', true), true);
 });
 
 test('delivery is offered only when a route covers the zip', () => {

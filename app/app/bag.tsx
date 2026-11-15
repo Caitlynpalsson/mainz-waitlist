@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Shell } from '../src/components/chrome';
+import { InfoStep, WhereStep, asPickupOptions } from '../src/components/whereStep';
 import { Cap, FoodImage, Hair, Pill, PrimaryButton, Qty, Segment, Wrap } from '../src/components/ui';
 import { IconChevron, IconPin } from '../src/components/icons';
 import { api } from '../src/lib/api';
 import { dollars } from '../src/lib/money';
 import { priceGroups, type Fulfillment } from '../src/lib/orderMath';
+import { digitsZip, pickupCardLine, pickupChoiceLabel, shownCheckoutTotals } from '../../api/src/fulfillment';
 import { useStore, type CartLine, type FarmChoice } from '../src/lib/store';
 import type { Quote } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
@@ -18,8 +20,9 @@ export default function Bag() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [formError, setFormError] = useState('');
-  const [fixingZip, setFixingZip] = useState(false);
-  const restoreDelivery = useRef(false);
+  const [step, setStep] = useState<'where' | 'info' | 'review'>('where');
+  const [choseDelivery, setChoseDelivery] = useState(false);
+  const appliedPickupDefault = useRef(false);
   const groups = useMemo(() => groupCart(store.lines, store.choices), [store.lines, store.choices]);
   const local = useMemo(() => priceGroups(groups.map((group) => ({
     farmId: group.farmId,
@@ -79,28 +82,26 @@ export default function Bag() {
     };
   }, [signature]);
 
-  const delivering = groups.some((group) => group.choice.fulfillment === 'delivery');
+  const hasOwnPickup = !!quote?.groups?.some((group) => (group.pickupOptions || []).length);
+  const routeMatched = !!quote?.route?.matched;
+  const askedDelivery = groups.some((group) => group.choice.fulfillment === 'delivery');
+  const delivering = askedDelivery && routeMatched && (!hasOwnPickup || choseDelivery);
   const pickupOnly = !!quote?.route?.pickupOnly;
   const routeSlots = quote?.route?.matched ? quote.route.slots || [] : [];
   const routeKey = routeSlots.map((slot) => slot.label).join('|');
+  const shown = shownCheckoutTotals(money, delivering);
   useEffect(() => {
-    if (!pickupOnly) return;
-    if (groups.some((group) => group.choice.fulfillment === 'delivery')) restoreDelivery.current = true;
+    if (choseDelivery || appliedPickupDefault.current) return;
+    if (!quote?.groups?.some((group) => (group.pickupOptions || []).length)) return;
+    appliedPickupDefault.current = true;
     store.setAllFulfillment('pickup');
-    setFixingZip(true);
-  }, [pickupOnly]);
+  }, [quote]);
   useEffect(() => {
-    if (!quote?.route?.matched) return;
-    setFixingZip(false);
-    if (!restoreDelivery.current) return;
-    restoreDelivery.current = false;
-    store.setAllFulfillment('delivery');
-    const label = quote.route.slots?.[0]?.label;
-    if (!label) return;
-    for (const group of groups) {
-      if (group.offersDelivery) store.setWindow(group.farmId, label);
-    }
-  }, [quote?.route?.matched, quote?.route?.runDate]);
+    if (!quote?.route || quote.route.matched) return;
+    if (!groups.some((group) => group.choice.fulfillment === 'delivery')) return;
+    setChoseDelivery(false);
+    store.setAllFulfillment('pickup');
+  }, [quote?.route?.matched, quote?.route?.pickupOnly]);
   useEffect(() => {
     if (!routeSlots.length) return;
     const labels = new Set(routeSlots.map((slot) => slot.label));
@@ -138,72 +139,134 @@ export default function Bag() {
     }
   }
 
+  const ownOptions = asPickupOptions(quote?.groups.find((group) => (group.pickupOptions || []).length)?.pickupOptions || []);
+  const ownFarm = groups.find((group) => quote?.groups?.some((item) => item.farmId === group.farmId && (item.pickupOptions || []).length));
   const summary = (
     <View style={desktop ? card : undefined}>
-      {groups.length > 0 && sameMode && !pickupOnly ? (
-        <Segment
-          track={desktop ? colors.white : colors.cream}
-          value={groups[0].choice.fulfillment}
-          onChange={(value) => {
-            restoreDelivery.current = false;
-            store.setAllFulfillment(value as Fulfillment);
-          }}
-          options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
-        />
-      ) : null}
-      {quote?.route?.line ? <Text style={note}>{quote.route.line}</Text> : null}
-      {delivering && quote?.route?.matched ? (
-        <Text style={note}>the delivery fee stays not charged until this route is confirmed.</Text>
-      ) : null}
-      {delivering ? (
-        <Text style={note}>or grab it saturday at the farm stand. it's free.</Text>
-      ) : null}
-      {delivering || fixingZip ? (
-        <View style={address}>
-          <IconPin size={18} />
-          <View style={{ flex: 1 }}>
-            {fixingZip && !delivering ? <Text style={[note, { marginTop: 0, textAlign: 'left' }]}>change address</Text> : null}
+      {hasOwnPickup && ownFarm ? (
+        step === 'where' ? (
+          <WhereStep
+            fulfillment={ownFarm.choice.fulfillment}
+            onFulfillment={(value) => {
+              setChoseDelivery(value === 'delivery');
+              store.setAllFulfillment(value);
+            }}
+            zip={digitsZip(store.cityZip)}
+            onZip={(value) => store.setAddress(store.address1, value)}
+            street={store.address1}
+            onStreet={(value) => store.setAddress(value, store.cityZip)}
+            routeMatched={routeMatched}
+            routeNote={!routeMatched ? (quote?.route?.line || '') : ''}
+            options={ownOptions}
+            selectedLabel={ownFarm.choice.windowLabel}
+            onSelect={(label) => {
+              store.setFulfillment(ownFarm.farmId, 'pickup');
+              store.setWindow(ownFarm.farmId, label);
+            }}
+            onContinue={() => setStep('info')}
+          />
+        ) : step === 'info' ? (
+          <InfoStep
+            name={store.customerName}
+            email={store.customerEmail}
+            phone={store.customerPhone}
+            onName={(value) => store.setCustomer(value, store.customerEmail, store.customerPhone)}
+            onEmail={(value) => store.setCustomer(store.customerName, value, store.customerPhone)}
+            onPhone={(value) => store.setCustomer(store.customerName, store.customerEmail, value)}
+            onReview={() => setStep('review')}
+            onBack={() => setStep('where')}
+          />
+        ) : (
+          <View>
+            <Text style={note}>
+              {delivering
+                ? `delivery ${ownFarm.choice.windowLabel}`
+                : (ownOptions.find((option) => pickupChoiceLabel(option) === ownFarm.choice.windowLabel)
+                  ? pickupCardLine(ownOptions.find((option) => pickupChoiceLabel(option) === ownFarm.choice.windowLabel)!)
+                  : 'pickup')}
+            </Text>
+            <Money money={shown} delivering={delivering} />
+            {formError ? <Text style={errText}>{formError}</Text> : null}
+            {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
+            <View style={{ marginTop: 18 }}>
+              <PrimaryButton
+                label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
+                disabled={!things || placing}
+                onPress={place}
+              />
+            </View>
+            <Text style={[note, { marginTop: 12 }]}>place order (test, no payment).</Text>
+            <Pressable onPress={() => setStep('info')} style={{ marginTop: 8, alignItems: 'center' }}>
+              <Text style={link}>back</Text>
+            </Pressable>
+          </View>
+        )
+      ) : (
+        <>
+          {groups.length > 0 && sameMode && routeMatched ? (
+            <Segment
+              track={desktop ? colors.white : colors.cream}
+              value={groups[0].choice.fulfillment}
+              onChange={(value) => store.setAllFulfillment(value as Fulfillment)}
+              options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
+            />
+          ) : null}
+          {quote?.route?.line ? <Text style={note}>{quote.route.line}</Text> : null}
+          {!delivering ? (
             <TextInput
-              value={store.address1}
-              onChangeText={(value) => store.setAddress(value, store.cityZip)}
-              placeholder="street"
+              value={digitsZip(store.cityZip) || store.cityZip}
+              onChangeText={(value) => store.setAddress(store.address1, value)}
+              placeholder="your zip code"
               placeholderTextColor={colors.gray}
-              accessibilityLabel="street"
+              keyboardType="number-pad"
+              accessibilityLabel="your zip code"
               style={addr1}
             />
-            <TextInput
-              value={store.cityZip}
-              onChangeText={(value) => store.setAddress(store.address1, value)}
-              placeholder="zip or town"
-              placeholderTextColor={colors.gray}
-              accessibilityLabel="zip or town"
-              style={addr2}
+          ) : null}
+          {delivering ? (
+            <Text style={note}>the delivery fee stays not charged until this route is confirmed.</Text>
+          ) : null}
+          {delivering ? (
+            <View style={address}>
+              <IconPin size={18} />
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  value={store.address1}
+                  onChangeText={(value) => store.setAddress(value, store.cityZip)}
+                  placeholder="street"
+                  placeholderTextColor={colors.gray}
+                  accessibilityLabel="street"
+                  style={addr1}
+                />
+                <TextInput
+                  value={store.cityZip}
+                  onChangeText={(value) => store.setAddress(store.address1, value)}
+                  placeholder="zip or town"
+                  placeholderTextColor={colors.gray}
+                  accessibilityLabel="zip or town"
+                  style={addr2}
+                />
+              </View>
+              <IconChevron size={16} color={colors.gray} />
+            </View>
+          ) : null}
+          <Money money={shown} delivering={delivering} />
+          <Field label="your name" value={store.customerName} onChange={(value) => store.setCustomer(value, store.customerEmail, store.customerPhone)} />
+          <Field label="email" value={store.customerEmail} onChange={(value) => store.setCustomer(store.customerName, value, store.customerPhone)} />
+          <Field label="phone" value={store.customerPhone} keyboardType="phone-pad" onChange={(value) => store.setCustomer(store.customerName, store.customerEmail, value)} />
+          {formError ? <Text style={errText}>{formError}</Text> : null}
+          {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
+          <View style={{ marginTop: 18 }}>
+            <PrimaryButton
+              label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
+              disabled={!things || placing}
+              onPress={place}
             />
           </View>
-          <IconChevron size={16} color={colors.gray} />
-        </View>
-      ) : null}
-      <View style={{ marginTop: 22, gap: 10 }}>
-        <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
-        <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} />
-        <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
-        <Hair />
-        <Fee label="total" value={dollars(money.totalCents)} strong />
-      </View>
-      <Field label="your name" value={store.customerName} onChange={(value) => store.setCustomer(value, store.customerEmail, store.customerPhone)} />
-      <Field label="email" value={store.customerEmail} onChange={(value) => store.setCustomer(store.customerName, value, store.customerPhone)} />
-      <Field label="phone" value={store.customerPhone} keyboardType="phone-pad" onChange={(value) => store.setCustomer(store.customerName, store.customerEmail, value)} />
-      {formError ? <Text style={errText}>{formError}</Text> : null}
-      {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
-      <View style={{ marginTop: 18 }}>
-        <PrimaryButton
-          label={placing ? 'placing…' : `place order · ${dollars(money.totalCents)}`}
-          disabled={!things || placing}
-          onPress={place}
-        />
-      </View>
-      <Text style={[note, { marginTop: 12 }]}>place order (test, no payment).</Text>
-      <Text style={note}>farmers keep their price. we add a small fee. that's it.</Text>
+          <Text style={[note, { marginTop: 12 }]}>place order (test, no payment).</Text>
+          <Text style={note}>farmers keep their price. we add a small fee. that's it.</Text>
+        </>
+      )}
     </View>
   );
 
@@ -236,24 +299,23 @@ export default function Bag() {
                       ].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
-                  {!sameMode && group.offersPickup && group.offersDelivery && !pickupOnly ? (
+                  {!hasOwnPickup && !sameMode && group.offersPickup && group.offersDelivery && routeMatched ? (
                     <Segment
                       track={colors.cream}
                       value={group.choice.fulfillment}
-                      onChange={(value) => {
-                        restoreDelivery.current = false;
-                        store.setFulfillment(group.farmId, value as Fulfillment);
-                      }}
+                      onChange={(value) => store.setFulfillment(group.farmId, value as Fulfillment)}
                       options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
                     />
-                  ) : pickupOnly || !group.offersPickup || !group.offersDelivery ? (
+                  ) : !hasOwnPickup && (pickupOnly || !group.offersPickup || !group.offersDelivery) ? (
                     <Text style={{ fontFamily: 'Inter', fontSize: 12, color: colors.ink }}>{pickupOnly ? 'pickup only' : `${group.choice.fulfillment} only`}</Text>
                   ) : null}
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                    {(group.choice.fulfillment === 'delivery' ? routeSlots : group.lines[0].windows.pickup).map((slot) => (
-                      <Pill key={slot.label} small label={slot.label} on={slot.label === group.choice.windowLabel} onPress={() => store.setWindow(group.farmId, slot.label)} />
-                    ))}
-                  </View>
+                  {hasOwnPickup ? null : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                      {(group.choice.fulfillment === 'delivery' ? routeSlots : group.lines[0].windows.pickup).map((slot) => (
+                        <Pill key={slot.label} small label={slot.label} on={slot.label === group.choice.windowLabel} onPress={() => store.setWindow(group.farmId, slot.label)} />
+                      ))}
+                    </View>
+                  )}
                   {group.lines.map((line) => (
                     <View key={line.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.hair, marginTop: 12 }}>
                       <View style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden', backgroundColor: colors.cream }}>
@@ -325,6 +387,18 @@ function payload(store: ReturnType<typeof useStore>) {
   };
 }
 
+function Money({ money, delivering }: { money: { merchandiseCents: number; deliveryFeeCents: number; platformFeeCents: number; totalCents: number }; delivering: boolean }) {
+  return (
+    <View style={{ marginTop: 22, gap: 10 }}>
+      <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
+      {delivering ? <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} /> : null}
+      <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
+      <Hair />
+      <Fee label="total" value={dollars(money.totalCents)} strong />
+    </View>
+  );
+}
+
 function Fee({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -354,3 +428,4 @@ const address = { flexDirection: 'row' as const, alignItems: 'center' as const, 
 const addr1 = { fontFamily: 'Inter' as const, fontSize: 14, fontWeight: '500' as const, color: colors.navy, padding: 0 };
 const addr2 = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray, padding: 0, marginTop: 2 };
 const errText = { fontFamily: 'Inter' as const, color: colors.red, fontSize: 12, marginTop: 10, textAlign: 'center' as const };
+const link = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
