@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../../src/components/chrome';
+import { FarmBelow } from '../../src/components/farmBelow';
 import { Cap, FarmAvatar, FulfillmentPills, FoodImage, Grid, Hair, Pill, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { IconHeart, IconShare } from '../../src/components/icons';
 import { CircleButton } from '../../src/components/ui';
@@ -103,6 +104,7 @@ export default function FarmPage() {
               ) : null}
               {tab === 'about' ? <Text style={prose}>{farm.about || farm.bio}</Text> : null}
               {tab === 'reviews' ? <Text style={prose}>no reviews yet. they show up after real orders.</Text> : null}
+              {tab === 'shop' ? <FarmBelow story={farm.about || farm.bio} photo={farm.profilePhoto} hero={farm.heroPhoto} width={cell * shopCols} /> : null}
             </View>
           </>
         ) : null}

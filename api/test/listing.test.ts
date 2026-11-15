@@ -8,6 +8,10 @@ import {
   draftDisplayPrice,
   listingAppearsInBrowse,
   LISTING_CONFIRM_LINE,
+  PICKUP_WORKS_LINE,
+  WHY_MAINZ_LINES,
+  farmPortrait,
+  storyLines,
   LISTING_REMOVED_LINE,
   LISTING_THANKS_LINE,
   denyListing,
@@ -200,4 +204,19 @@ test('a draft product can be marked next batch coming', () => {
   assert.equal(parseAvailability('next_batch'), LISTING_NEXT_BATCH);
   assert.equal(parseAvailability('Next batch coming'), LISTING_NEXT_BATCH);
   assert.throws(() => parseAvailability('sold out'), /availability/);
+});
+
+test('farm pages keep a short story and never promise a launch', () => {
+  assert.deepEqual(storyLines(''), []);
+  assert.deepEqual(storyLines('one line about the farm.'), ['one line about the farm.']);
+  const many = storyLines('First. Second! Third? Fourth. Fifth.');
+  assert.deepEqual(many, ['first.', 'second!', 'third?']);
+  assert.equal(farmPortrait(''), '');
+  assert.equal(farmPortrait('placeholder', 'hero'), '');
+  assert.equal(farmPortrait('profile-mcarthur-farms', 'profile-mcarthur-farms'), '');
+  assert.equal(farmPortrait('profile-mcarthur-farms', 'mcarthur-tallow'), 'profile-mcarthur-farms');
+  const copy = `${PICKUP_WORKS_LINE} ${WHY_MAINZ_LINES.join(' ')}`;
+  assert.equal(/launch|approved to receive orders/i.test(copy), false);
+  assert.equal(PICKUP_WORKS_LINE.includes('zip'), true);
+  assert.equal(WHY_MAINZ_LINES.length, 3);
 });

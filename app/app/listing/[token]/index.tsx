@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../../src/components/chrome';
+import { FarmBelow } from '../../../src/components/farmBelow';
 import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
@@ -39,6 +40,7 @@ export default function ListingApproval() {
   const [note, setNote] = useState('');
   const [denyNote, setDenyNote] = useState('');
   const [sheet, setSheet] = useState(false);
+  const [ask, setAsk] = useState("what's off?");
   const [off, setOff] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -159,6 +161,21 @@ export default function ListingApproval() {
     }
   }
 
+  function openChange(prompt: string) {
+    setAsk(prompt);
+    setOff(true);
+    setRemoving(false);
+    setFormError('');
+    setSheet(true);
+  }
+
+  function openRemove() {
+    setRemoving(true);
+    setOff(false);
+    setFormError('');
+    setSheet(true);
+  }
+
   const approved = data?.status === 'farm_approved';
   const denied = data?.status === 'farm_denied' || data?.removed === true;
   const preview = !!data && !denied && !approved && !filling;
@@ -169,11 +186,11 @@ export default function ListingApproval() {
       sticky={preview ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="confirm"
-          onPress={() => { setSheet(true); setFormError(''); }}
+          accessibilityLabel="this is my farm"
+          onPress={() => { setOff(false); setRemoving(false); setFormError(''); setSheet(true); }}
           style={confirmPill}
         >
-          <Text style={confirmText}>confirm</Text>
+          <Text style={confirmText}>this is my farm</Text>
         </Pressable>
       ) : null}
     >
@@ -229,7 +246,22 @@ export default function ListingApproval() {
         ) : null}
         {preview && data ? (
           <>
-            <View style={{ marginTop: desktop ? 28 : 12, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
+            <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
+              <View style={banner}>
+                <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
+                <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
+                <View style={{ marginTop: 16, width: '100%', maxWidth: 320 }}>
+                  <PrimaryButton label="this is my farm, love it" disabled={busy} onPress={() => send(`/api/listings/${token}/approve`)} />
+                </View>
+                <View style={bannerLinks}>
+                  <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
+                    <Text style={bannerLink}>change something</Text>
+                  </Pressable>
+                  <Pressable onPress={openRemove} accessibilityRole="button">
+                    <Text style={bannerLink}>take it down</Text>
+                  </Pressable>
+                </View>
+              </View>
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
@@ -284,7 +316,15 @@ export default function ListingApproval() {
                   </View>
                   );
                 })}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => openChange('what else do you sell?')}
+                  style={{ width: cell, minHeight: Math.round(cell * 1.16), borderRadius: 28, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.peri, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 16 }}
+                >
+                  <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>+ add more products</Text>
+                </Pressable>
               </Grid>
+              <FarmBelow story={data.story} photo={data.profilePhoto} width={cell * shopCols} />
             </View>
           </>
         ) : null}
@@ -295,6 +335,7 @@ export default function ListingApproval() {
         error={formError}
         note={note}
         setNote={setNote}
+        ask={ask}
         off={off}
         setOff={setOff}
         removing={removing}
@@ -311,13 +352,14 @@ export default function ListingApproval() {
 }
 
 function ConfirmSheet({
-  open, busy, error, note, setNote, off, setOff, removing, setRemoving, denyNote, setDenyNote, onClose, onConfirm, onChanges, onDeny,
+  open, busy, error, note, setNote, ask, off, setOff, removing, setRemoving, denyNote, setDenyNote, onClose, onConfirm, onChanges, onDeny,
 }: {
   open: boolean;
   busy: boolean;
   error: string;
   note: string;
   setNote: (value: string) => void;
+  ask: string;
   off: boolean;
   setOff: (value: boolean) => void;
   removing: boolean;
@@ -335,19 +377,19 @@ function ConfirmSheet({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable accessibilityLabel="close" onPress={onClose} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(20,33,61,0.35)' }} />
         <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 28 + insets.bottom }}>
-          <PrimaryButton label={busy ? 'saving…' : 'confirm my farm'} disabled={busy} onPress={onConfirm} />
+          <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy} onPress={onConfirm} />
           <Pressable onPress={() => setOff(true)} style={{ marginTop: 18, alignItems: 'center' }}>
-            <Text style={sheetLink}>something's off</Text>
+            <Text style={sheetLink}>change something</Text>
           </Pressable>
           {off ? (
             <View style={{ width: '100%' }}>
               <TextInput
                 value={note}
                 onChangeText={setNote}
-                placeholder="what's off?"
+                placeholder={ask || "what's off?"}
                 placeholderTextColor={colors.gray}
                 autoCapitalize="none"
-                accessibilityLabel="what's off?"
+                accessibilityLabel={ask || "what's off?"}
                 style={field}
               />
               {note.trim() ? (
@@ -358,7 +400,7 @@ function ConfirmSheet({
             </View>
           ) : null}
           <Pressable onPress={() => setRemoving(true)} style={{ marginTop: 16, alignItems: 'center' }}>
-            <Text style={quiet}>no thanks, remove my page</Text>
+            <Text style={quiet}>take it down</Text>
           </Pressable>
           {removing ? (
             <View style={{ width: '100%' }}>
@@ -372,7 +414,7 @@ function ConfirmSheet({
                 style={field}
               />
               <Pressable onPress={onDeny} disabled={busy} style={{ marginTop: 10, alignItems: 'center' }}>
-                <Text style={sheetLink}>{busy ? 'saving…' : 'remove my page'}</Text>
+                <Text style={sheetLink}>{busy ? 'saving…' : 'take it down'}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -428,5 +470,10 @@ const confirmPill = {
   elevation: 4,
 };
 const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
+const banner = { width: '100%' as const, maxWidth: 520, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' as const, marginBottom: 28 };
+const bannerTitle = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 22, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const };
+const bannerBody = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 21, color: colors.ink, textAlign: 'center' as const, marginTop: 10 };
+const bannerLinks = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 18, marginTop: 14 };
+const bannerLink = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
 const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 12, marginTop: 16, width: '100%' as const };
 const priceField = { fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 6 };

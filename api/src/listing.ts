@@ -84,6 +84,30 @@ export type ListingProductInput = {
 export const LISTING_NEXT_BATCH = 'next batch coming';
 export const PREVIEW_PAY_LINE = 'this is a preview of what shoppers see';
 
+export const PICKUP_WORKS_LINE = "add your zip and we'll show the closest pickup spots at checkout.";
+
+export const WHY_MAINZ_LINES = [
+  'buy straight from the farmer.',
+  'local and small batch.',
+  'your money stays with utah farms.',
+] as const;
+
+/** Up to three sentences from the farm's own story. Empty when there is no story. */
+export function storyLines(raw: string, max = 3): string[] {
+  const text = raw.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!text) return [];
+  const parts = text.split(/(?<=[.!?])\s+/).map((part) => part.trim()).filter(Boolean);
+  return (parts.length ? parts : [text]).slice(0, Math.max(1, max));
+}
+
+/** A farm's own portrait. Skip placeholders and a copy of the hero photo. */
+export function farmPortrait(profile: string | null | undefined, hero?: string | null): string {
+  const photo = (profile || '').trim();
+  if (!photo || photo === 'placeholder') return '';
+  if (hero && photo === hero.trim()) return '';
+  return photo;
+}
+
 /** A draft preview can be looked at. It cannot be bought. */
 export function previewItemAddable(availability: string): boolean {
   return parseAvailability(availability) !== LISTING_NEXT_BATCH;
