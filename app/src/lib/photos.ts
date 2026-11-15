@@ -12,6 +12,13 @@ const profiles = {
   'profile-mcarthur-farms': require('../../assets/photos/profile-mcarthur-farms.jpg'),
   'profile-knight-family-honey': require('../../assets/photos/profile-knight-family-honey.jpg'),
   'profile-mosida-market': require('../../assets/photos/profile-mosida-market.jpg'),
+  'profile-hidden-hillside-honey': require('../../assets/photos/profile-hidden-hillside-honey.jpg'),
+  'profile-the-lavender-hive': require('../../assets/photos/profile-the-lavender-hive.jpg'),
+  'profile-homers-honeybee': require('../../assets/photos/profile-homers-honeybee.jpg'),
+  'profile-papa-bears-honey': require('../../assets/photos/profile-papa-bears-honey.jpg'),
+  'profile-hollow-tree-honey': require('../../assets/photos/profile-hollow-tree-honey.jpg'),
+  'profile-keeper-of-the-b': require('../../assets/photos/profile-keeper-of-the-b.jpg'),
+  'profile-utah-natural-meat': require('../../assets/photos/profile-utah-natural-meat.jpg'),
 } as const;
 
 const originals = {
@@ -169,6 +176,35 @@ const farmMosida = {
   'mosida-steak': require('../../assets/photos/mosida-steak.jpg'),
 } as const;
 
+const farmHiddenHillside = {
+  'hidden-hillside-raw-honey': require('../../assets/photos/hidden-hillside-raw-honey.jpg'),
+  'hidden-hillside-comb-honey': require('../../assets/photos/hidden-hillside-comb-honey.jpg'),
+} as const;
+
+const farmLavenderHive = {
+  'lavender-hive-raw-honey': require('../../assets/photos/lavender-hive-raw-honey.jpg'),
+} as const;
+
+const farmHomers = {
+  'homers-raw-honey': require('../../assets/photos/homers-raw-honey.jpg'),
+  'homers-creamed-honey': require('../../assets/photos/homers-creamed-honey.jpg'),
+} as const;
+
+const farmPapaBears = {
+  'papa-bears-raw-honey': require('../../assets/photos/papa-bears-raw-honey.jpg'),
+} as const;
+
+const farmHollowTree = {
+  'hollow-tree-raw-honey': require('../../assets/photos/hollow-tree-raw-honey.jpg'),
+  'hollow-tree-comb-honey': require('../../assets/photos/hollow-tree-comb-honey.jpg'),
+  'hollow-tree-creamed-honey': require('../../assets/photos/hollow-tree-creamed-honey.jpg'),
+} as const;
+
+const farmKeeper = {
+  'keeper-raw-honey': require('../../assets/photos/keeper-raw-honey.jpg'),
+  'keeper-creamed-honey': require('../../assets/photos/keeper-creamed-honey.jpg'),
+} as const;
+
 const stock = {
   ...profiles,
   ...originals,
@@ -183,6 +219,12 @@ const stock = {
   ...farmMcarthur,
   ...farmKnight,
   ...farmMosida,
+  ...farmHiddenHillside,
+  ...farmLavenderHive,
+  ...farmHomers,
+  ...farmPapaBears,
+  ...farmHollowTree,
+  ...farmKeeper,
 } as const;
 
 export type StockKey = keyof typeof stock;

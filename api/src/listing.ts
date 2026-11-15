@@ -49,6 +49,17 @@ export const LISTING_PHOTO_KEYS = [
   'mcarthur-tallow',
   'knight-raw-honey',
   'mosida-steak',
+  'hidden-hillside-raw-honey',
+  'hidden-hillside-comb-honey',
+  'lavender-hive-raw-honey',
+  'homers-raw-honey',
+  'homers-creamed-honey',
+  'papa-bears-raw-honey',
+  'hollow-tree-raw-honey',
+  'hollow-tree-comb-honey',
+  'hollow-tree-creamed-honey',
+  'keeper-raw-honey',
+  'keeper-creamed-honey',
 ] as const;
 
 export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
