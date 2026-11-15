@@ -9,9 +9,12 @@ import {
   listingShowsForm,
   listingStatusLabel,
   previewFarmCsv,
+  priceNote,
   requestListingChanges,
+  shopFlagsForUdafCheck,
 } from '../src/listing.ts';
 import { isShopVisible } from '../src/orderMath.ts';
+import { shopperCanSeeProduct } from '../src/review.ts';
 
 test('approving a listing records the time and stays off the public shop', () => {
   const approved = approveListing('2026-11-15T12:00:00Z');
@@ -67,8 +70,35 @@ test('csv rows group by farm and flag a missing price or unknown unit', () => {
   assert.ok(preview.rowProblems.some((row) => row.problems.includes('missing price')));
   assert.ok(preview.rowProblems.some((row) => row.problems.some((problem) => problem.startsWith('unknown unit'))));
   assert.equal(preview.unmatched.includes('honey'), true);
+  assert.equal(preview.farms[0].products[0].priceStatus, 'public');
+  assert.equal(preview.farms[0].products[0].needsUdafCheck, false);
   assert.equal(listingShowsForm(0), true);
   assert.equal(listingShowsForm(preview.farms[0].products.length), false);
+});
+
+test('price status defaults to public, and a udaf check stays off the shop', () => {
+  const csv = [
+    'farm,farmer_names,town,story,product,unit,price,source_url,price_status,needs_udaf_check',
+    'Sample Meadow Farm,ada cole,sample town,a made-up meadow,eggs,dozen,7,https://example.com/a,,',
+    'Sample Meadow Farm,ada cole,sample town,a made-up meadow,kale,bunch,4,https://example.com/a,suggested,yes',
+    'Sample Meadow Farm,ada cole,sample town,a made-up meadow,peaches,lb,3,https://example.com/a,converted,no',
+    'Sample Meadow Farm,ada cole,sample town,a made-up meadow,kale,bunch,4,https://example.com/a,wholesale,maybe',
+  ].join('\n');
+  const preview = previewFarmCsv(csv, foods);
+  assert.equal(preview.farms[0].products[0].priceStatus, 'public');
+  assert.equal(preview.farms[0].products[0].needsUdafCheck, false);
+  assert.equal(preview.farms[0].products[1].priceStatus, 'suggested');
+  assert.equal(preview.farms[0].products[1].needsUdafCheck, true);
+  assert.equal(preview.farms[0].products[2].priceStatus, 'converted');
+  assert.equal(priceNote('public'), '');
+  assert.equal(priceNote('suggested'), "suggested price. tell us if it's different.");
+  assert.equal(priceNote('converted'), "suggested price. tell us if it's different.");
+  assert.ok(preview.rowProblems.some((row) => row.problems.includes('unknown price status')));
+  assert.ok(preview.rowProblems.some((row) => row.problems.includes('unknown udaf check')));
+  const hidden = shopFlagsForUdafCheck(true);
+  assert.equal(shopperCanSeeProduct({ active: hidden.active, needsUdaf: hidden.needsUdaf, udafOn: hidden.udafOn }), false);
+  const plain = shopFlagsForUdafCheck(false);
+  assert.equal(shopperCanSeeProduct({ active: plain.active, needsUdaf: plain.needsUdaf, udafOn: plain.udafOn }), true);
 });
 
 test('the invite uses the first farmer name and the private link', () => {

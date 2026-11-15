@@ -23,7 +23,12 @@ export type ListingProductInput = {
   priceCents: number;
   unit: string;
   photoKey: string;
+  sourceUrl?: string;
+  priceStatus?: PriceStatus;
+  needsUdafCheck?: boolean;
 };
+
+export type PriceStatus = 'public' | 'converted' | 'suggested';
 
 const STATUSES = new Set<string>(['draft', 'sent', 'farm_approved', 'changes_requested']);
 
@@ -95,6 +100,8 @@ export type CsvProduct = {
   sourceUrl: string;
   photoKey: string;
   matchedName: string;
+  priceStatus: PriceStatus;
+  needsUdafCheck: boolean;
   problems: string[];
 };
 
@@ -145,6 +152,32 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((line) => line.some((value) => value.trim()));
 }
 
+export function parsePriceStatus(raw: string): PriceStatus | null {
+  const value = raw.trim().toLowerCase();
+  if (!value) return 'public';
+  if (value === 'public' || value === 'converted' || value === 'suggested') return value;
+  return null;
+}
+
+export function parseUdafFlag(raw: string): boolean | null {
+  const value = raw.trim().toLowerCase();
+  if (!value || value === 'no' || value === 'n') return false;
+  if (value === 'yes' || value === 'y') return true;
+  return null;
+}
+
+/** Converted and suggested prices need a note. Public prices do not. */
+export function priceNote(status: string): string {
+  if (status === 'converted' || status === 'suggested') return 'suggested price. tell us if it\'s different.';
+  return '';
+}
+
+/** A draft product marked for a UDAF check stays off the shop until staff clear it. */
+export function shopFlagsForUdafCheck(needsUdafCheck: boolean): { needsUdaf: 0 | 1; udafOn: 0; active: 0 | 1 } {
+  if (needsUdafCheck) return { needsUdaf: 1, udafOn: 0, active: 0 };
+  return { needsUdaf: 0, udafOn: 0, active: 1 };
+}
+
 export function parsePriceToCents(raw: string): number | null {
   const text = raw.trim().replace(/[$,\s]/g, '');
   if (!text || !/^\d+(\.\d{1,2})?$/.test(text)) return null;
@@ -170,22 +203,32 @@ export function previewFarmCsv(text: string, foods: CatalogMatch[]): CsvPreview 
   if (missing.length) {
     return { farms: [], rowProblems: [{ row: 1, farm: '', product: '', problems: [`missing columns: ${missing.join(', ')}`] }], unmatched: [] };
   }
-  const index = Object.fromEntries(need.map((column) => [column, header.indexOf(column)]));
+  const columns = [...need, 'price_status', 'needs_udaf_check'];
+  const index = Object.fromEntries(columns.map((column) => [column, header.indexOf(column)]));
+  const cell = (line: string[], column: string) => {
+    const at = index[column];
+    if (at == null || at < 0) return '';
+    return line[at] || '';
+  };
   const groups = new Map<string, CsvFarm>();
   const rowProblems: CsvProblem[] = [];
   const unmatched = new Set<string>();
   for (let i = 1; i < table.length; i += 1) {
     const line = table[i];
-    const farm = (line[index.farm] || '').trim();
-    const product = (line[index.product] || '').trim();
-    const unit = (line[index.unit] || '').trim().toLowerCase();
-    const priceCents = parsePriceToCents(line[index.price] || '');
+    const farm = cell(line, 'farm').trim();
+    const product = cell(line, 'product').trim();
+    const unit = cell(line, 'unit').trim().toLowerCase();
+    const priceCents = parsePriceToCents(cell(line, 'price'));
+    const priceStatus = parsePriceStatus(cell(line, 'price_status'));
+    const needsUdafCheck = parseUdafFlag(cell(line, 'needs_udaf_check'));
     const problems: string[] = [];
     if (!farm) problems.push('missing farm');
     if (!product) problems.push('missing product');
     if (priceCents == null) problems.push('missing price');
     if (!unit) problems.push('missing unit');
     else if (!KNOWN_UNITS.includes(unit as (typeof KNOWN_UNITS)[number])) problems.push(`unknown unit: ${unit}`);
+    if (!priceStatus) problems.push('unknown price status');
+    if (needsUdafCheck == null) problems.push('unknown udaf check');
     if (problems.length) rowProblems.push({ row: i + 1, farm, product, problems });
     if (!farm || !product) continue;
     const key = farm.toLowerCase();
@@ -193,25 +236,27 @@ export function previewFarmCsv(text: string, foods: CatalogMatch[]): CsvPreview 
     if (!group) {
       group = {
         farm,
-        farmerNames: (line[index.farmer_names] || '').trim(),
-        town: (line[index.town] || '').trim(),
-        story: (line[index.story] || '').trim(),
+        farmerNames: cell(line, 'farmer_names').trim(),
+        town: cell(line, 'town').trim(),
+        story: cell(line, 'story').trim(),
         products: [],
       };
       groups.set(key, group);
     }
-    if (!group.farmerNames) group.farmerNames = (line[index.farmer_names] || '').trim();
-    if (!group.town) group.town = (line[index.town] || '').trim();
-    if (!group.story) group.story = (line[index.story] || '').trim();
+    if (!group.farmerNames) group.farmerNames = cell(line, 'farmer_names').trim();
+    if (!group.town) group.town = cell(line, 'town').trim();
+    if (!group.story) group.story = cell(line, 'story').trim();
     const match = matchCatalogFood(product, foods);
     if (!match) unmatched.add(product);
     group.products.push({
       name: product,
       unit,
       priceCents,
-      sourceUrl: (line[index.source_url] || '').trim().slice(0, 300),
+      sourceUrl: cell(line, 'source_url').trim().slice(0, 300),
       photoKey: match?.photoKey || 'placeholder',
       matchedName: match?.name || '',
+      priceStatus: priceStatus || 'public',
+      needsUdafCheck: needsUdafCheck === true,
       problems,
     });
   }

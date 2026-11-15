@@ -7,7 +7,7 @@ import { api } from '../../src/lib/api';
 import { dollars } from '../../src/lib/money';
 import { colors, useLayout } from '../../src/theme';
 
-type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string };
+type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
 type Listing = {
   farmName: string;
@@ -197,6 +197,9 @@ export default function ListingApproval() {
                     </View>
                     <Text style={productName}>{product.name}</Text>
                     <Text style={quiet}>{product.priceCents ? `${dollars(product.priceCents, 'auto')} / ${product.unit}` : 'price to come'}</Text>
+                    {product.priceStatus === 'converted' || product.priceStatus === 'suggested' ? (
+                      <Text style={quiet}>suggested price. tell us if it's different.</Text>
+                    ) : null}
                   </View>
                 ))}
               </View>

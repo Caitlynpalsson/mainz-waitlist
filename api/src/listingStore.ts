@@ -7,6 +7,8 @@ import {
   listingShowsForm,
   listingStatusLabel,
   newListingToken,
+  parsePriceStatus,
+  parseUdafFlag,
   previewFarmCsv,
   requestListingChanges,
   type CatalogMatch,
@@ -37,6 +39,8 @@ type ProductRow = {
   unit: string;
   photo_key: string;
   source_url: string;
+  price_status: string;
+  needs_udaf_check: number;
   sort_order: number;
 };
 
@@ -114,8 +118,8 @@ export async function adminSaveListing(env: Env, id: number | null, body: Record
   let sort = 0;
   for (const product of products) {
     await env.DB.prepare(
-      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, sort_order) VALUES (?, ?, ?, ?, ?, ?)`,
-    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, sort).run();
+      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order) VALUES (?, ?, ?, ?, ?, '', ?, 0, ?)`,
+    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, product.priceStatus || 'public', sort).run();
     sort += 1;
   }
   const saved = await byId(env, listingId);
@@ -135,7 +139,7 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
 
 async function present(env: Env, row: DraftRow) {
   const products = await env.DB.prepare(
-    `SELECT id, name, price_cents, unit, photo_key, source_url, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
+    `SELECT id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
   ).bind(row.id).all<ProductRow>();
   return {
     id: row.id,
@@ -161,6 +165,8 @@ async function present(env: Env, row: DraftRow) {
       unit: product.unit,
       photoKey: product.photo_key,
       sourceUrl: product.source_url || '',
+      priceStatus: product.price_status || 'public',
+      needsUdafCheck: !!product.needs_udaf_check,
     })),
   };
 }
@@ -205,9 +211,9 @@ export async function importListingCsv(env: Env, body: Record<string, unknown>):
     let sort = 0;
     for (const product of products) {
       await env.DB.prepare(
-        `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(id, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, sort).run();
+        `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(id, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, product.priceStatus, product.needsUdafCheck ? 1 : 0, sort).run();
       sort += 1;
     }
     const saved = await byId(env, id);
@@ -232,13 +238,23 @@ function readFarmProducts(value: unknown) {
   return value.slice(0, 24).map((item) => cleanFarmProduct(item as Record<string, unknown>));
 }
 
-async function replaceProducts(env: Env, listingId: number, products: { name: string; priceCents: number; unit: string; photoKey: string; sourceUrl: string }[]) {
+async function replaceProducts(env: Env, listingId: number, products: ListingProductInput[]) {
   await env.DB.prepare(`DELETE FROM listing_products WHERE listing_id = ?`).bind(listingId).run();
   let sort = 0;
   for (const product of products) {
     await env.DB.prepare(
-      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, sort).run();
+      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      listingId,
+      product.name,
+      product.priceCents,
+      product.unit,
+      product.photoKey,
+      product.sourceUrl,
+      product.priceStatus || 'public',
+      product.needsUdafCheck ? 1 : 0,
+      sort,
+    ).run();
     sort += 1;
   }
 }
@@ -246,7 +262,20 @@ async function replaceProducts(env: Env, listingId: number, products: { name: st
 function readProducts(value: unknown): ListingProductInput[] {
   if (!Array.isArray(value)) throw new HttpError('add the products as a list.');
   try {
-    return value.slice(0, 24).map((item) => cleanListingProduct(item as Record<string, unknown>));
+    return value.slice(0, 24).map((item) => {
+      const raw = item as Record<string, unknown>;
+      const base = cleanListingProduct(raw);
+      const priceStatus = parsePriceStatus(String(raw.priceStatus ?? 'public'));
+      const needsUdafCheck = parseUdafFlag(raw.needsUdafCheck === true ? 'yes' : String(raw.needsUdafCheck ?? 'no'));
+      if (!priceStatus) throw new Error('unknown price status');
+      if (needsUdafCheck == null) throw new Error('unknown udaf check');
+      return {
+        ...base,
+        sourceUrl: String(raw.sourceUrl ?? '').trim().slice(0, 300),
+        priceStatus,
+        needsUdafCheck,
+      };
+    });
   } catch (error) {
     throw new HttpError(error instanceof Error ? error.message : 'check the products.');
   }

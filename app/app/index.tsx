@@ -11,7 +11,7 @@ import { useStore } from '../src/lib/store';
 import type { BrowseResponse, ProductCard } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
 
-const CATS = ['all', 'produce', 'eggs', 'honey', 'dairy', 'meat'];
+const CATS = ['all', 'produce', 'eggs', 'honey', 'dairy', 'meat', 'bakery', 'pantry'];
 
 export default function Browse() {
   const params = useLocalSearchParams<{ q?: string; category?: string; pickup?: string; season?: string }>();

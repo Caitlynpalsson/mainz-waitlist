@@ -4,6 +4,7 @@ import { HttpError, json } from './http';
 import { approvePublicListing, changePublicListing, getPublicListing, savePublicListing } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
+import { shopFlagsForUdafCheck } from './listing';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
 export interface Env {
@@ -14,7 +15,7 @@ export interface Env {
 }
 
 const PLACE = 'spanish fork, ut';
-const CATEGORIES = new Set(['produce', 'eggs', 'honey', 'dairy', 'meat']);
+const CATEGORIES = new Set(['produce', 'eggs', 'honey', 'dairy', 'meat', 'bakery', 'pantry']);
 const PHOTO_ROLES = new Set(['hero', 'hands', 'farm', 'packaging']);
 
 type FarmRow = {
@@ -600,6 +601,9 @@ async function addProduct(env: Env, farm: FarmRow, body: Record<string, unknown>
   const dek = clean(body.dek, 140) || note;
   const stock = clampInt(body.stockQty, 0, 9999, 0);
   const flagged = udafType(`${food.name} ${food.category}`);
+  const asked = String(body.needsUdafCheck ?? '').trim().toLowerCase();
+  const fromDraft = asked === 'yes' || asked === 'true' || body.needsUdafCheck === true;
+  const gate = shopFlagsForUdafCheck(fromDraft || !!flagged);
   const inserted = await env.DB.prepare(
     `INSERT INTO products (
       farm_id, food_id, headline, note, dek, price_cents, unit, price_setter, grown_note, picked_label, stock_qty, in_season, sort_order, active, needs_udaf, udaf_on
@@ -608,7 +612,7 @@ async function addProduct(env: Env, farm: FarmRow, body: Record<string, unknown>
     farm.id, food.id, headline, note, dek, price, unit,
     farm.farmer_names.split(' ')[0] || 'the farm',
     clean(body.grownNote, 80), clean(body.pickedLabel, 40) || 'this week', stock,
-    flagged ? 0 : 1, flagged ? 1 : 0,
+    gate.needsUdaf ? 0 : 1, gate.needsUdaf,
   ).run();
   const productId = inserted.meta.last_row_id;
   const varietyNames = Array.isArray(body.varietyNames) ? body.varietyNames.map((name) => clean(name, 40)).filter(Boolean).slice(0, 6) : [];

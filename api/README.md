@@ -71,6 +71,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0007_listing_import.sql` adds farmer names and a source link on draft products. Staff paste a csv on the admin desk, preview it, then create drafts. A sample file is `samples/farm-drafts-sample.csv`. The farm only fills a page in when that draft has no products yet.
 
+`0009_price_status_udaf_foods.sql` adds an optional price status and a UDAF check on each draft product. A blank price status is public. Converted and suggested prices show a note on the farm's private page. The UDAF tag is staff-only. A product created with that check stays hidden until staff turn it on. The same migration adds honey, sourdough bread, jam, and the extra meat cuts, and skips any that already exist.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

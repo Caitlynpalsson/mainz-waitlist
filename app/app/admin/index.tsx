@@ -38,6 +38,7 @@ type StaffListing = {
   changeNote: string;
   approvedAt: string;
   isSample: boolean;
+  products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
 };
 
 type CsvPreview = {
@@ -290,6 +291,11 @@ export default function AdminHome() {
                     <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
                     <Text style={small}>{listing.statusLabel}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
                     <Text style={small}>{listing.path}</Text>
+                    {listing.products?.map((product) => (
+                      <Text key={product.name} style={small}>
+                        {product.name} · {product.priceStatus || 'public'}{product.needsUdafCheck ? ' · udaf check' : ''}
+                      </Text>
+                    ))}
                   </Pressable>
                   <Pressable onPress={() => copyInvite(listing)} style={{ marginTop: 8 }}>
                     <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>{copied === listing.path ? 'copied' : 'copy text'}</Text>

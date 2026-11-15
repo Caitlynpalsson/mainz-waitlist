@@ -9,7 +9,7 @@ import { colors, useLayout } from '../../../src/theme';
 
 const PHOTOS = ['peach', 'strawberry', 'carrot', 'honey', 'eggs', 'tomato', 'beets', 'comb', 'cow'];
 
-type ProductDraft = { name: string; price: string; unit: string; photoKey: string };
+type ProductDraft = { name: string; price: string; unit: string; photoKey: string; priceStatus?: string; needsUdafCheck?: boolean };
 type Listing = {
   id: number;
   path: string;
@@ -21,7 +21,7 @@ type Listing = {
   changeNote: string;
   approvedAt: string;
   isSample: boolean;
-  products: { name: string; priceCents: number; unit: string; photoKey: string }[];
+  products: { name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; needsUdafCheck?: boolean }[];
 };
 
 const emptyProduct = (): ProductDraft => ({ name: '', price: '', unit: '', photoKey: 'peach' });
@@ -51,6 +51,8 @@ export default function ListingEditor() {
           price: (product.priceCents / 100).toFixed(2),
           unit: product.unit,
           photoKey: product.photoKey,
+          priceStatus: product.priceStatus,
+          needsUdafCheck: product.needsUdafCheck,
         })));
       })
       .catch((err: Error) => setError(err.message));
@@ -68,6 +70,8 @@ export default function ListingEditor() {
         unit: product.unit,
         photoKey: product.photoKey,
         priceCents: Math.round(Number(product.price) * 100),
+        priceStatus: product.priceStatus || 'public',
+        needsUdafCheck: !!product.needsUdafCheck,
       })),
     };
     try {
@@ -115,6 +119,7 @@ export default function ListingEditor() {
                   <Field label="product" value={product.name} onChange={(name) => edit(index, { name })} />
                   <Field label="price in dollars" value={product.price} onChange={(price) => edit(index, { price })} />
                   <Field label="unit" value={product.unit} onChange={(unit) => edit(index, { unit })} />
+                  <Text style={quiet}>{product.priceStatus && product.priceStatus !== 'public' ? product.priceStatus : 'public price'}{product.needsUdafCheck ? ' · udaf check' : ''}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, marginTop: 12 }}>
                     {PHOTOS.map((key) => (
                       <Pressable key={key} onPress={() => edit(index, { photoKey: key })}>
