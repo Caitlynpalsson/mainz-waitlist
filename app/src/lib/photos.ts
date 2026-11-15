@@ -103,12 +103,38 @@ const batch3 = {
   microgreens: require('../../assets/photos/microgreens.jpg'),
 } as const;
 
+const farm87 = {
+  '87-eggs': require('../../assets/photos/87-eggs.jpg'),
+  '87-ground-beef': require('../../assets/photos/87-ground-beef.jpg'),
+  '87-steak': require('../../assets/photos/87-steak.jpg'),
+  '87-beef-roast': require('../../assets/photos/87-beef-roast.jpg'),
+  '87-stew-meat': require('../../assets/photos/87-stew-meat.jpg'),
+  '87-beef-bones': require('../../assets/photos/87-beef-bones.jpg'),
+  '87-beef-ribs': require('../../assets/photos/87-beef-ribs.jpg'),
+  '87-short-ribs': require('../../assets/photos/87-short-ribs.jpg'),
+  '87-beef-liver': require('../../assets/photos/87-beef-liver.jpg'),
+  '87-oxtail': require('../../assets/photos/87-oxtail.jpg'),
+  '87-beef-heart': require('../../assets/photos/87-beef-heart.jpg'),
+  '87-tallow': require('../../assets/photos/87-tallow.jpg'),
+  '87-beef-jerky': require('../../assets/photos/87-beef-jerky.jpg'),
+  '87-chicken-breast': require('../../assets/photos/87-chicken-breast.jpg'),
+  '87-chicken-thighs': require('../../assets/photos/87-chicken-thighs.jpg'),
+  '87-whole-chicken': require('../../assets/photos/87-whole-chicken.jpg'),
+  '87-chicken-drumsticks': require('../../assets/photos/87-chicken-drumsticks.jpg'),
+  '87-chicken-tenders': require('../../assets/photos/87-chicken-tenders.jpg'),
+  '87-chicken-wings': require('../../assets/photos/87-chicken-wings.jpg'),
+  '87-milk': require('../../assets/photos/87-milk.jpg'),
+  '87-cream': require('../../assets/photos/87-cream.jpg'),
+  '87-ice-cream': require('../../assets/photos/87-ice-cream.jpg'),
+} as const;
+
 const stock = {
   ...profiles,
   ...originals,
   ...batch1,
   ...batch2,
   ...batch3,
+  ...farm87,
 } as const;
 
 export type StockKey = keyof typeof stock;
