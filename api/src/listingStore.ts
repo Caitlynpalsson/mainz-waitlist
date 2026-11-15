@@ -14,6 +14,7 @@ import {
   previewFarmCsv,
   requestListingChanges,
   resendDeniedListing,
+  staffApproveListing,
   type CatalogMatch,
   type ListingProductInput,
 } from './listing';
@@ -29,6 +30,7 @@ type DraftRow = {
   status: string;
   change_note: string;
   approved_at: string;
+  staff_approved_at: string;
   denied_at: string;
   deny_reason: string;
   is_sample: number;
@@ -153,6 +155,23 @@ export async function adminSaveListing(env: Env, id: number | null, body: Record
   return json({ listing: await present(env, saved!) }, id == null ? 201 : 200);
 }
 
+export async function adminPublishListing(env: Env, id: number): Promise<Response> {
+  const existing = await byId(env, id);
+  if (!existing) throw new HttpError('no listing with that id.', 404);
+  if (existing.staff_approved_at) return json({ listing: await present(env, existing) });
+  let next;
+  try {
+    next = staffApproveListing(existing.status, new Date().toISOString());
+  } catch (error) {
+    throw new HttpError(error instanceof Error ? error.message : 'the farm confirms first.');
+  }
+  await env.DB.prepare(
+    `UPDATE listing_drafts SET staff_approved_at = ?, updated_at = datetime('now') WHERE id = ?`,
+  ).bind(next.staffApprovedAt, id).run();
+  const saved = await byId(env, id);
+  return json({ listing: await present(env, saved!) });
+}
+
 export async function adminMarkSent(env: Env, id: number): Promise<Response> {
   const existing = await byId(env, id);
   if (!existing) throw new HttpError('no listing with that id.', 404);
@@ -187,6 +206,7 @@ async function present(env: Env, row: DraftRow) {
     statusLabel: listingStatusLabel(row.status),
     changeNote: row.change_note,
     approvedAt: row.approved_at,
+    staffApprovedAt: row.staff_approved_at || '',
     deniedAt: row.denied_at || '',
     denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',

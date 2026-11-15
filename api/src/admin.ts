@@ -4,6 +4,7 @@ import {
   adminGetListing,
   adminListings,
   adminMarkSent,
+  adminPublishListing,
   adminSaveListing,
   importListingCsv,
   previewListingCsv,
@@ -88,6 +89,8 @@ export async function handleAdmin(request: Request, env: Env, method: string, pa
   const listingOne = path.match(/^\/api\/admin\/listings\/(\d+)$/);
   if (method === 'GET' && listingOne) return adminGetListing(env, Number(listingOne[1]));
   if (method === 'PATCH' && listingOne) return adminSaveListing(env, Number(listingOne[1]), await readJson(request));
+  const listingPublish = path.match(/^\/api\/admin\/listings\/(\d+)\/publish$/);
+  if (method === 'POST' && listingPublish) return adminPublishListing(env, Number(listingPublish[1]));
   const listingSent = path.match(/^\/api\/admin\/listings\/(\d+)\/sent$/);
   if (method === 'POST' && listingSent) return adminMarkSent(env, Number(listingSent[1]));
   if (method === 'GET' && path === '/api/admin/farms') return listFarms(env);

@@ -79,6 +79,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0013_listing_price_fixes.sql` stores a price a farm types on its draft page. Staff see it on the admin desk. It does not publish the listing.
 
+`0014_listing_staff_approve.sql` lets staff record a final look after the farm confirms. The draft stays off the shop.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

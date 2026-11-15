@@ -6,7 +6,7 @@ import { Shell } from '../../src/components/chrome';
 import { Cap, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { colors, useLayout } from '../../src/theme';
-import { LISTING_REMOVED_LINE, draftDisplayPrice } from '../../../api/src/listing';
+import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../api/src/listing';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -25,7 +25,6 @@ type Listing = {
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
 
-const thanks = "thank you. we're so happy to have you. when your first order comes in, we'll send it straight to you and set up how you'd like to get paid. no rush, no pressure.";
 
 export default function ListingApproval() {
   const { token } = useLocalSearchParams<{ token: string }>();
@@ -182,7 +181,7 @@ export default function ListingApproval() {
         {data && !denied && approved ? (
           <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
             <Text style={headline}>thank you.</Text>
-            <Text style={{ ...storyStyle, marginTop: 16 }}>{thanks}</Text>
+            <Text style={{ ...storyStyle, marginTop: 16 }}>{LISTING_THANKS_LINE}</Text>
           </View>
         ) : null}
         {data && !denied && !approved && filling ? (
@@ -368,7 +367,7 @@ function ConfirmSheet({
             </View>
           ) : null}
           <Text style={hint}>a few prices are our best guess. tap any price to fix it.</Text>
-          <Text style={hint}>your page goes live for shoppers when mainz launches.</Text>
+          <Text style={hint}>{LISTING_CONFIRM_LINE}</Text>
           {error ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{error}</Text> : null}
           <Pressable onPress={onClose} style={{ marginTop: 16, alignItems: 'center' }}>
             <Text style={quiet}>close</Text>

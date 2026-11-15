@@ -35,9 +35,11 @@ type StaffListing = {
   farmName: string;
   farmerNames: string;
   path: string;
+  status: string;
   statusLabel: string;
   changeNote: string;
   approvedAt: string;
+  staffApprovedAt?: string;
   denyReason?: string;
   isSample: boolean;
   products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
@@ -120,6 +122,20 @@ export default function AdminHome() {
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'could not read that csv.');
+    }
+  }
+
+  async function publishListing(id: number) {
+    if (!auth.token) return;
+    setError('');
+    try {
+      const data = await api<{ listing: StaffListing }>(`/api/admin/listings/${id}/publish`, {
+        method: 'POST',
+        headers: adminHeaders(auth.token),
+      });
+      setListings((current) => current.map((item) => item.id === id ? { ...item, ...data.listing } : item));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not approve that listing.');
     }
   }
 
@@ -304,6 +320,12 @@ export default function AdminHome() {
                       <Text key={fix.id} style={small}>{fix.productName} · farm price {dollars(fix.priceCents, 'auto')}</Text>
                     ))}
                   </Pressable>
+                  {listing.status === 'farm_approved' && !listing.staffApprovedAt ? (
+                    <Pressable onPress={() => publishListing(listing.id)} style={{ marginTop: 8 }}>
+                      <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>approve and publish</Text>
+                    </Pressable>
+                  ) : null}
+                  {listing.staffApprovedAt ? <Text style={small}>staff approved. not on the shop.</Text> : null}
                   <Pressable onPress={() => copyInvite(listing)} style={{ marginTop: 8 }}>
                     <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>{copied === listing.path ? 'copied' : 'copy text'}</Text>
                   </Pressable>

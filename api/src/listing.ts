@@ -1,4 +1,4 @@
-// Draft listings a farm can approve before launch.
+// Draft listings a farm can confirm. Staff still have to approve before anything is public.
 // Approving a listing never puts it on the public shop. Browse only reads farms.
 
 export const LISTING_PHOTO_KEYS = [
@@ -19,6 +19,8 @@ export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
 
 export const LISTING_REMOVED_LINE = "got it. we've removed your page. thank you for your time.";
+export const LISTING_CONFIRM_LINE = "once you confirm, our team gives it a final look and your page goes live. thank you for growing such good food.";
+export const LISTING_THANKS_LINE = "thank you. we're so happy to have you. our team is giving your page a final look.";
 
 export type ListingProductInput = {
   name: string;
@@ -58,6 +60,12 @@ export function listingCanBePublished(_status: string): boolean {
 
 export function approveListing(nowIso: string): { status: 'farm_approved'; approvedAt: string; shopVisible: false } {
   return { status: 'farm_approved', approvedAt: nowIso, shopVisible: false };
+}
+
+/** Staff can record a final look. That still does not put the draft on the shop. */
+export function staffApproveListing(status: string, nowIso: string): { staffApprovedAt: string; shopVisible: false } {
+  if (status !== 'farm_approved') throw new Error('the farm confirms first.');
+  return { staffApprovedAt: nowIso, shopVisible: false };
 }
 
 export function denyListing(nowIso: string, reason: string): { status: 'farm_denied'; deniedAt: string; denyReason: string; shopVisible: false } {

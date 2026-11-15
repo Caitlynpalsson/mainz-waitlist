@@ -7,7 +7,9 @@ import {
   cleanPriceFix,
   draftDisplayPrice,
   listingAppearsInBrowse,
+  LISTING_CONFIRM_LINE,
   LISTING_REMOVED_LINE,
+  LISTING_THANKS_LINE,
   denyListing,
   listingCanBePublished,
   listingInvite,
@@ -18,6 +20,7 @@ import {
   priceNote,
   requestListingChanges,
   resendDeniedListing,
+  staffApproveListing,
   shopFlagsForUdafCheck,
 } from '../src/listing.ts';
 import { isShopVisible } from '../src/orderMath.ts';
@@ -31,7 +34,13 @@ test('approving a listing records the time and stays off the public shop', () =>
   assert.equal(listingAppearsInBrowse(approved.status, true), false);
   assert.equal(listingAppearsInBrowse(approved.status, false), false);
   assert.equal(approved.shopVisible, false);
+  assert.equal(listingAppearsInBrowse('farm_approved', false), false);
   assert.equal(isShopVisible('approved', 1), true);
+  const staff = staffApproveListing('farm_approved', '2026-11-15T18:00:00Z');
+  assert.equal(staff.staffApprovedAt, '2026-11-15T18:00:00Z');
+  assert.equal(staff.shopVisible, false);
+  assert.equal(listingAppearsInBrowse('farm_approved', true), false);
+  assert.throws(() => staffApproveListing('sent', '2026-11-15T18:00:00Z'), /farm confirms/);
   assert.notEqual(approved.status, 'approved');
 });
 
@@ -127,6 +136,9 @@ test('denying a listing records the reason, hides the page, and cannot publish i
   assert.equal(listingCanBePublished(resent.status), false);
   assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
   assert.equal(LISTING_REMOVED_LINE, "got it. we've removed your page. thank you for your time.");
+  assert.equal(LISTING_CONFIRM_LINE, "once you confirm, our team gives it a final look and your page goes live. thank you for growing such good food.");
+  assert.equal(LISTING_THANKS_LINE, "thank you. we're so happy to have you. our team is giving your page a final look.");
+  assert.equal(/launch|coming soon|not taking orders|orders open at launch|pre-launch/i.test(`${LISTING_CONFIRM_LINE} ${LISTING_THANKS_LINE} ${LISTING_REMOVED_LINE}`), false);
 });
 
 test('a price fix stores the product and the cents and does not publish the draft', () => {
