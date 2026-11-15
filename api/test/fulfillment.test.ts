@@ -19,6 +19,7 @@ import {
   pickupTownLine,
   renderPickupOption,
   showDeliveryFee,
+  zipPillLabel,
 } from '../src/fulfillment.ts';
 
 const raw = readFileSync(new URL('../samples/87-farms-fulfillment.json', import.meta.url), 'utf8');
@@ -154,6 +155,15 @@ test('a farm with its own pickup spots starts on pickup, and the delivery fee wa
   assert.equal(showDeliveryFee('pickup', true), false);
   assert.equal(showDeliveryFee('delivery', false), false);
   assert.equal(showDeliveryFee('delivery', true), true);
+});
+
+test('the zip pill is near the code, or an invitation to add one', () => {
+  assert.equal(zipPillLabel(''), 'near · add zip');
+  assert.equal(zipPillLabel('846'), 'near · add zip');
+  assert.equal(zipPillLabel('84601'), 'near 84601');
+  assert.equal(zipPillLabel('spanish fork 84601'), 'near 84601');
+  assert.equal(zipPillLabel('84601', true), 'deliver to 84601');
+  assert.equal(zipPillLabel('', true), 'deliver to · add zip');
 });
 
 test('delivery is offered only when a route covers the zip', () => {

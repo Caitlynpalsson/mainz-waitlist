@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
   digitsZip,
@@ -8,10 +8,12 @@ import {
   pickupChoiceLabel,
   checkoutPillLabels,
   pickupSpotNote,
+  zipPillLabel,
   type PickupOption,
 } from '../../../api/src/fulfillment';
 import type { Fulfillment } from '../lib/orderMath';
 import { colors } from '../theme';
+import { IconPin } from './icons';
 import { Pill, PrimaryButton, Segment } from './ui';
 
 export function asPickupOptions(options: Array<Omit<PickupOption, 'zip' | 'lat' | 'lng'> & { zip?: string; lat?: number | null; lng?: number | null }>): PickupOption[] {
@@ -53,6 +55,8 @@ export function WhereStep({
   onContinue: () => void;
 }) {
   const [rankedZip, setRankedZip] = useState('');
+  const [editingZip, setEditingZip] = useState(false);
+  const zipInput = useRef<{ focus: () => void } | null>(null);
   const clean = digitsZip(zip);
   const hasSpots = options.length > 0;
   const spots = hasSpots && clean.length === 5
@@ -60,6 +64,14 @@ export function WhereStep({
     : { nearest: null, alternative: null, others: [] as PickupOption[], visible: [] as PickupOption[] };
   const selected = spots.visible.find((option) => pickupChoiceLabel(option) === selectedLabel) || spots.nearest;
   const delivering = fulfillment === 'delivery' && routeMatched;
+
+  useEffect(() => {
+    if (clean.length === 5) setEditingZip(false);
+  }, [clean]);
+
+  useEffect(() => {
+    if (editingZip) zipInput.current?.focus();
+  }, [editingZip]);
 
   useEffect(() => {
     if (!hasSpots || clean.length !== 5 || !spots.visible.length || !spots.nearest) return;
@@ -87,21 +99,32 @@ export function WhereStep({
           options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
         />
       ) : null}
-      <View style={zipRow}>
-        <Text style={zipLabel}>{delivering ? 'deliver to' : 'pickup near'}</Text>
-        <TextInput
-          value={clean}
-          onChangeText={(value) => onZip(digitsZip(value))}
-          placeholder="zip code"
-          placeholderTextColor={colors.gray}
-          keyboardType="number-pad"
-          inputMode="numeric"
-          autoFocus
-          maxLength={5}
-          accessibilityLabel="zip code"
-          style={zipField}
-        />
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={editingZip ? 'zip code' : zipPillLabel(clean, delivering)}
+        onPress={() => setEditingZip(true)}
+        style={zipPill}
+      >
+        <IconPin size={14} />
+        {editingZip ? (
+          <TextInput
+            ref={zipInput as never}
+            value={clean}
+            onChangeText={(value) => onZip(digitsZip(value))}
+            placeholder="zip code"
+            placeholderTextColor={colors.gray}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            maxLength={5}
+            cursorColor={colors.gray}
+            selectionColor={colors.gray}
+            accessibilityLabel="zip code"
+            style={zipInputStyle}
+          />
+        ) : (
+          <Text style={zipText}>{zipPillLabel(clean, delivering)}</Text>
+        )}
+      </Pressable>
       {clean.length === 5 && routeNote && !routeMatched ? <Text style={note}>{routeNote}</Text> : null}
       {!hasSpots && !delivering ? <Text style={note}>{PICKUP_COMING_SOON}</Text> : null}
       {!delivering && hasSpots && spots.visible.length ? (
@@ -188,8 +211,19 @@ function Field({ label, value, onChange, keyboardType, autoCapitalize }: { label
   );
 }
 
-const zipRow = { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };
-const zipLabel = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.gray };
+const zipPill = {
+  alignSelf: 'center' as const,
+  marginTop: 16,
+  height: 32,
+  paddingHorizontal: 14,
+  borderRadius: 999,
+  backgroundColor: colors.cream,
+  borderWidth: 0,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 6,
+};
+const zipText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '500' as const, color: colors.navy };
 const fieldBox = {
   fontFamily: 'Inter' as const,
   fontSize: 16,
@@ -203,22 +237,16 @@ const fieldBox = {
   paddingHorizontal: 16,
   marginTop: 10,
 };
-const zipField = {
+const zipInputStyle = {
   fontFamily: 'Inter' as const,
-  fontSize: 16,
-  fontWeight: '400' as const,
-  letterSpacing: 0,
+  fontSize: 12,
+  fontWeight: '500' as const,
   color: colors.navy,
-  textAlign: 'center' as const,
-  backgroundColor: colors.cream,
-  borderWidth: 1,
-  borderStyle: 'solid' as const,
-  borderColor: colors.hair,
-  borderRadius: 12,
-  height: 44,
-  width: 152,
-  paddingHorizontal: 12,
-  paddingVertical: 0,
+  width: 72,
+  padding: 0,
+  margin: 0,
+  borderWidth: 0,
+  backgroundColor: 'transparent',
   outlineWidth: 0,
 };
 const pillRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };

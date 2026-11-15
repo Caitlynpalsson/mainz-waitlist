@@ -58,6 +58,13 @@ const DAY = {
 
 const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
+/** Cream zip pill. Empty reads "near · add zip"; five digits read "near 84601". */
+export function zipPillLabel(zip: string, delivering = false): string {
+  const clean = digitsZip(zip);
+  if (clean.length === 5) return delivering ? `deliver to ${clean}` : `near ${clean}`;
+  return delivering ? 'deliver to · add zip' : 'near · add zip';
+}
+
 export function digitsZip(raw: string): string {
   const found = raw.match(/\b(\d{5})\b/);
   if (found) return found[1];
