@@ -59,6 +59,16 @@ export type ListingProductInput = {
 };
 
 export const LISTING_NEXT_BATCH = 'next batch coming';
+export const PREVIEW_PAY_LINE = 'this is a preview of what shoppers see';
+
+/** A draft preview can be looked at. It cannot be bought. */
+export function previewItemAddable(availability: string): boolean {
+  return parseAvailability(availability) !== LISTING_NEXT_BATCH;
+}
+
+export function previewCheckout(): { createsOrder: false; charges: false; line: string } {
+  return { createsOrder: false, charges: false, line: PREVIEW_PAY_LINE };
+}
 
 export function parseAvailability(raw: unknown): string {
   const value = String(raw ?? '').trim().toLowerCase();

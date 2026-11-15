@@ -1,10 +1,13 @@
+import { lookupRoute } from './deliveryStore';
 import { HttpError, json } from './http';
+import { priceGroups } from './orderMath';
 import {
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
   cleanPriceFix,
   denyListing,
+  draftDisplayPrice,
   listingAppearsInBrowse,
   listingShowsForm,
   listingStatusLabel,
@@ -13,6 +16,7 @@ import {
   parsePriceStatus,
   parseUdafFlag,
   previewFarmCsv,
+  previewItemAddable,
   requestListingChanges,
   resendDeniedListing,
   staffApproveListing,
@@ -53,6 +57,99 @@ type ProductRow = {
   availability: string;
   sort_order: number;
 };
+
+const PREVIEW_RATES = { platformFeeBps: 500, deliveryFeeCents: 500 };
+
+/** Read-only price check for a draft. Does not write an order, a fee, or a payment. */
+export async function previewListingQuote(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
+  const products = await env.DB.prepare(
+    `SELECT id, name, price_cents, unit, photo_key, availability FROM listing_products WHERE listing_id = ?`,
+  ).bind(listing.id).all<{ id: number; name: string; price_cents: number; unit: string; photo_key: string; availability: string }>();
+  const fixes = await priceFixes(env, listing.id);
+  const asked = Array.isArray(body.items) ? body.items : [];
+  if (!asked.length) throw new HttpError('your bag is empty.');
+  const lines = [];
+  for (const item of asked.slice(0, 24)) {
+    const raw = item as { productId?: unknown; qty?: unknown };
+    const product = products.results.find((row) => row.id === Number(raw.productId));
+    if (!product) throw new HttpError('that product is not on this page.');
+    let addable = true;
+    try {
+      addable = previewItemAddable(product.availability || '');
+    } catch {
+      addable = false;
+    }
+    if (!addable) throw new HttpError('next batch coming');
+    const qty = Math.max(1, Math.min(24, Math.floor(Number(raw.qty) || 1)));
+    const price = draftDisplayPrice(
+      { id: product.id, name: product.name, priceCents: product.price_cents },
+      fixes.map((fix) => ({ productId: fix.product_id, productName: fix.product_name, priceCents: fix.price_cents })),
+    );
+    lines.push({
+      farmId: listing.id,
+      productId: product.id,
+      optionId: null,
+      qty,
+      unitPriceCents: price.priceCents,
+      name: product.name,
+      optionLabel: '',
+      unit: product.unit,
+      photo: product.photo_key,
+    });
+  }
+  const address = body.address as { line1?: string; cityZip?: string } | undefined;
+  const line1 = String(address?.line1 || '');
+  const cityZip = String(address?.cityZip || '');
+  const addressThere = `${line1}${cityZip}`.trim().length > 0;
+  const route = addressThere ? await lookupRoute(env, line1, cityZip, true) : null;
+  const groupAsk = Array.isArray(body.groups) ? body.groups[0] as { fulfillment?: string; windowLabel?: string } : undefined;
+  let fulfillment: 'pickup' | 'delivery' = groupAsk?.fulfillment === 'pickup' ? 'pickup' : 'delivery';
+  if (fulfillment === 'delivery' && route?.pickupOnly) fulfillment = 'pickup';
+  const slots = route?.matched ? route.slots : [];
+  const requestedLabel = String(groupAsk?.windowLabel || '').trim();
+  const windowLabel = fulfillment === 'delivery'
+    ? (slots.some((slot) => slot.label === requestedLabel) ? requestedLabel : slots[0]?.label || '')
+    : (requestedLabel || 'at the farm');
+  const priced = priceGroups([{
+    farmId: listing.id,
+    fulfillment,
+    windowLabel,
+    lines,
+  }], PREVIEW_RATES);
+  const group = priced.groups[0];
+  return json({
+    preview: true,
+    payment: null,
+    merchandiseCents: priced.merchandiseCents,
+    deliveryFeeCents: priced.deliveryFeeCents,
+    platformFeeCents: priced.platformFeeCents,
+    totalCents: priced.totalCents,
+    currency: 'usd',
+    route,
+    groups: [{
+      farmId: listing.id,
+      farmName: listing.farm_name,
+      farmCity: listing.location,
+      fulfillment,
+      windowLabel,
+      offersPickup: true,
+      offersDelivery: true,
+      pickupSummary: 'at the farm',
+      deliverySummary: '',
+      windows: {
+        pickup: [{ day: '', label: 'at the farm' }],
+        delivery: slots.map((slot) => ({ day: '', label: slot.label })),
+      },
+      merchandiseCents: group?.merchandiseCents || 0,
+      deliveryFeeCents: group?.deliveryFeeCents || 0,
+      platformFeeCents: group?.platformFeeCents || 0,
+      lines: group?.lines || [],
+    }],
+  });
+}
 
 export async function getPublicListing(env: Env, token: string): Promise<Response> {
   const listing = await byToken(env, token);

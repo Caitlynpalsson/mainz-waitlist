@@ -245,17 +245,19 @@ export function SeasonCard({ product, width, saved, onSave }: { product: Product
   );
 }
 
-export function ShopCard({ product, width, onPricePress }: {
+export function ShopCard({ product, width, onPress, onPricePress }: {
   product: Pick<ProductCard, 'id' | 'name' | 'photo' | 'priceCents' | 'unit'> & { note?: string };
   width: number;
+  onPress?: () => void;
   onPricePress?: () => void;
 }) {
   const height = Math.round(width * 1.16);
   const price = `${dollars(product.priceCents, 'auto')} / ${product.unit}`;
+  const open = onPress ?? (() => router.push(`/product/${product.id}`));
   return (
     <Pressable
-      accessibilityRole={onPricePress ? 'none' : 'link'}
-      onPress={onPricePress ? undefined : () => router.push(`/product/${product.id}`)}
+      accessibilityRole="link"
+      onPress={onPricePress && !onPress ? undefined : open}
       style={{ width }}
     >
       <View style={{ width, height, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>

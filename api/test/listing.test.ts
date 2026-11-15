@@ -18,7 +18,10 @@ import {
   parseAvailability,
   listingStatusLabel,
   newListingToken,
+  PREVIEW_PAY_LINE,
+  previewCheckout,
   previewFarmCsv,
+  previewItemAddable,
   priceNote,
   requestListingChanges,
   resendDeniedListing,
@@ -157,6 +160,17 @@ test('a price fix stores the product and the cents and does not publish the draf
   );
   assert.deepEqual(shown, { priceCents: 500, updated: true });
   assert.deepEqual(draftDisplayPrice({ name: 'eggs', priceCents: 700 }, []), { priceCents: 700, updated: false });
+});
+
+test('a draft preview cannot create an order or take payment', () => {
+  const preview = previewCheckout();
+  assert.equal(preview.createsOrder, false);
+  assert.equal(preview.charges, false);
+  assert.equal(preview.line, PREVIEW_PAY_LINE);
+  assert.equal(preview.line, 'this is a preview of what shoppers see');
+  assert.equal(/stripe|card|payment|launch/i.test(preview.line), false);
+  assert.equal(previewItemAddable(''), true);
+  assert.equal(previewItemAddable('next batch coming'), false);
 });
 
 test('an optional profile photo column is kept on the farm, not the product', () => {
