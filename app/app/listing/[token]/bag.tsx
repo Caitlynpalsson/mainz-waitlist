@@ -24,7 +24,7 @@ type Quote = {
     runDate?: string;
     slots?: { label: string }[];
   } | null;
-  groups?: { fulfillment: string; windowLabel: string }[];
+  groups?: { fulfillment: string; windowLabel: string; windows?: { pickup: { label: string }[]; delivery: { label: string }[] } }[];
 };
 
 export default function PreviewBag() {
@@ -130,7 +130,7 @@ export default function PreviewBag() {
             ) : null}
             {quote?.route?.line ? <Text style={note}>{quote.route.line}</Text> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-              {(delivering ? slots : [{ label: 'at the farm' }]).map((slot) => (
+              {(delivering ? slots : (quote?.groups?.[0]?.windows?.pickup?.length ? quote.groups[0].windows.pickup : [{ label: 'at the farm' }])).map((slot) => (
                 <Pill key={slot.label} small label={slot.label} on={slot.label === bag.windowLabel || (!bag.windowLabel && slot.label === (delivering ? slots[0]?.label : 'at the farm'))} onPress={() => bag.setWindow(slot.label)} />
               ))}
             </View>

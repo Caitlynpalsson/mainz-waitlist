@@ -6,6 +6,7 @@ import { groupLines, isShopVisible, priceGroups, type Fulfillment, type Incoming
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
 import { deliveryFeeOnPlace } from './delivery';
+import { parseFulfillment, pickupChoiceLabel } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
@@ -40,6 +41,7 @@ type FarmRow = {
   lng: number | null;
   hero_photo: string;
   profile_photo?: string;
+  fulfillment_json?: string;
   card_foods: string;
   offers_pickup: number;
   offers_delivery: number;
@@ -821,6 +823,17 @@ async function resolveCart(env: Env, body: CartBody) {
     ? await lookupRoute(env, body.address?.line1 || '', body.address?.cityZip || '', true)
     : null;
   const routeLabels = route?.matched ? route.slots.map((slot) => slot.label) : [];
+  const farmIds = [...new Set(products.results.map((row) => row.farm_id))];
+  const pickupByFarm = new Map<number, { day: string; label: string }[]>();
+  if (farmIds.length) {
+    const stored = await env.DB.prepare(
+      `SELECT id, fulfillment_json FROM farms WHERE id IN (${placeholders(farmIds.length)})`,
+    ).bind(...farmIds).all<{ id: number; fulfillment_json: string }>();
+    for (const farm of stored.results) {
+      const options = parseFulfillment(farm.fulfillment_json || '').options;
+      if (options.length) pickupByFarm.set(farm.id, options.map((option) => ({ day: '', label: pickupChoiceLabel(option) })));
+    }
+  }
   const requested = new Map((body.groups || []).map((group) => [Number(group.farmId), group]));
   const farms = new Map<number, ProductJoin>();
   const input = grouped.map((lines) => {
@@ -838,7 +851,12 @@ async function resolveCart(env: Env, body: CartBody) {
     if (fulfillment === 'pickup' && !row.offers_pickup) throw new HttpError(`${row.farm_name} does not offer pickup.`);
     if (fulfillment === 'delivery' && route?.pickupOnly) throw new HttpError(route.line);
     const windows = parseWindows(row.windows_json);
-    const choices = fulfillment === 'delivery' && routeLabels.length ? routeLabels.map((label) => ({ day: '', label })) : fulfillment === 'delivery' ? [] : windows.pickup;
+    const farmPickup = pickupByFarm.get(row.farm_id);
+    const choices = fulfillment === 'delivery' && routeLabels.length
+      ? routeLabels.map((label) => ({ day: '', label }))
+      : fulfillment === 'delivery'
+        ? []
+        : (farmPickup?.length ? farmPickup : windows.pickup);
     const requestedLabel = (ask?.windowLabel || '').trim();
     const switchedToPickup = askedDelivery && fulfillment === 'pickup';
     let windowLabel = choices[0]?.label || '';
@@ -851,7 +869,7 @@ async function resolveCart(env: Env, body: CartBody) {
     }
     return { farmId: row.farm_id, fulfillment, windowLabel, lines };
   });
-  return { priced: priceGroups(input, readRates(env)), byId, farms, route };
+  return { priced: priceGroups(input, readRates(env)), byId, farms, route, pickupByFarm };
 }
 
 function presentQuote(resolved: Awaited<ReturnType<typeof resolveCart>>) {
@@ -870,7 +888,10 @@ function presentQuote(resolved: Awaited<ReturnType<typeof resolveCart>>) {
         offersDelivery: !!row.offers_delivery,
         pickupSummary: row.pickup_summary,
         deliverySummary: row.delivery_summary,
-        windows: parseWindows(row.windows_json),
+        windows: {
+          ...parseWindows(row.windows_json),
+          pickup: resolved.pickupByFarm.get(group.farmId) || parseWindows(row.windows_json).pickup,
+        },
         merchandiseCents: group.merchandiseCents,
         deliveryFeeCents: group.deliveryFeeCents,
         platformFeeCents: group.platformFeeCents,
@@ -979,6 +1000,7 @@ function farmCard(row: FarmRow, origin: LatLng | null) {
     deliverySummary: row.delivery_summary,
     heroPhoto: row.hero_photo,
     profilePhoto: row.profile_photo || '',
+    pickupOptions: parseFulfillment(row.fulfillment_json || '').options,
     cardFoods: row.card_foods,
     isDemo: !!row.is_demo,
     statValue: row.stat_value,

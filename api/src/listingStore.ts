@@ -1,4 +1,5 @@
 import { lookupRoute } from './deliveryStore';
+import { checkoutChoices, parseFulfillment, pickupChoiceLabel } from './fulfillment';
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
@@ -41,6 +42,7 @@ type DraftRow = {
   is_sample: number;
   farmer_names: string;
   profile_photo: string;
+  fulfillment_json: string;
   created_at: string;
   updated_at: string;
 };
@@ -109,10 +111,13 @@ export async function previewListingQuote(env: Env, token: string, body: Record<
   let fulfillment: 'pickup' | 'delivery' = groupAsk?.fulfillment === 'pickup' ? 'pickup' : 'delivery';
   if (fulfillment === 'delivery' && route?.pickupOnly) fulfillment = 'pickup';
   const slots = route?.matched ? route.slots : [];
+  const pickupOptions = parseFulfillment(listing.fulfillment_json || '').options;
+  const pickupLabels = pickupOptions.length ? pickupOptions.map(pickupChoiceLabel) : ['at the farm'];
+  const choices = checkoutChoices(pickupOptions, !!route?.matched);
   const requestedLabel = String(groupAsk?.windowLabel || '').trim();
   const windowLabel = fulfillment === 'delivery'
     ? (slots.some((slot) => slot.label === requestedLabel) ? requestedLabel : slots[0]?.label || '')
-    : (requestedLabel || 'at the farm');
+    : (pickupLabels.includes(requestedLabel) ? requestedLabel : pickupLabels[0]);
   const priced = priceGroups([{
     farmId: listing.id,
     fulfillment,
@@ -135,12 +140,12 @@ export async function previewListingQuote(env: Env, token: string, body: Record<
       farmCity: listing.location,
       fulfillment,
       windowLabel,
-      offersPickup: true,
-      offersDelivery: true,
-      pickupSummary: 'at the farm',
+      offersPickup: pickupLabels.length > 0,
+      offersDelivery: choices.delivery,
+      pickupSummary: pickupOptions[0]?.name || 'at the farm',
       deliverySummary: '',
       windows: {
-        pickup: [{ day: '', label: 'at the farm' }],
+        pickup: pickupLabels.map((label) => ({ day: '', label })),
         delivery: slots.map((slot) => ({ day: '', label: slot.label })),
       },
       merchandiseCents: group?.merchandiseCents || 0,
@@ -311,6 +316,7 @@ async function present(env: Env, row: DraftRow) {
     denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',
     profilePhoto: row.profile_photo || '',
+    pickupOptions: parseFulfillment(row.fulfillment_json || '').options,
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),

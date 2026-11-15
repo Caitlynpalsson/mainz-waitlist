@@ -87,6 +87,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0017_farm_profile_photo.sql` adds an optional profile photo on farms and listing drafts. Only the 87 Farms draft is filled in.
 
+`0019_farm_pickup_options.sql` stores each farm's own pickup options. The 87 Farms draft is filled from `samples/87-farms-fulfillment.json`. See `fulfillment.md`.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.
