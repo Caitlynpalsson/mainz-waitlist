@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
   digitsZip,
-  orderPickupOptions,
+  nearestPickupChoices,
   pickupCardLine,
   pickupChoiceLabel,
   type PickupOption,
@@ -50,7 +50,7 @@ export function WhereStep({
   const [browsing, setBrowsing] = useState(false);
   const [rankedZip, setRankedZip] = useState('');
   const clean = digitsZip(zip);
-  const ranked = clean.length === 5 ? orderPickupOptions(options, clean) : [];
+  const ranked = clean.length === 5 ? nearestPickupChoices(options, clean) : [];
   const selected = ranked.find((option) => pickupChoiceLabel(option) === selectedLabel) || ranked[0];
   const delivering = fulfillment === 'delivery' && routeMatched;
 

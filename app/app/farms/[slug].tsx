@@ -22,7 +22,7 @@ export default function FarmPage() {
   );
   const { desktop, shopCols } = useLayout();
   const { follows, toggleFollow } = useStore();
-  const [tab, setTab] = useState<'shop' | 'about' | 'pickup' | 'reviews'>('shop');
+  const [tab, setTab] = useState<'shop' | 'about' | 'reviews'>('shop');
   const farm = data?.farm;
   const followed = farm ? follows.includes(farm.slug) : false;
   const gap = desktop ? 36 : 14;
@@ -65,6 +65,7 @@ export default function FarmPage() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name}</Text>
+                {farm.pickupLine ? <Text style={pickupLine}>{farm.pickupLine}</Text> : null}
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
                   <FulfillmentPills pickup={farm.offersPickup ? farm.pickupSummary : ''} delivery={farm.offersDelivery ? farm.deliverySummary : ''} />
@@ -82,11 +83,10 @@ export default function FarmPage() {
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: desktop ? 40 : 22, marginTop: desktop ? 72 : 40 }}>
-              {(['shop', 'about', 'pickup spot', 'reviews'] as const).map((label) => {
-                const key = label === 'pickup spot' ? 'pickup' : label;
-                const on = tab === key;
+              {(['shop', 'about', 'reviews'] as const).map((label) => {
+                const on = tab === label;
                 return (
-                  <Pressable key={label} onPress={() => setTab(key as typeof tab)}>
+                  <Pressable key={label} onPress={() => setTab(label)}>
                     <Text style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: on ? '600' : '500', color: on ? colors.navy : colors.gray, borderBottomWidth: on ? 1.5 : 0, borderBottomColor: colors.navy, paddingBottom: 8 }}>{label}</Text>
                   </Pressable>
                 );
@@ -100,14 +100,6 @@ export default function FarmPage() {
                 </Grid>
               ) : null}
               {tab === 'about' ? <Text style={prose}>{farm.about || farm.bio}</Text> : null}
-              {tab === 'pickup' ? (
-                <View style={{ gap: 12, maxWidth: 460, alignSelf: 'center' }}>
-                  <Text style={prose}>{farm.pickupSpot || 'pickup details are on the way.'}</Text>
-                  {farm.pickupAddress ? <Text style={prose}>{farm.pickupAddress}</Text> : null}
-                  {farm.windows.pickup.map((slot) => <Text key={slot.label} style={prose}>{slot.label}</Text>)}
-                  {farm.windows.delivery.map((slot) => <Text key={slot.label} style={prose}>delivery {slot.label}</Text>)}
-                </View>
-              ) : null}
               {tab === 'reviews' ? <Text style={prose}>no reviews yet. they show up after real orders.</Text> : null}
             </View>
           </>
@@ -128,6 +120,7 @@ function Stat({ n, label }: { n: string; label: string }) {
 }
 
 const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const pickupLine = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 8 };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const prose = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const crumb = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray };

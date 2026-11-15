@@ -1,5 +1,5 @@
 import { lookupRoute } from './deliveryStore';
-import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel } from './fulfillment';
+import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupTownLine } from './fulfillment';
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
@@ -43,6 +43,7 @@ type DraftRow = {
   farmer_names: string;
   profile_photo: string;
   fulfillment_json: string;
+  pickup_line: string;
   created_at: string;
   updated_at: string;
 };
@@ -319,7 +320,7 @@ async function present(env: Env, row: DraftRow) {
     denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',
     profilePhoto: row.profile_photo || '',
-    pickupOptions: parseFulfillment(row.fulfillment_json || '').options,
+    pickupLine: pickupTownLine(parseFulfillment(row.fulfillment_json || '').options, row.pickup_line || ''),
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),

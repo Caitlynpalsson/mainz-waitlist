@@ -7,7 +7,6 @@ import { Cap, FarmAvatar, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } fro
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../../api/src/listing';
-import { renderPickupOption, type PickupOption } from '../../../../api/src/fulfillment';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -23,7 +22,7 @@ type Listing = {
   needsForm: boolean;
   removed?: boolean;
   profilePhoto?: string;
-  pickupOptions?: PickupOption[];
+  pickupLine?: string;
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
@@ -233,20 +232,9 @@ export default function ListingApproval() {
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
+              {data.pickupLine ? <Text style={[quiet, { marginTop: 8 }]}>{data.pickupLine}</Text> : null}
               {data.story ? <Text style={bio}>{data.story}</Text> : null}
               {data.isSample ? <Text style={quiet}>sample. this farm is made up.</Text> : null}
-              {data.pickupOptions?.length ? (
-                <View style={{ marginTop: 28, width: '100%', maxWidth: 420 }}>
-                  <Text style={quiet}>pickup</Text>
-                  {data.pickupOptions.map((option) => (
-                    <View key={`${option.name}-${option.schedule}-${option.address}`} style={{ marginTop: 16 }}>
-                      {renderPickupOption(option).map((line) => (
-                        <Text key={line} style={quiet}>{line}</Text>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              ) : null}
             </View>
             <View style={{ marginTop: desktop ? 48 : 32 }}>
               <Grid cols={shopCols} gap={gap}>

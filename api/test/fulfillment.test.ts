@@ -4,9 +4,11 @@ import { test } from 'node:test';
 import {
   checkoutChoices,
   defaultFulfillment,
+  nearestPickupChoices,
   orderPickupOptions,
   parseFulfillment,
   pickupCardLine,
+  pickupTownLine,
   renderPickupOption,
   showDeliveryFee,
 } from '../src/fulfillment.ts';
@@ -78,6 +80,21 @@ test('missing pickup coordinates fall back to the zip, not 0,0', () => {
   const provo = orderPickupOptions(withNulls.options, '84601');
   assert.equal(provo[0].name, "Marie's");
   assert.equal(provo[1].name, 'the farm');
+});
+
+test('the farm page names pickup towns once, and does not list the stops', () => {
+  assert.equal(pickupTownLine(farms.options), 'pickup in huntington and the salt lake valley');
+  assert.equal(pickupTownLine(farms.options, 'Pickup in town'), 'pickup in town');
+  assert.equal(pickupTownLine([]), '');
+  assert.equal(pickupTownLine([], 'pickup in town'), '');
+  const line = pickupTownLine(farms.options);
+  assert.equal(line.includes('vanguard'), false);
+  assert.equal(line.includes('84119'), false);
+  assert.equal(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line), false);
+  const near = nearestPickupChoices(farms.options, '84065');
+  assert.equal(near.length, 2);
+  assert.equal(near[0].name, "Marie's");
+  assert.notEqual(near[1].name, 'the farm');
 });
 
 test('a farm with its own pickup spots starts on pickup, and the delivery fee waits', () => {

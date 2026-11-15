@@ -32,7 +32,7 @@ export type FarmCard = {
   deliverySummary: string;
   heroPhoto: string;
   profilePhoto?: string;
-  pickupOptions?: { name: string; address: string; zip?: string; lat?: number | null; lng?: number | null; schedule: string; windows: string[]; cutoff: string; feeCents: number; minimumCents: number | null }[];
+  pickupLine?: string;
   cardFoods: string;
   isDemo: boolean;
   statValue: string;

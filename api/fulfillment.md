@@ -27,6 +27,7 @@ Do not put phone numbers in this file or in the JSON. The parser drops them.
 - `name` is required.
 - `address` can be empty. It is not shown as a shopper's delivery address.
 - `zip` is the stop's ZIP, used to find the nearest spots. A lat and lng pair can be set instead. Checkout uses the bundled Utah ZIP centroids. No outside map service.
+- The farm page does not list the stops. It shows one line, such as "pickup in huntington and the salt lake valley". Salt Lake Valley towns are grouped. Set `pickup_line` on the farm or the draft to replace that line. Leave it empty to generate it. No stops means no line.
 - `schedule` is the day or a short line such as "any day by appointment".
 - `windows` can be empty. When present, each entry is a time range.
 - `cutoff` is the farm's own order-by rule, as text.

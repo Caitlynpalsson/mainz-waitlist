@@ -91,6 +91,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0020_pickup_option_zips.sql` adds a ZIP to each 87 Farms stop so checkout can pick the nearest one.
 
+`0021_pickup_line.sql` lets a farm replace the one pickup line on its page. Empty keeps the generated line.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

@@ -78,6 +78,31 @@ export function pickupCardLine(option: PickupOption): string {
   return [`pick up ${when}`.trim(), place, option.cutoff.toLowerCase()].filter(Boolean).join(' · ');
 }
 
+const SALT_LAKE_VALLEY = new Set([
+  'west valley', 'salt lake', 'west jordan', 'riverton', 'taylorsville', 'murray', 'sandy',
+  'draper', 'south jordan', 'holladay', 'kearns', 'magna', 'midvale', 'cottonwood heights',
+  'south salt lake', 'millcreek', 'woods cross', 'bountiful', 'north salt lake', 'centerville',
+  'herriman', 'bluffdale',
+]);
+
+/** One quiet line for the farm page. Empty when the farm has no pickup options. */
+export function pickupTownLine(options: PickupOption[], override = ''): string {
+  if (!options.length) return '';
+  const custom = override.trim().toLowerCase();
+  if (custom) return custom;
+  const places: string[] = [];
+  for (const option of options) {
+    const town = townFromAddress(option.address).toLowerCase().replace(/ city$/, '');
+    if (!town) continue;
+    const place = SALT_LAKE_VALLEY.has(town) ? 'the salt lake valley' : town;
+    if (!places.includes(place)) places.push(place);
+  }
+  if (!places.length) return '';
+  if (places.length === 1) return `pickup in ${places[0]}`;
+  if (places.length === 2) return `pickup in ${places[0]} and ${places[1]}`;
+  return `pickup in ${places.slice(0, -1).join(', ')}, and ${places[places.length - 1]}`;
+}
+
 /** Nearest first. Same distance keeps the original order. Unknown zips are left out. */
 export function orderPickupOptions(options: PickupOption[], shopperZip: string): PickupOption[] {
   const shopper = zipPoint(digitsZip(shopperZip));
@@ -90,6 +115,11 @@ export function orderPickupOptions(options: PickupOption[], shopperZip: string):
     .filter((row) => row.miles < Number.POSITIVE_INFINITY)
     .sort((a, b) => a.miles - b.miles || a.index - b.index)
     .map((row) => row.option);
+}
+
+/** Checkout offers the nearest stop, and at most one other. */
+export function nearestPickupChoices(options: PickupOption[], shopperZip: string, limit = 2): PickupOption[] {
+  return orderPickupOptions(options, shopperZip).slice(0, Math.max(0, limit));
 }
 
 export function defaultFulfillment(hasPickupOptions: boolean, offersDelivery: boolean): 'pickup' | 'delivery' {

@@ -6,7 +6,7 @@ import { groupLines, isShopVisible, priceGroups, type Fulfillment, type Incoming
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
 import { deliveryFeeOnPlace, parseAddress } from './delivery';
-import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel } from './fulfillment';
+import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupTownLine } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
@@ -42,6 +42,7 @@ type FarmRow = {
   hero_photo: string;
   profile_photo?: string;
   fulfillment_json?: string;
+  pickup_line?: string;
   card_foods: string;
   offers_pickup: number;
   offers_delivery: number;
@@ -596,7 +597,7 @@ async function farmDesk(request: Request, env: Env, method: string, path: string
     const offersDelivery = body.offersDelivery === undefined ? farm.offers_delivery : (body.offersDelivery ? 1 : 0);
     if (!offersPickup && !offersDelivery) throw new HttpError('choose pickup, delivery, or both.');
     await env.DB.prepare(
-      `UPDATE farms SET offers_pickup = ?, offers_delivery = ?, pickup_summary = ?, delivery_summary = ?, bio = ?, pickup_spot = ?, pickup_address = ? WHERE id = ?`,
+      `UPDATE farms SET offers_pickup = ?, offers_delivery = ?, pickup_summary = ?, delivery_summary = ?, bio = ?, pickup_spot = ?, pickup_address = ?, pickup_line = ? WHERE id = ?`,
     ).bind(
       offersPickup,
       offersDelivery,
@@ -605,6 +606,7 @@ async function farmDesk(request: Request, env: Env, method: string, path: string
       body.bio === undefined ? farm.bio : clean(body.bio, 400),
       body.pickupSpot === undefined ? farm.pickup_spot : clean(body.pickupSpot, 400),
       body.pickupAddress === undefined ? farm.pickup_address : clean(body.pickupAddress, 160),
+      body.pickupLine === undefined ? (farm.pickup_line || '') : clean(body.pickupLine, 120),
       farm.id,
     ).run();
     const next = await mustFarm(env, farm.id);
@@ -1011,7 +1013,7 @@ function farmCard(row: FarmRow, origin: LatLng | null) {
     deliverySummary: row.delivery_summary,
     heroPhoto: row.hero_photo,
     profilePhoto: row.profile_photo || '',
-    pickupOptions: parseFulfillment(row.fulfillment_json || '').options,
+    pickupLine: pickupTownLine(parseFulfillment(row.fulfillment_json || '').options, row.pickup_line || ''),
     cardFoods: row.card_foods,
     isDemo: !!row.is_demo,
     statValue: row.stat_value,
