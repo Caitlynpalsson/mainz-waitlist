@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import {
   checkoutChoices,
   defaultFulfillment,
+  checkoutSpots,
   nearestPickupChoices,
   orderPickupOptions,
   parseFulfillment,
@@ -95,6 +96,15 @@ test('the farm page names pickup towns once, and does not list the stops', () =>
   assert.equal(near.length, 2);
   assert.equal(near[0].name, "Marie's");
   assert.notEqual(near[1].name, 'the farm');
+});
+
+test('see other spots lists every stop, with the nearest one first', () => {
+  const spots = checkoutSpots(farms.options, '84119');
+  assert.equal(spots.nearest?.name, 'Vanguard');
+  assert.equal(spots.alternative?.name, 'Vanguard');
+  assert.equal(spots.all.length, farms.options.length);
+  assert.equal(spots.all[spots.all.length - 1].name, 'the farm');
+  assert.ok(spots.all.some((option) => option.address.includes('Huntington')));
 });
 
 test('a farm with its own pickup spots starts on pickup, and the delivery fee waits', () => {

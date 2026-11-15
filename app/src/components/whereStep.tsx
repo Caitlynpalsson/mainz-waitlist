@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import {
   digitsZip,
-  nearestPickupChoices,
+  checkoutSpots,
   pickupCardLine,
   pickupChoiceLabel,
   type PickupOption,
@@ -50,19 +50,20 @@ export function WhereStep({
   const [browsing, setBrowsing] = useState(false);
   const [rankedZip, setRankedZip] = useState('');
   const clean = digitsZip(zip);
-  const ranked = clean.length === 5 ? nearestPickupChoices(options, clean) : [];
-  const selected = ranked.find((option) => pickupChoiceLabel(option) === selectedLabel) || ranked[0];
+  const spots = clean.length === 5 ? checkoutSpots(options, clean) : { nearest: null, alternative: null, all: [] as PickupOption[] };
+  const selected = spots.all.find((option) => pickupChoiceLabel(option) === selectedLabel) || spots.nearest;
+  const showAlternative = !!spots.alternative && !!selected && pickupChoiceLabel(selected) === pickupChoiceLabel(spots.nearest!);
   const delivering = fulfillment === 'delivery' && routeMatched;
 
   useEffect(() => {
-    if (clean.length !== 5 || !ranked.length) return;
-    const nearest = pickupChoiceLabel(ranked[0]);
-    const known = ranked.some((option) => pickupChoiceLabel(option) === selectedLabel);
+    if (clean.length !== 5 || !spots.all.length || !spots.nearest) return;
+    const nearest = pickupChoiceLabel(spots.nearest);
+    const known = spots.all.some((option) => pickupChoiceLabel(option) === selectedLabel);
     if (rankedZip === clean && known) return;
     setRankedZip(clean);
     setBrowsing(false);
     if (selectedLabel !== nearest) onSelect(nearest);
-  }, [clean, ranked.map((option) => pickupChoiceLabel(option)).join('|')]);
+  }, [clean, spots.all.map((option) => pickupChoiceLabel(option)).join('|')]);
 
   const ready = delivering ? street.trim().length >= 4 : (options.length === 0 ? clean.length === 5 : !!selected);
 
@@ -98,7 +99,7 @@ export function WhereStep({
           placeholderTextColor={colors.gray}
           accessibilityLabel="street"
           autoCapitalize="words"
-          style={streetField}
+          style={fieldBox}
         />
       ) : null}
       {!delivering && selected && !browsing ? (
@@ -106,14 +107,17 @@ export function WhereStep({
           <Text style={cardText}>{pickupCardLine(selected)}</Text>
         </View>
       ) : null}
-      {!delivering && !browsing && ranked.length > 1 ? (
+      {!delivering && showAlternative && !browsing ? (
+        <Text style={quietAlt}>{pickupCardLine(spots.alternative!)}</Text>
+      ) : null}
+      {!delivering && !browsing && spots.all.length > 1 ? (
         <Pressable onPress={() => setBrowsing(true)} accessibilityRole="button" style={linkHit}>
           <Text style={link}>see other spots</Text>
         </Pressable>
       ) : null}
       {!delivering && browsing ? (
         <View style={{ marginTop: 16 }}>
-          {ranked.map((option) => {
+          {spots.all.map((option) => {
             const label = pickupChoiceLabel(option);
             return (
               <Pressable
@@ -160,9 +164,9 @@ export function InfoStep({
   const ready = name.trim().length >= 2 && email.includes('@');
   return (
     <View>
-      <Field label="your name" value={name} onChange={onName} />
-      <Field label="email" value={email} onChange={onEmail} keyboardType="email-address" />
-      <Field label="phone" value={phone} onChange={onPhone} keyboardType="phone-pad" />
+      <Field label="your name" value={name} onChange={onName} autoCapitalize="words" />
+      <Field label="email" value={email} onChange={onEmail} keyboardType="email-address" autoCapitalize="none" />
+      <Field label="phone" value={phone} onChange={onPhone} keyboardType="phone-pad" autoCapitalize="none" />
       <View style={{ marginTop: 22 }}>
         <PrimaryButton label="review order" disabled={!ready} onPress={onReview} />
       </View>
@@ -171,35 +175,46 @@ export function InfoStep({
   );
 }
 
-function Field({ label, value, onChange, keyboardType }: { label: string; value: string; onChange: (value: string) => void; keyboardType?: 'email-address' | 'phone-pad' }) {
+function Field({ label, value, onChange, keyboardType, autoCapitalize }: { label: string; value: string; onChange: (value: string) => void; keyboardType?: 'email-address' | 'phone-pad'; autoCapitalize?: 'none' | 'words' }) {
   return (
     <TextInput
       value={value}
       onChangeText={onChange}
       placeholder={label}
       placeholderTextColor={colors.gray}
-      autoCapitalize="none"
+      autoCapitalize={autoCapitalize}
       keyboardType={keyboardType}
       accessibilityLabel={label}
-      style={streetField}
+      style={fieldBox}
     />
   );
 }
 
 const zipLabel = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray, textAlign: 'center' as const, marginTop: 18 };
-const zipField = {
+const fieldBox = {
   fontFamily: 'Inter' as const,
-  fontSize: 32,
-  fontWeight: '600' as const,
+  fontSize: 16,
   color: colors.navy,
+  backgroundColor: colors.cream,
+  borderWidth: 1,
+  borderStyle: 'solid' as const,
+  borderColor: colors.hair,
+  borderRadius: 16,
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  marginTop: 10,
+};
+const zipField = {
+  ...fieldBox,
+  fontSize: 28,
+  fontWeight: '600' as const,
   textAlign: 'center' as const,
   letterSpacing: 4,
-  paddingVertical: 8,
 };
-const streetField = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 12, marginTop: 8 };
 const card = { marginTop: 18, backgroundColor: colors.cream, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 16 };
 const cardText = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 21, color: colors.navy };
 const listRow = { paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.hair };
 const linkHit = { marginTop: 12, alignItems: 'center' as const, paddingVertical: 6 };
 const link = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
+const quietAlt = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 10 };
 const note = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };

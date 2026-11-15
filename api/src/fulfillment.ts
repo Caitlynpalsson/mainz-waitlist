@@ -117,9 +117,15 @@ export function orderPickupOptions(options: PickupOption[], shopperZip: string):
     .map((row) => row.option);
 }
 
-/** Checkout offers the nearest stop, and at most one other. */
+/** The nearest stop, plus one quieter alternative. Not the full list. */
 export function nearestPickupChoices(options: PickupOption[], shopperZip: string, limit = 2): PickupOption[] {
   return orderPickupOptions(options, shopperZip).slice(0, Math.max(0, limit));
+}
+
+/** Card is the nearest stop. `all` is every stop, nearest first, so a farther one can still be chosen. */
+export function checkoutSpots(options: PickupOption[], shopperZip: string): { nearest: PickupOption | null; alternative: PickupOption | null; all: PickupOption[] } {
+  const all = orderPickupOptions(options, shopperZip);
+  return { nearest: all[0] || null, alternative: all[1] || null, all };
 }
 
 export function defaultFulfillment(hasPickupOptions: boolean, offersDelivery: boolean): 'pickup' | 'delivery' {
