@@ -317,9 +317,11 @@ export default function ListingApproval() {
                 </Pressable>
               </View>
               <View style={banner}>
-                <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
-                <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
-                <TextUsLine style={bannerTextUs} />
+                <View style={{ opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+                  <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
+                  <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
+                  <TextUsLine style={bannerTextUs} />
+                </View>
                 <View style={{ marginTop: 16, width: '100%', maxWidth: 320, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
                   <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy || sheet} onPress={() => startOnboarding()} />
                 </View>
