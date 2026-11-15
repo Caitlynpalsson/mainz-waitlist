@@ -1,7 +1,7 @@
 import { handleAdmin } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
-import { approvePublicListing, changePublicListing, getPublicListing } from './listingStore';
+import { approvePublicListing, changePublicListing, getPublicListing, savePublicListing } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
@@ -139,6 +139,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && listingChanges) return changePublicListing(env, listingChanges[1], await readJson(request));
   const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
   if (method === 'GET' && listingPage) return getPublicListing(env, listingPage[1]);
+  if (method === 'PATCH' && listingPage) return savePublicListing(env, listingPage[1], await readJson(request));
 
   if (path.startsWith('/api/admin/')) return handleAdmin(request, env, method, path);
   if (path.startsWith('/api/farm/')) return farmDesk(request, env, method, path);

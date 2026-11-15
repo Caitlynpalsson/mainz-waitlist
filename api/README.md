@@ -69,6 +69,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0006_listing_approval.sql` adds private draft listings. A farm approves how the page looks. That does not publish the farm. The sample link is `/listing/lk_4c8e91ab7d2f60e3a15b84c0` after you apply the migration. It is also listed in the admin desk.
 
+`0007_listing_import.sql` adds farmer names and a source link on draft products. Staff paste a csv on the admin desk, preview it, then create drafts. A sample file is `samples/farm-drafts-sample.csv`. The farm only fills a page in when that draft has no products yet.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

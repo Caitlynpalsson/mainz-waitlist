@@ -1,11 +1,15 @@
 import { HttpError, json } from './http';
 import {
   approveListing,
+  cleanFarmProduct,
   cleanListingProduct,
   listingAppearsInBrowse,
+  listingShowsForm,
   listingStatusLabel,
   newListingToken,
+  previewFarmCsv,
   requestListingChanges,
+  type CatalogMatch,
   type ListingProductInput,
 } from './listing';
 
@@ -21,6 +25,7 @@ type DraftRow = {
   change_note: string;
   approved_at: string;
   is_sample: number;
+  farmer_names: string;
   created_at: string;
   updated_at: string;
 };
@@ -31,6 +36,7 @@ type ProductRow = {
   price_cents: number;
   unit: string;
   photo_key: string;
+  source_url: string;
   sort_order: number;
 };
 
@@ -84,6 +90,7 @@ export async function adminGetListing(env: Env, id: number): Promise<Response> {
 
 export async function adminSaveListing(env: Env, id: number | null, body: Record<string, unknown>): Promise<Response> {
   const farmName = String(body.farmName ?? '').trim().slice(0, 80);
+  const farmerNames = String(body.farmerNames ?? '').trim().slice(0, 120);
   const story = String(body.story ?? '').trim().slice(0, 400);
   const location = String(body.location ?? '').trim().slice(0, 80);
   if (!farmName) throw new HttpError('the listing needs a farm name.');
@@ -93,15 +100,15 @@ export async function adminSaveListing(env: Env, id: number | null, body: Record
   if (listingId == null) {
     const token = newListingToken();
     const inserted = await env.DB.prepare(
-      `INSERT INTO listing_drafts (token, farm_name, story, location, status) VALUES (?, ?, ?, ?, 'draft')`,
-    ).bind(token, farmName, story, location).run();
+      `INSERT INTO listing_drafts (token, farm_name, farmer_names, story, location, status) VALUES (?, ?, ?, ?, ?, 'draft')`,
+    ).bind(token, farmName, farmerNames, story, location).run();
     listingId = inserted.meta.last_row_id;
   } else {
     const existing = await byId(env, listingId);
     if (!existing) throw new HttpError('no listing with that id.', 404);
     await env.DB.prepare(
-      `UPDATE listing_drafts SET farm_name = ?, story = ?, location = ?, updated_at = datetime('now') WHERE id = ?`,
-    ).bind(farmName, story, location, listingId).run();
+      `UPDATE listing_drafts SET farm_name = ?, farmer_names = ?, story = ?, location = ?, updated_at = datetime('now') WHERE id = ?`,
+    ).bind(farmName, farmerNames, story, location, listingId).run();
     await env.DB.prepare(`DELETE FROM listing_products WHERE listing_id = ?`).bind(listingId).run();
   }
   let sort = 0;
@@ -128,7 +135,7 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
 
 async function present(env: Env, row: DraftRow) {
   const products = await env.DB.prepare(
-    `SELECT id, name, price_cents, unit, photo_key, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
+    `SELECT id, name, price_cents, unit, photo_key, source_url, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
   ).bind(row.id).all<ProductRow>();
   return {
     id: row.id,
@@ -141,7 +148,9 @@ async function present(env: Env, row: DraftRow) {
     statusLabel: listingStatusLabel(row.status),
     changeNote: row.change_note,
     approvedAt: row.approved_at,
+    farmerNames: row.farmer_names || '',
     isSample: !!row.is_sample,
+    needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -151,8 +160,87 @@ async function present(env: Env, row: DraftRow) {
       priceCents: product.price_cents,
       unit: product.unit,
       photoKey: product.photo_key,
+      sourceUrl: product.source_url || '',
     })),
   };
+}
+
+export async function savePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (!canEdit(listing.status)) throw new HttpError('this listing is approved. ask for changes if something is off.');
+  const farmName = String(body.farmName ?? listing.farm_name).trim().slice(0, 80);
+  const farmerNames = String(body.farmerNames ?? listing.farmer_names ?? '').trim().slice(0, 120);
+  const story = String(body.story ?? listing.story).trim().slice(0, 200);
+  const location = String(body.location ?? listing.location).trim().slice(0, 80);
+  if (!farmName) throw new HttpError('the listing needs a farm name.');
+  const products = readFarmProducts(body.products);
+  await env.DB.prepare(
+    `UPDATE listing_drafts SET farm_name = ?, farmer_names = ?, story = ?, location = ?, updated_at = datetime('now') WHERE id = ?`,
+  ).bind(farmName, farmerNames, story, location, listing.id).run();
+  await replaceProducts(env, listing.id, products);
+  const saved = await byToken(env, token);
+  return json(await present(env, saved!));
+}
+
+export async function previewListingCsv(env: Env, body: Record<string, unknown>): Promise<Response> {
+  const foods = await catalogFoods(env);
+  return json(previewFarmCsv(String(body.csv ?? ''), foods));
+}
+
+export async function importListingCsv(env: Env, body: Record<string, unknown>): Promise<Response> {
+  const foods = await catalogFoods(env);
+  const preview = previewFarmCsv(String(body.csv ?? ''), foods);
+  const created = [];
+  for (const farm of preview.farms) {
+    const products = farm.products.filter((product) => product.problems.length === 0 && product.priceCents);
+    if (!products.length) continue;
+    const token = newListingToken();
+    const sample = farm.farm.toLowerCase().startsWith('sample');
+    const inserted = await env.DB.prepare(
+      `INSERT INTO listing_drafts (token, farm_name, farmer_names, story, location, status, is_sample)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?)`,
+    ).bind(token, farm.farm, farm.farmerNames, farm.story, farm.town, sample ? 1 : 0).run();
+    const id = inserted.meta.last_row_id;
+    let sort = 0;
+    for (const product of products) {
+      await env.DB.prepare(
+        `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(id, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, sort).run();
+      sort += 1;
+    }
+    const saved = await byId(env, id);
+    if (saved) created.push(await present(env, saved));
+  }
+  return json({ created, preview }, 201);
+}
+
+async function catalogFoods(env: Env): Promise<CatalogMatch[]> {
+  const rows = await env.DB.prepare(
+    `SELECT name, synonyms, photo_key FROM catalog_foods`,
+  ).all<{ name: string; synonyms: string; photo_key: string }>();
+  return rows.results.map((food) => ({ name: food.name, synonyms: food.synonyms || '', photoKey: food.photo_key || 'placeholder' }));
+}
+
+function canEdit(status: string): boolean {
+  return status !== 'farm_approved';
+}
+
+function readFarmProducts(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 24).map((item) => cleanFarmProduct(item as Record<string, unknown>));
+}
+
+async function replaceProducts(env: Env, listingId: number, products: { name: string; priceCents: number; unit: string; photoKey: string; sourceUrl: string }[]) {
+  await env.DB.prepare(`DELETE FROM listing_products WHERE listing_id = ?`).bind(listingId).run();
+  let sort = 0;
+  for (const product of products) {
+    await env.DB.prepare(
+      `INSERT INTO listing_products (listing_id, name, price_cents, unit, photo_key, source_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(listingId, product.name, product.priceCents, product.unit, product.photoKey, product.sourceUrl, sort).run();
+    sort += 1;
+  }
 }
 
 function readProducts(value: unknown): ListingProductInput[] {

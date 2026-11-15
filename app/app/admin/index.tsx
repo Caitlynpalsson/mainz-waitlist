@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { PIPELINE_STAGES } from '../../../api/src/review';
+import { listingInvite } from '../../../api/src/listing';
 import { Shell } from '../../src/components/chrome';
 import { Cap, Pill, PrimaryButton, Wrap } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
@@ -31,11 +32,18 @@ type Brief = {
 type StaffListing = {
   id: number;
   farmName: string;
+  farmerNames: string;
   path: string;
   statusLabel: string;
   changeNote: string;
   approvedAt: string;
   isSample: boolean;
+};
+
+type CsvPreview = {
+  farms: { farm: string; products: { name: string; problems: string[] }[] }[];
+  rowProblems: { row: number; farm: string; product: string; problems: string[] }[];
+  unmatched: string[];
 };
 
 type WindowTotals = { orders: number; merchandiseCents: number; totalCents: number };
@@ -71,6 +79,9 @@ export default function AdminHome() {
   const auth = useAdminToken();
   const [data, setData] = useState<Dashboard | null>(null);
   const [listings, setListings] = useState<StaffListing[]>([]);
+  const [csv, setCsv] = useState('');
+  const [preview, setPreview] = useState<CsvPreview | null>(null);
+  const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -92,6 +103,69 @@ export default function AdminHome() {
       setData(null);
       setError(err instanceof Error ? err.message : 'could not open admin.');
     }
+  }
+
+  async function previewCsv() {
+    if (!auth.token) return;
+    setError('');
+    try {
+      setPreview(await api<CsvPreview>('/api/admin/listings/preview', {
+        method: 'POST',
+        headers: adminHeaders(auth.token),
+        body: JSON.stringify({ csv }),
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not read that csv.');
+    }
+  }
+
+  async function createDrafts() {
+    if (!auth.token) return;
+    setError('');
+    try {
+      await api('/api/admin/listings/import', {
+        method: 'POST',
+        headers: adminHeaders(auth.token),
+        body: JSON.stringify({ csv }),
+      });
+      setPreview(null);
+      setCsv('');
+      await load(auth.token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not create drafts.');
+    }
+  }
+
+  async function copyInvite(listing: StaffListing) {
+    const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
+    const text = listingInvite({
+      farmerNames: listing.farmerNames,
+      farmName: listing.farmName,
+      link: `${origin}${listing.path}`,
+    });
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setCopied(listing.path);
+        return;
+      }
+    } catch {
+      setCopied('');
+    }
+    setCopied(text);
+  }
+
+  function chooseCsv() {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,text/csv';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      file.text().then(setCsv);
+    };
+    input.click();
   }
 
   async function toggle(farm: Brief) {
@@ -188,12 +262,40 @@ export default function AdminHome() {
               <Pressable onPress={() => router.push('/admin/listing/new')} style={{ marginTop: 12 }}>
                 <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>new listing</Text>
               </Pressable>
+              <TextInput
+                value={csv}
+                onChangeText={setCsv}
+                placeholder="paste a csv. one row per product."
+                placeholderTextColor={colors.gray}
+                multiline
+                style={[input, { minHeight: 88, marginTop: 16 }]}
+              />
+              <View style={{ flexDirection: 'row', gap: 18, marginTop: 10 }}>
+                <Pressable onPress={chooseCsv}><Text style={{ fontFamily: 'Inter', color: colors.gray }}>upload csv</Text></Pressable>
+                <Pressable onPress={previewCsv}><Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>preview</Text></Pressable>
+                {preview ? <Pressable onPress={createDrafts}><Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>create drafts</Text></Pressable> : null}
+              </View>
+              {preview ? (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={small}>{preview.farms.length} farms. {preview.farms.reduce((sum, farm) => sum + farm.products.length, 0)} products.</Text>
+                  {preview.unmatched.length ? <Text style={small}>unmatched: {preview.unmatched.join(', ')}. those use the placeholder photo.</Text> : null}
+                  {preview.rowProblems.map((problem) => (
+                    <Text key={`${problem.row}-${problem.product}`} style={small}>row {problem.row} {problem.farm} {problem.product}: {problem.problems.join(', ')}</Text>
+                  ))}
+                </View>
+              ) : null}
               {listings.map((listing) => (
-                <Pressable key={listing.id} onPress={() => router.push(`/admin/listing/${listing.id}`)} style={card}>
-                  <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
-                  <Text style={small}>{listing.statusLabel}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
-                  <Text style={small}>{listing.path}</Text>
-                </Pressable>
+                <View key={listing.id} style={card}>
+                  <Pressable onPress={() => router.push(`/admin/listing/${listing.id}`)}>
+                    <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
+                    <Text style={small}>{listing.statusLabel}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
+                    <Text style={small}>{listing.path}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => copyInvite(listing)} style={{ marginTop: 8 }}>
+                    <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>{copied === listing.path ? 'copied' : 'copy text'}</Text>
+                  </Pressable>
+                  {copied && copied !== listing.path && copied.includes(listing.path) ? <Text style={small}>{copied}</Text> : null}
+                </View>
               ))}
             </View>
           </>
