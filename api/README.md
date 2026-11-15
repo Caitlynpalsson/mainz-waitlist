@@ -71,11 +71,13 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0007_listing_import.sql` adds farmer names and a source link on draft products. Staff paste a csv on the admin desk, preview it, then create drafts. A sample file is `samples/farm-drafts-sample.csv`. The farm only fills a page in when that draft has no products yet.
 
-`0009_price_status_udaf_foods.sql` adds an optional price status and a UDAF check on each draft product. A blank price status is public. Converted and suggested prices show a note on the farm's private page. The UDAF tag is staff-only. A product created with that check stays hidden until staff turn it on. The same migration adds honey, sourdough bread, jam, and the extra meat cuts, and skips any that already exist.
+`0009_price_status_udaf_foods.sql` adds an optional price status and a UDAF check on each draft product. A blank price status is public. Staff still see the status. The UDAF tag is staff-only. A product created with that check stays hidden until staff turn it on. The same migration adds honey, sourdough bread, jam, and the extra meat cuts, and skips any that already exist.
 
 `0010_listing_deny.sql` lets a farm remove its private page. The link then shows only a short goodbye. Staff see the denial and can restore it by editing and resending, which makes a new link. The old link stays removed, and the draft is never published.
 
 `0011_delivery_routes.sql` adds delivery routes. A run is one route on one date. It confirms at the cutoff only when it has the minimum orders (3 unless you edit it). Otherwise each order gets a note in the outbox and on the order page. Nothing is emailed or texted. The delivery fee stays $5 and is not charged. A cron in `wrangler.toml` closes due runs every 15 minutes. Staff can also press "close run now". Two sample routes are included: sample provo (tuesday, order by monday 6pm) and sample spanish fork (thursday, order by wednesday 6pm).
+
+`0013_listing_price_fixes.sql` stores a price a farm types on its draft page. Staff see it on the admin desk. It does not publish the listing.
 
 ## Sample data
 

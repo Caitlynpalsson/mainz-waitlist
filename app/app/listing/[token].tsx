@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../src/components/chrome';
-import { FoodImage, PrimaryButton, Wrap } from '../../src/components/ui';
+import { Cap, Grid, Pill, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
-import { dollars } from '../../src/lib/money';
 import { colors, useLayout } from '../../src/theme';
 import { LISTING_REMOVED_LINE } from '../../../api/src/listing';
 
@@ -28,11 +28,15 @@ const thanks = "thank you. we're so happy to have you. when your first order com
 
 export default function ListingApproval() {
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { desktop } = useLayout();
+  const { desktop, shopCols } = useLayout();
+  const gap = desktop ? 36 : 14;
+  const cell = useBoxWidth(shopCols, gap);
   const [data, setData] = useState<Listing | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [denyNote, setDenyNote] = useState('');
+  const [sheet, setSheet] = useState(false);
+  const [off, setOff] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
@@ -46,6 +50,8 @@ export default function ListingApproval() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [draftPrice, setDraftPrice] = useState('');
   const [picked, setPicked] = useState<Food | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editPrice, setEditPrice] = useState('');
 
   function take(next: Listing, first: boolean) {
     setData(next);
@@ -84,6 +90,7 @@ export default function ListingApproval() {
       const next = await api<Listing>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
       take(next, false);
       setNote('');
+      setSheet(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'try again.');
     } finally {
@@ -130,116 +137,232 @@ export default function ListingApproval() {
     save(products);
   }
 
+  async function sendPrice(product: Product) {
+    if (!token) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const next = await api<Listing>(`/api/listings/${token}/price`, {
+        method: 'POST',
+        body: JSON.stringify({ productId: product.id, productName: product.name, price: editPrice }),
+      });
+      take(next, false);
+      setEditing(null);
+      setEditPrice('');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'add a price.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const approved = data?.status === 'farm_approved';
   const denied = data?.status === 'farm_denied' || data?.removed === true;
+  const preview = !!data && !denied && !approved && !filling;
 
   return (
-    <Shell top="bar" title="your listing">
-      <Wrap style={{ paddingTop: desktop ? 56 : 20 }}>
-        <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
-          {error ? <Text style={quiet}>{error}</Text> : null}
-          {!data && !error ? <Text style={quiet}>loading.</Text> : null}
-          {data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
-          {data && !denied && approved ? (
-            <>
-              <Text style={headline}>thank you.</Text>
-              <Text style={{ ...storyStyle, marginTop: 16 }}>{thanks}</Text>
-              <NoteBox note={note} setNote={setNote} busy={busy} error={formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
-            </>
-          ) : null}
-          {data && !denied && !approved && filling ? (
-            <>
-              <Text style={headline}>tell us about your farm</Text>
-              <Text style={{ ...quiet, marginTop: 12 }}>a few lines. then you can approve the page.</Text>
-              <Field label="farm name" value={farmName} onChange={setFarmName} onBlur={() => save(data.products)} />
-              <Field label="your name" value={farmerNames} onChange={setFarmerNames} onBlur={() => save(data.products)} />
-              <Field label="town" value={town} onChange={setTown} onBlur={() => save(data.products)} />
-              <Field label="one line about the farm" value={story} onChange={setStory} onBlur={() => save(data.products)} />
-              {data.products.map((product, index) => (
-                <View key={`${product.name}-${index}`} style={{ alignItems: 'center', marginTop: 22 }}>
-                  <Text style={productName}>{product.name}</Text>
-                  <Text style={quiet}>{product.priceCents ? `${dollars(product.priceCents, 'auto')} / ${product.unit}` : product.unit}</Text>
-                  <Pressable onPress={() => save(data.products.filter((_, i) => i !== index))} style={{ marginTop: 8, padding: 8 }}>
-                    <Text style={quiet}>remove</Text>
-                  </Pressable>
-                </View>
-              ))}
-              <Field label="search foods" value={query} onChange={setQuery} />
-              {foods.slice(0, 6).map((food) => (
-                <Pressable key={food.id} onPress={() => { setPicked(food); setDraftPrice(''); }} style={{ paddingVertical: 8 }}>
-                  <Text style={{ fontFamily: 'Inter', fontSize: 15, color: picked?.id === food.id ? colors.navy : colors.gray, fontWeight: picked?.id === food.id ? '600' : '400' }}>{food.name}</Text>
+    <Shell
+      top="none"
+      floating={preview ? <Pill label="confirm" on onPress={() => { setSheet(true); setFormError(''); }} /> : null}
+    >
+      <Wrap style={{ paddingTop: desktop ? 48 : 28 }}>
+        {error ? <Text style={quiet}>{error}</Text> : null}
+        {!data && !error ? <Text style={quiet}>loading.</Text> : null}
+        {data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
+        {data && !denied && approved ? (
+          <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
+            <Text style={headline}>thank you.</Text>
+            <Text style={{ ...storyStyle, marginTop: 16 }}>{thanks}</Text>
+            <NoteBox note={note} setNote={setNote} busy={busy} error={formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
+          </View>
+        ) : null}
+        {data && !denied && !approved && filling ? (
+          <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
+            <Text style={headline}>tell us about your farm</Text>
+            <Text style={{ ...quiet, marginTop: 12 }}>a few lines. then you can approve the page.</Text>
+            <Field label="farm name" value={farmName} onChange={setFarmName} onBlur={() => save(data.products)} />
+            <Field label="your name" value={farmerNames} onChange={setFarmerNames} onBlur={() => save(data.products)} />
+            <Field label="town" value={town} onChange={setTown} onBlur={() => save(data.products)} />
+            <Field label="one line about the farm" value={story} onChange={setStory} onBlur={() => save(data.products)} />
+            {data.products.map((product, index) => (
+              <View key={`${product.name}-${index}`} style={{ alignItems: 'center', marginTop: 22 }}>
+                <Text style={productName}>{product.name}</Text>
+                <Text style={quiet}>{product.priceCents ? `${(product.priceCents / 100).toFixed(2)} / ${product.unit}` : product.unit}</Text>
+                <Pressable onPress={() => save(data.products.filter((_, i) => i !== index))} style={{ marginTop: 8, padding: 8 }}>
+                  <Text style={quiet}>remove</Text>
                 </Pressable>
-              ))}
-              {picked ? (
-                <View style={{ width: '100%', alignItems: 'center' }}>
-                  <Text style={{ ...quiet, marginTop: 8 }}>{picked.name} · {picked.unit}</Text>
-                  <Field label="price in dollars" value={draftPrice} onChange={setDraftPrice} />
-                  <Pressable onPress={addPicked} style={{ marginTop: 12, padding: 10 }}>
-                    <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy }}>add {picked.name}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              {formError ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{formError}</Text> : null}
-              {data.products.length ? (
-                <View style={{ marginTop: 28, width: '100%' }}>
-                  <PrimaryButton label="see my listing" onPress={() => setFilling(false)} />
-                </View>
-              ) : null}
-            </>
-          ) : null}
-          {data && !denied && !approved && !filling ? (
-            <>
+              </View>
+            ))}
+            <Field label="search foods" value={query} onChange={setQuery} />
+            {foods.slice(0, 6).map((food) => (
+              <Pressable key={food.id} onPress={() => { setPicked(food); setDraftPrice(''); }} style={{ paddingVertical: 8 }}>
+                <Text style={{ fontFamily: 'Inter', fontSize: 15, color: picked?.id === food.id ? colors.navy : colors.gray, fontWeight: picked?.id === food.id ? '600' : '400' }}>{food.name}</Text>
+              </Pressable>
+            ))}
+            {picked ? (
+              <View style={{ width: '100%', alignItems: 'center' }}>
+                <Text style={{ ...quiet, marginTop: 8 }}>{picked.name} · {picked.unit}</Text>
+                <Field label="price in dollars" value={draftPrice} onChange={setDraftPrice} />
+                <Pressable onPress={addPicked} style={{ marginTop: 12, padding: 10 }}>
+                  <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy }}>add {picked.name}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {formError ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{formError}</Text> : null}
+            {data.products.length ? (
+              <View style={{ marginTop: 28, width: '100%' }}>
+                <PrimaryButton label="see my listing" onPress={() => setFilling(false)} />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        {preview && data ? (
+          <>
+            <View style={{ marginTop: desktop ? 28 : 12, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
+              {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
+              <Text style={title}>{data.farmName}</Text>
+              {data.story ? <Text style={bio}>{data.story}</Text> : null}
               {data.isSample ? <Text style={quiet}>sample. this farm is made up.</Text> : null}
-              <Text style={headline}>your mainz listing</Text>
-              <Text style={{ ...quiet, marginTop: 12 }}>take a look and approve it so you're ready when orders open.</Text>
-              <Text style={farm}>{data.farmName.toLowerCase()}</Text>
-              {data.location ? <Text style={quiet}>{data.location.toLowerCase()}</Text> : null}
-              {data.story ? <Text style={{ ...storyStyle, marginTop: 16 }}>{data.story}</Text> : null}
-              <View style={{ marginTop: 32, width: '100%', alignItems: 'center' }}>
+            </View>
+            <View style={{ marginTop: desktop ? 48 : 32 }}>
+              <Grid cols={shopCols} gap={gap}>
                 {data.products.map((product) => (
-                  <View key={product.id || product.name} style={{ alignItems: 'center', marginBottom: 32 }}>
-                    <View style={frame}>
-                      <FoodImage photo={product.photoKey} name={product.name} width={168} height={168} />
-                    </View>
-                    <Text style={productName}>{product.name}</Text>
-                    <Text style={quiet}>{product.priceCents ? `${dollars(product.priceCents, 'auto')} / ${product.unit}` : 'price to come'}</Text>
-                    {product.priceStatus === 'converted' || product.priceStatus === 'suggested' ? (
-                      <Text style={quiet}>suggested price. tell us if it's different.</Text>
+                  <View key={product.id || product.name}>
+                    <ShopCard
+                      width={cell}
+                      product={{
+                        id: product.id || 0,
+                        name: product.name,
+                        photo: product.photoKey,
+                        priceCents: product.priceCents,
+                        unit: product.unit,
+                      }}
+                      onPricePress={() => {
+                        setEditing(product.id || 0);
+                        setEditPrice(product.priceCents ? (product.priceCents / 100).toFixed(2) : '');
+                        setFormError('');
+                      }}
+                    />
+                    {editing === (product.id || 0) ? (
+                      <View style={{ marginTop: 8 }}>
+                        <TextInput
+                          value={editPrice}
+                          onChangeText={setEditPrice}
+                          placeholder="price in dollars"
+                          placeholderTextColor={colors.gray}
+                          keyboardType="decimal-pad"
+                          accessibilityLabel={`new price for ${product.name}`}
+                          style={priceField}
+                        />
+                        <Pressable onPress={() => sendPrice(product)} disabled={busy} style={{ marginTop: 8 }}>
+                          <Text style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: '600', color: colors.navy }}>{busy ? 'saving…' : 'send'}</Text>
+                        </Pressable>
+                        {formError ? <Text style={{ ...quiet, color: colors.red }}>{formError}</Text> : null}
+                      </View>
                     ) : null}
                   </View>
                 ))}
-              </View>
-              <Text style={{ ...quiet, marginBottom: 16 }}>orders open at launch. you are not taking orders yet.</Text>
-              <View style={{ width: '100%' }}>
-                <PrimaryButton label={busy ? 'saving…' : 'approve my listing'} disabled={busy} onPress={() => send(`/api/listings/${token}/approve`)} />
-              </View>
-              <Pressable onPress={() => setRemoving(true)} style={{ marginTop: 18, padding: 10 }}>
-                <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.gray }}>no thanks, remove my page</Text>
-              </Pressable>
-              {removing ? (
-                <View style={{ width: '100%', alignItems: 'center' }}>
-                  <TextInput
-                    value={denyNote}
-                    onChangeText={setDenyNote}
-                    placeholder="anything you'd like us to know?"
-                    placeholderTextColor={colors.gray}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    accessibilityLabel="anything you'd like us to know?"
-                    style={field}
-                  />
-                  <Pressable onPress={() => send(`/api/listings/${token}/deny`, { note: denyNote })} disabled={busy} style={{ marginTop: 12, padding: 8 }}>
-                    <Text style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: '600', color: colors.navy }}>{busy ? 'saving…' : 'remove my page'}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              <NoteBox note={note} setNote={setNote} busy={busy} error={removing ? '' : formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
-              {removing && formError ? <Text style={{ ...quiet, color: colors.red, marginTop: 8 }}>{formError}</Text> : null}
-            </>
-          ) : null}
-        </View>
+              </Grid>
+            </View>
+          </>
+        ) : null}
       </Wrap>
+      <ConfirmSheet
+        open={sheet}
+        busy={busy}
+        error={formError}
+        note={note}
+        setNote={setNote}
+        off={off}
+        setOff={setOff}
+        removing={removing}
+        setRemoving={setRemoving}
+        denyNote={denyNote}
+        setDenyNote={setDenyNote}
+        onClose={() => setSheet(false)}
+        onConfirm={() => send(`/api/listings/${token}/approve`)}
+        onChanges={() => send(`/api/listings/${token}/changes`, { note })}
+        onDeny={() => send(`/api/listings/${token}/deny`, { note: denyNote })}
+      />
     </Shell>
+  );
+}
+
+function ConfirmSheet({
+  open, busy, error, note, setNote, off, setOff, removing, setRemoving, denyNote, setDenyNote, onClose, onConfirm, onChanges, onDeny,
+}: {
+  open: boolean;
+  busy: boolean;
+  error: string;
+  note: string;
+  setNote: (value: string) => void;
+  off: boolean;
+  setOff: (value: boolean) => void;
+  removing: boolean;
+  setRemoving: (value: boolean) => void;
+  denyNote: string;
+  setDenyNote: (value: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+  onChanges: () => void;
+  onDeny: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable accessibilityLabel="close" onPress={onClose} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(20,33,61,0.35)' }} />
+        <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 28 + insets.bottom }}>
+          <PrimaryButton label={busy ? 'saving…' : 'confirm my farm'} disabled={busy} onPress={onConfirm} />
+          <Pressable onPress={() => setOff(true)} style={{ marginTop: 18, alignItems: 'center' }}>
+            <Text style={sheetLink}>something's off</Text>
+          </Pressable>
+          {off ? (
+            <View style={{ width: '100%' }}>
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="what's off?"
+                placeholderTextColor={colors.gray}
+                autoCapitalize="none"
+                accessibilityLabel="what's off?"
+                style={field}
+              />
+              {note.trim() ? (
+                <Pressable onPress={onChanges} disabled={busy} style={{ marginTop: 10, alignItems: 'center' }}>
+                  <Text style={quiet}>send</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+          <Pressable onPress={() => setRemoving(true)} style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={quiet}>no thanks, remove my page</Text>
+          </Pressable>
+          {removing ? (
+            <View style={{ width: '100%' }}>
+              <TextInput
+                value={denyNote}
+                onChangeText={setDenyNote}
+                placeholder="anything you'd like us to know?"
+                placeholderTextColor={colors.gray}
+                autoCapitalize="none"
+                accessibilityLabel="anything you'd like us to know?"
+                style={field}
+              />
+              <Pressable onPress={onDeny} disabled={busy} style={{ marginTop: 10, alignItems: 'center' }}>
+                <Text style={sheetLink}>{busy ? 'saving…' : 'remove my page'}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <Text style={hint}>a few prices are our best guess. tap any price to fix it.</Text>
+          <Text style={hint}>your page goes live for shoppers when mainz launches.</Text>
+          {error ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{error}</Text> : null}
+          <Pressable onPress={onClose} style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={quiet}>close</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -280,9 +403,12 @@ function Field({ label, value, onChange, onBlur }: { label: string; value: strin
 }
 
 const headline = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600' as const, letterSpacing: -0.6, lineHeight: 34, color: colors.navy, textAlign: 'center' as const };
-const farm = { fontFamily: 'Inter' as const, fontSize: 22, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const, marginTop: 28 };
+const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const storyStyle = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const productName = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '600' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const };
-const frame = { width: 168, height: 168, borderRadius: 22, overflow: 'hidden' as const, backgroundColor: colors.cream };
+const hint = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 16 };
+const sheetLink = { fontFamily: 'Inter' as const, fontSize: 14, fontWeight: '600' as const, color: colors.navy };
 const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 12, marginTop: 16, width: '100%' as const };
+const priceField = { fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 6 };

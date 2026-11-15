@@ -236,16 +236,31 @@ export function SeasonCard({ product, width, saved, onSave }: { product: Product
   );
 }
 
-export function ShopCard({ product, width }: { product: ProductCard; width: number }) {
+export function ShopCard({ product, width, onPricePress }: {
+  product: Pick<ProductCard, 'id' | 'name' | 'photo' | 'priceCents' | 'unit'> & { note?: string };
+  width: number;
+  onPricePress?: () => void;
+}) {
   const height = Math.round(width * 1.16);
+  const price = `${dollars(product.priceCents, 'auto')} / ${product.unit}`;
   return (
-    <Pressable accessibilityRole="link" onPress={() => router.push(`/product/${product.id}`)} style={{ width }}>
+    <Pressable
+      accessibilityRole={onPricePress ? 'none' : 'link'}
+      onPress={onPricePress ? undefined : () => router.push(`/product/${product.id}`)}
+      style={{ width }}
+    >
       <View style={{ width, height, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
         <FoodImage photo={product.photo} name={product.name} width={width} height={height} />
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
         <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '500', color: colors.navy, flex: 1 }}>{product.name}</Text>
-        <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', color: colors.navy }}>{dollars(product.priceCents, 'auto')} / {product.unit}</Text>
+        {onPricePress ? (
+          <Pressable onPress={onPricePress} accessibilityLabel={`price for ${product.name}`}>
+            <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', color: colors.navy }}>{price}</Text>
+          </Pressable>
+        ) : (
+          <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', color: colors.navy }}>{price}</Text>
+        )}
       </View>
       {product.note ? <Text style={noteStyle}>{product.note}</Text> : null}
     </Pressable>

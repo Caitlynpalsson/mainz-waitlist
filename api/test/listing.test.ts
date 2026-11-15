@@ -4,6 +4,7 @@ import {
   SAMPLE_LISTING_TOKEN,
   approveListing,
   cleanListingProduct,
+  cleanPriceFix,
   listingAppearsInBrowse,
   LISTING_REMOVED_LINE,
   denyListing,
@@ -125,6 +126,15 @@ test('denying a listing records the reason, hides the page, and cannot publish i
   assert.equal(listingCanBePublished(resent.status), false);
   assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
   assert.equal(LISTING_REMOVED_LINE, "got it. we've removed your page. thank you for your time.");
+});
+
+test('a price fix stores the product and the cents and does not publish the draft', () => {
+  const fix = cleanPriceFix({ productId: 4, productName: ' peaches ', price: '$4.50' });
+  assert.deepEqual(fix, { productId: 4, productName: 'peaches', priceCents: 450 });
+  assert.equal(cleanPriceFix({ productName: 'eggs', price: '7' }).productId, null);
+  assert.throws(() => cleanPriceFix({ productName: 'eggs', price: 'nope' }), /price/);
+  assert.equal(listingCanBePublished('farm_approved'), false);
+  assert.equal(listingAppearsInBrowse('farm_approved', false), false);
 });
 
 test('the invite uses the first farmer name and the private link', () => {

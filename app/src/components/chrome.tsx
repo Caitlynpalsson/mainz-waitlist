@@ -18,6 +18,7 @@ export function Shell({
   top = 'none',
   title,
   right,
+  floating,
   children,
 }: {
   nav?: NavKey;
@@ -26,6 +27,7 @@ export function Shell({
   top?: 'none' | 'browse' | 'overlay' | 'bar';
   title?: string;
   right?: ReactNode;
+  floating?: ReactNode;
   children: ReactNode;
 }) {
   const { desktop } = useLayout();
@@ -52,6 +54,11 @@ export function Shell({
         <View pointerEvents="box-none" style={{ position: 'absolute', top: Math.max(insets.top, 10), left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CircleBack />
           <View style={{ flexDirection: 'row', gap: 8 }}>{right}</View>
+        </View>
+      ) : null}
+      {floating ? (
+        <View pointerEvents="box-none" style={{ position: 'absolute', top: desktop ? 90 : Math.max(insets.top, 12), right: desktop ? 28 : 16, zIndex: 5 }}>
+          {floating}
         </View>
       ) : null}
     </View>

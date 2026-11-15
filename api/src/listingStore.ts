@@ -3,6 +3,7 @@ import {
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
+  cleanPriceFix,
   denyListing,
   listingAppearsInBrowse,
   listingShowsForm,
@@ -204,7 +205,44 @@ async function present(env: Env, row: DraftRow) {
       priceStatus: product.price_status || 'public',
       needsUdafCheck: !!product.needs_udaf_check,
     })),
+    priceFixes: (await priceFixes(env, row.id)).map((fix) => ({
+      id: fix.id,
+      productId: fix.product_id,
+      productName: fix.product_name,
+      priceCents: fix.price_cents,
+    })),
   };
+}
+
+async function priceFixes(env: Env, listingId: number) {
+  const rows = await env.DB.prepare(
+    `SELECT id, product_id, product_name, price_cents FROM listing_price_fixes WHERE listing_id = ? ORDER BY id`,
+  ).bind(listingId).all<{ id: number; product_id: number | null; product_name: string; price_cents: number }>();
+  return rows.results;
+}
+
+export async function fixPublicPrice(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
+  if (listing.status === 'farm_approved') throw new HttpError('this listing is already confirmed.');
+  let fix;
+  try {
+    fix = cleanPriceFix(body);
+  } catch (error) {
+    throw new HttpError(error instanceof Error ? error.message : 'add a price.');
+  }
+  if (fix.productId) {
+    const product = await env.DB.prepare(
+      `SELECT id FROM listing_products WHERE id = ? AND listing_id = ?`,
+    ).bind(fix.productId, listing.id).first();
+    if (!product) throw new HttpError('that product is not on this page.');
+  }
+  await env.DB.prepare(
+    `INSERT INTO listing_price_fixes (listing_id, product_id, product_name, price_cents) VALUES (?, ?, ?, ?)`,
+  ).bind(listing.id, fix.productId, fix.productName, fix.priceCents).run();
+  const saved = await byToken(env, token);
+  return json(await present(env, saved!));
 }
 
 export async function savePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {

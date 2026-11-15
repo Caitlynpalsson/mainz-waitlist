@@ -41,6 +41,7 @@ type StaffListing = {
   denyReason?: string;
   isSample: boolean;
   products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
+  priceFixes?: { id: number; productName: string; priceCents: number }[];
 };
 
 type CsvPreview = {
@@ -298,6 +299,9 @@ export default function AdminHome() {
                       <Text key={product.name} style={small}>
                         {product.name} · {product.priceStatus || 'public'}{product.needsUdafCheck ? ' · udaf check' : ''}
                       </Text>
+                    ))}
+                    {listing.priceFixes?.map((fix) => (
+                      <Text key={fix.id} style={small}>{fix.productName} · farm price {dollars(fix.priceCents, 'auto')}</Text>
                     ))}
                   </Pressable>
                   <Pressable onPress={() => copyInvite(listing)} style={{ marginTop: 8 }}>

@@ -73,6 +73,18 @@ export function resendDeniedListing(input: { status: string; nextToken: string }
   return { status: 'sent', token: input.nextToken };
 }
 
+export function cleanPriceFix(raw: { productId?: unknown; productName?: unknown; price?: unknown }): { productId: number | null; productName: string; priceCents: number } {
+  const productName = String(raw.productName ?? '').trim().slice(0, 80);
+  if (!productName) throw new Error('that product needs a name.');
+  const id = Number(raw.productId);
+  const productId = Number.isInteger(id) && id > 0 ? id : null;
+  const text = String(raw.price ?? '').trim().replace(/[$,\s]/g, '');
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error('add a price.');
+  const priceCents = Math.round(Number(text) * 100);
+  if (priceCents < 50 || priceCents > 500_000) throw new Error('use a price between $0.50 and $5,000.');
+  return { productId, productName, priceCents };
+}
+
 export function requestListingChanges(note: string): { status: 'changes_requested'; changeNote: string; shopVisible: false } {
   const changeNote = note.trim();
   if (!changeNote) throw new Error('tell us what to change.');

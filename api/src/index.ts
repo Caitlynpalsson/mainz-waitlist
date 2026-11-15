@@ -1,7 +1,7 @@
 import { handleAdmin } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
-import { approvePublicListing, changePublicListing, denyPublicListing, getPublicListing, savePublicListing } from './listingStore';
+import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, savePublicListing } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
@@ -148,6 +148,8 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && listingApprove) return approvePublicListing(env, listingApprove[1]);
   const listingDeny = path.match(/^\/api\/listings\/([a-z0-9_]+)\/deny$/);
   if (method === 'POST' && listingDeny) return denyPublicListing(env, listingDeny[1], await readJson(request));
+  const listingPrice = path.match(/^\/api\/listings\/([a-z0-9_]+)\/price$/);
+  if (method === 'POST' && listingPrice) return fixPublicPrice(env, listingPrice[1], await readJson(request));
   const listingChanges = path.match(/^\/api\/listings\/([a-z0-9_]+)\/changes$/);
   if (method === 'POST' && listingChanges) return changePublicListing(env, listingChanges[1], await readJson(request));
   const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
