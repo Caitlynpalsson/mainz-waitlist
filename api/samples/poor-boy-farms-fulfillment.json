@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "seasonal pickup",
+      "address": "seasonal pickup, Sandy, UT 84070",
+      "schedule": "seasonal, by arrangement",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84070"
+    }
+  ]
+}

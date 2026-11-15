@@ -1,0 +1,29 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the farm",
+      "address": "649 N 1900 W, Lehi, UT 84043",
+      "schedule": "monday",
+      "windows": [
+        "3:00-6:00pm"
+      ],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84043"
+    },
+    {
+      "name": "the farm",
+      "address": "649 N 1900 W, Lehi, UT 84043",
+      "schedule": "wednesday",
+      "windows": [
+        "3:00-5:00pm"
+      ],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84043"
+    }
+  ]
+}

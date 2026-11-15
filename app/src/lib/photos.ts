@@ -6,6 +6,12 @@ import { Image } from 'react-native';
 const profiles = {
   'profile-87-farms': require('../../assets/photos/profile-87-farms.jpg'),
   'profile-gilgen-farm': require('../../assets/photos/profile-gilgen-farm.jpg'),
+  'profile-bar-w-beef': require('../../assets/photos/profile-bar-w-beef.jpg'),
+  'profile-cedar-valley-honey': require('../../assets/photos/profile-cedar-valley-honey.jpg'),
+  'profile-poor-boy-farms': require('../../assets/photos/profile-poor-boy-farms.jpg'),
+  'profile-mcarthur-farms': require('../../assets/photos/profile-mcarthur-farms.jpg'),
+  'profile-knight-family-honey': require('../../assets/photos/profile-knight-family-honey.jpg'),
+  'profile-mosida-market': require('../../assets/photos/profile-mosida-market.jpg'),
 } as const;
 
 const originals = {
@@ -131,6 +137,36 @@ const farm87 = {
 
 const farmGilgen = {
   'gilgen-raw-honey': require('../../assets/photos/gilgen-raw-honey.jpg'),
+  'gilgen-whole-chicken': require('../../assets/photos/gilgen-whole-chicken.jpg'),
+} as const;
+
+const farmBarW = {
+  'bar-w-ground-beef': require('../../assets/photos/bar-w-ground-beef.jpg'),
+  'bar-w-steak': require('../../assets/photos/bar-w-steak.jpg'),
+  'bar-w-beef-roast': require('../../assets/photos/bar-w-beef-roast.jpg'),
+  'bar-w-tallow': require('../../assets/photos/bar-w-tallow.jpg'),
+} as const;
+
+const farmCedarValley = {
+  'cedar-valley-raw-honey': require('../../assets/photos/cedar-valley-raw-honey.jpg'),
+  'cedar-valley-creamed-honey': require('../../assets/photos/cedar-valley-creamed-honey.jpg'),
+} as const;
+
+const farmPoorBoy = {
+  'poor-boy-eggs': require('../../assets/photos/poor-boy-eggs.jpg'),
+  'poor-boy-raw-honey': require('../../assets/photos/poor-boy-raw-honey.jpg'),
+} as const;
+
+const farmMcarthur = {
+  'mcarthur-tallow': require('../../assets/photos/mcarthur-tallow.jpg'),
+} as const;
+
+const farmKnight = {
+  'knight-raw-honey': require('../../assets/photos/knight-raw-honey.jpg'),
+} as const;
+
+const farmMosida = {
+  'mosida-steak': require('../../assets/photos/mosida-steak.jpg'),
 } as const;
 
 const stock = {
@@ -141,6 +177,12 @@ const stock = {
   ...batch3,
   ...farm87,
   ...farmGilgen,
+  ...farmBarW,
+  ...farmCedarValley,
+  ...farmPoorBoy,
+  ...farmMcarthur,
+  ...farmKnight,
+  ...farmMosida,
 } as const;
 
 export type StockKey = keyof typeof stock;

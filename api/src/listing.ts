@@ -36,6 +36,19 @@ export const LISTING_PHOTO_KEYS = [
   '87-ice-cream',
   // Gilgen Farm store photos. Only used on that farm's draft; not in the shared catalog.
   'gilgen-raw-honey',
+  'gilgen-whole-chicken',
+  // Other farm-page photos. Only used on that farm's draft; not in the shared catalog.
+  'bar-w-ground-beef',
+  'bar-w-steak',
+  'bar-w-beef-roast',
+  'bar-w-tallow',
+  'cedar-valley-raw-honey',
+  'cedar-valley-creamed-honey',
+  'poor-boy-eggs',
+  'poor-boy-raw-honey',
+  'mcarthur-tallow',
+  'knight-raw-honey',
+  'mosida-steak',
 ] as const;
 
 export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';

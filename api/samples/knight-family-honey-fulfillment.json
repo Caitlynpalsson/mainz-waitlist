@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the beekeepers shop",
+      "address": "1261 West 800 South, Orem, UT 84058",
+      "schedule": "walk-in shop",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84058"
+    }
+  ]
+}

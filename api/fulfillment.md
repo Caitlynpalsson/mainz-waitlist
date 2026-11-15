@@ -45,4 +45,4 @@ node --experimental-strip-types scripts/import-fulfillment.ts samples/your-farm.
 
 3. The script prints an `UPDATE` for `listing_drafts`. Put that in a new additive migration, or run it only after you have reviewed the SQL. It does not write to the database by itself.
 
-The 87 Farms draft is `samples/87-farms-fulfillment.json`.
+The 87 Farms draft is `samples/87-farms-fulfillment.json`. Pickup seeds for Bar-W Beef, McArthur Farms, Knight Family Honey, Poor Boy Farms, and Mosida Market live beside it. Cedar Valley Honey has no published farm pickup times, so it has no seed file.

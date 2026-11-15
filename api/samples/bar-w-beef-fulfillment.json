@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the store",
+      "address": "1111 West HWY 132, Nephi, UT 84648",
+      "schedule": "monday-friday 9am-6pm, saturday 9am-5pm",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84648"
+    }
+  ]
+}
