@@ -12,7 +12,7 @@ The foods below already use the attached photos:
 - tomatoes (tomato)
 - carrots (carrot)
 - beets (beets)
-- eggs (eggs)
+- eggs: needs real photo. the catalog key is placeholder. do not use the old eggs picture.
 - raw honey (honey)
 - comb honey (comb)
 - milk (cow)

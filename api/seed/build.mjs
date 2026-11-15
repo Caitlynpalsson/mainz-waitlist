@@ -327,7 +327,7 @@ farm({
   statValue: '200',
   statLabel: 'hens',
   milesAway: 6.8,
-  heroPhoto: 'eggs',
+  heroPhoto: 'placeholder',
   cardFoods: 'eggs, chicken',
   bio: 'ruth kimball. eggs and a few hens.\nmapleton. pickup only.',
   about: 'ruth keeps about 200 hens in mapleton. eggs most days, and a stewing hen when she has one. pickup at the gate. she does not deliver.',

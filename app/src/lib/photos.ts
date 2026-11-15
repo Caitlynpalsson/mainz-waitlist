@@ -8,7 +8,6 @@ const originals = {
   strawberry: require('../../assets/photos/strawberry.jpg'),
   carrot: require('../../assets/photos/carrot.jpg'),
   honey: require('../../assets/photos/honey.jpg'),
-  eggs: require('../../assets/photos/eggs.jpg'),
   tomato: require('../../assets/photos/tomato.jpg'),
   beets: require('../../assets/photos/beets.jpg'),
   comb: require('../../assets/photos/comb.jpg'),

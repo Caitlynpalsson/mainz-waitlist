@@ -30,6 +30,7 @@ export type RouteOffer = {
   routeId: number | null;
   runDate: string;
   name: string;
+  slots: { runDate: string; label: string }[];
 };
 
 type Ymd = { year: number; month: number; day: number };
@@ -205,16 +206,47 @@ export function cutoffInstantForRun(runDate: string, route: RouteClock): Date {
   return cutoffInstant(parseYmd(runDate), route);
 }
 
+export function routeDeliverySlots(route: RouteClock, now: Date, count = 4): { runDate: string; label: string }[] {
+  const slots: { runDate: string; label: string }[] = [];
+  let cursor = now;
+  const total = Math.min(8, Math.max(1, count));
+  for (let i = 0; i < total; i += 1) {
+    const next = nextDelivery(route, cursor);
+    const date = parseYmd(next.runDate);
+    slots.push({
+      runDate: next.runDate,
+      label: `${WEEKDAYS[weekdayOfYmd(date)]}, ${MONTHS[date.month - 1]} ${date.day}`,
+    });
+    const dayAfter = addCalendarDays(date, 1);
+    cursor = zonedInstant(dayAfter.year, dayAfter.month, dayAfter.day, 12, 0);
+  }
+  return slots;
+}
+
+const noRoute = (pickupOnly: boolean, line = ''): RouteOffer => ({
+  matched: false,
+  pickupOnly,
+  line,
+  routeId: null,
+  runDate: '',
+  name: '',
+  slots: [],
+});
+
 export function offerForAddress(address: { zip: string; town: string }, routes: AreaRoute[], now: Date): RouteOffer {
-  if (!address.zip && address.town.length < 4) {
-    return { matched: false, pickupOnly: false, line: '', routeId: null, runDate: '', name: '' };
-  }
+  if (!address.zip && address.town.length < 4) return noRoute(false);
   const route = matchRoute(address, routes);
-  if (!route) {
-    return { matched: false, pickupOnly: true, line: PICKUP_ONLY_LINE, routeId: null, runDate: '', name: '' };
-  }
+  if (!route) return noRoute(true, PICKUP_ONLY_LINE);
   const next = nextDelivery(route, now);
-  return { matched: true, pickupOnly: false, line: next.line, routeId: route.id, runDate: next.runDate, name: route.name };
+  return {
+    matched: true,
+    pickupOnly: false,
+    line: next.line,
+    routeId: route.id,
+    runDate: next.runDate,
+    name: route.name,
+    slots: routeDeliverySlots(route, now, 4),
+  };
 }
 
 export type SheetStop = {
@@ -230,15 +262,15 @@ export function partnerSheet(run: { name: string; runDate: string; status: strin
   const date = parseYmd(run.runDate);
   const when = `${WEEKDAYS[weekdayOfYmd(date)]}, ${MONTHS[date.month - 1]} ${date.day}`;
   const head = `${run.name.trim().toLowerCase()} · ${when} · ${run.status}`;
+  const pickups = [...new Set(stops.flatMap((stop) => stop.pickups.map((pickup) => pickup.trim().toLowerCase())).filter(Boolean))];
   const blocks = stops.map((stop) => [
     stop.name.trim().toLowerCase(),
     stop.address.trim().toLowerCase(),
     stop.phone.trim(),
     ...stop.items.map((item) => `${item.qty} ${item.name.trim().toLowerCase()}`),
-    ...stop.pickups.map((pickup) => `pickup: ${pickup.trim().toLowerCase()}`),
     stop.note.trim() ? `note: ${stop.note.trim().toLowerCase()}` : '',
   ].filter(Boolean).join('\n'));
-  return [head, ...blocks].filter(Boolean).join('\n\n');
+  return [head, ...pickups.map((pickup) => `pick up from: ${pickup}`), ...blocks].filter(Boolean).join('\n\n');
 }
 
 function cutoffInstant(delivery: Ymd, route: RouteClock): Date {

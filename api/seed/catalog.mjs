@@ -1,7 +1,7 @@
 // Mainz-owned food catalog. Simple names shoppers actually search.
 // photo "placeholder" means we do not have a licensed stock photo yet.
-// The nine real photos are the ones attached to the design: peach, strawberry,
-// carrot, beets, tomato, eggs, honey, comb, and cow (used for milk).
+// Real photos: peach, strawberry, carrot, beets, tomato, honey, comb, and cow (used for milk).
+// Eggs stay on the placeholder until there is a real photo.
 
 /** @typedef {{ name: string, category: string, unit: string, photo: string, synonyms: string, varieties: string[] }} Food */
 
@@ -125,7 +125,7 @@ add('pie pumpkin', 'produce', 'each', 'placeholder', 'sugar pumpkin', []);
 add('fresh herbs', 'produce', 'bunch', 'placeholder', 'herbs, herb bundle', []);
 
 // Eggs, honey, dairy, meat
-add('eggs', 'eggs', 'dozen', 'eggs', 'egg, chicken eggs, farm eggs', ['chicken', 'duck']);
+add('eggs', 'eggs', 'dozen', 'placeholder', 'egg, chicken eggs, farm eggs', ['chicken', 'duck']);
 add('raw honey', 'honey', 'jar', 'honey', 'honey', ['wildflower', 'clover', 'alfalfa']);
 add('comb honey', 'honey', 'square', 'comb', 'honeycomb, honey comb, cut comb', []);
 add('creamed honey', 'honey', 'jar', 'placeholder', 'whipped honey', []);

@@ -7,7 +7,7 @@ import { api } from '../../../src/lib/api';
 import { adminHeaders, useAdminToken } from '../../../src/lib/adminAuth';
 import { colors, useLayout } from '../../../src/theme';
 
-const PHOTOS = ['peach', 'strawberry', 'carrot', 'honey', 'eggs', 'tomato', 'beets', 'comb', 'cow'];
+const PHOTOS = ['peach', 'strawberry', 'carrot', 'honey', 'tomato', 'beets', 'comb', 'cow'];
 
 type ProductDraft = { name: string; price: string; unit: string; photoKey: string; priceStatus?: string; needsUdafCheck?: boolean };
 type Listing = {

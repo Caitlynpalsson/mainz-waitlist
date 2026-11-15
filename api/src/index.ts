@@ -422,9 +422,7 @@ type CartBody = {
 
 async function quote(env: Env, body: CartBody): Promise<Response> {
   const resolved = await resolveCart(env, body);
-  const addressThere = `${body.address?.line1 || ''}${body.address?.cityZip || ''}`.trim().length > 0;
-  const route = await lookupRoute(env, body.address?.line1 || '', body.address?.cityZip || '', addressThere);
-  return json({ ...presentQuote(resolved), route });
+  return json({ ...presentQuote(resolved), route: resolved.route });
 }
 
 async function placeOrder(env: Env, body: CartBody): Promise<Response> {
@@ -439,7 +437,7 @@ async function placeOrder(env: Env, body: CartBody): Promise<Response> {
   const cityZip = (body.address?.cityZip || '').trim();
   if (needsAddress && (line1.length < 4 || cityZip.length < 4)) throw new HttpError('add a delivery address.');
   const deliveryAddress = needsAddress ? `${line1}, ${cityZip}`.slice(0, 200) : '';
-  const route = await lookupRoute(env, line1, cityZip, needsAddress);
+  const route = resolved.route;
   if (needsAddress && !route?.matched) throw new HttpError(route?.line || "we don't deliver there yet. pickup is ready when you are.");
   const publicId = makePublicId();
   const priced = resolved.priced;
@@ -815,6 +813,11 @@ async function resolveCart(env: Env, body: CartBody) {
     }
   }
 
+  const addressThere = `${body.address?.line1 || ''}${body.address?.cityZip || ''}`.trim().length > 0;
+  const route = addressThere
+    ? await lookupRoute(env, body.address?.line1 || '', body.address?.cityZip || '', true)
+    : null;
+  const routeLabels = route?.matched ? route.slots.map((slot) => slot.label) : [];
   const requested = new Map((body.groups || []).map((group) => [Number(group.farmId), group]));
   const farms = new Map<number, ProductJoin>();
   const input = grouped.map((lines) => {
@@ -828,19 +831,21 @@ async function resolveCart(env: Env, body: CartBody) {
     else throw new HttpError(`${row.farm_name} is not selling right now.`);
     if (fulfillment === 'delivery' && !row.offers_delivery) throw new HttpError(`${row.farm_name} does not deliver.`);
     if (fulfillment === 'pickup' && !row.offers_pickup) throw new HttpError(`${row.farm_name} does not offer pickup.`);
+    if (fulfillment === 'delivery' && route?.pickupOnly) throw new HttpError(route.line);
     const windows = parseWindows(row.windows_json);
-    const choices = fulfillment === 'delivery' ? windows.delivery : windows.pickup;
+    const choices = fulfillment === 'delivery' && routeLabels.length ? routeLabels.map((label) => ({ day: '', label })) : fulfillment === 'delivery' ? [] : windows.pickup;
     const requestedLabel = (ask?.windowLabel || '').trim();
     let windowLabel = choices[0]?.label || '';
-    if (requestedLabel) {
-      if (choices.length && !choices.some((choice) => choice.label === requestedLabel)) {
-        throw new HttpError(`that window is not open at ${row.farm_name}.`);
-      }
+    if (requestedLabel && choices.some((choice) => choice.label === requestedLabel)) {
       windowLabel = requestedLabel.slice(0, 80);
+    } else if (requestedLabel && fulfillment === 'pickup' && !choices.length) {
+      windowLabel = requestedLabel.slice(0, 80);
+    } else if (requestedLabel && fulfillment === 'pickup' && choices.length) {
+      throw new HttpError(`that window is not open at ${row.farm_name}.`);
     }
     return { farmId: row.farm_id, fulfillment, windowLabel, lines };
   });
-  return { priced: priceGroups(input, readRates(env)), byId, farms };
+  return { priced: priceGroups(input, readRates(env)), byId, farms, route };
 }
 
 function presentQuote(resolved: Awaited<ReturnType<typeof resolveCart>>) {

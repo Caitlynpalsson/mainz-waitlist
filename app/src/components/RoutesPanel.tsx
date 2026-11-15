@@ -192,7 +192,12 @@ export function RoutesPanel({ token }: { token: string }) {
       </Pressable>
       {sheet ? (
         <View style={{ marginTop: 16 }}>
-          <TextInput editable={false} multiline value={sheet} style={sheetBox} />
+          <TextInput
+            editable={false}
+            multiline
+            value={sheet}
+            style={[sheetBox, { height: Math.max(12, sheet.split('\n').length + 1) * 20 }]}
+          />
           <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
             {Platform.OS === 'web' ? <Pressable onPress={copySheet}><Text style={link}>{copied ? 'copied' : 'copy list'}</Text></Pressable> : null}
             {Platform.OS === 'web' ? <Pressable onPress={printSheet}><Text style={link}>print</Text></Pressable> : null}

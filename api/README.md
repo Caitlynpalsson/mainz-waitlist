@@ -81,6 +81,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0014_listing_staff_approve.sql` lets staff record a final look after the farm confirms. The draft stays off the shop.
 
+`0015_eggs_placeholder.sql` points eggs at the placeholder. The old picture stays in the repo, but the shop no longer uses it.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

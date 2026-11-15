@@ -71,9 +71,20 @@ export default function Bag() {
 
   const delivering = groups.some((group) => group.choice.fulfillment === 'delivery');
   const pickupOnly = !!quote?.route?.pickupOnly;
+  const routeSlots = quote?.route?.matched ? quote.route.slots || [] : [];
+  const routeKey = routeSlots.map((slot) => slot.label).join('|');
   useEffect(() => {
     if (pickupOnly) store.setAllFulfillment('pickup');
   }, [pickupOnly]);
+  useEffect(() => {
+    if (!routeSlots.length) return;
+    const labels = new Set(routeSlots.map((slot) => slot.label));
+    for (const group of groups) {
+      if (group.choice.fulfillment === 'delivery' && !labels.has(group.choice.windowLabel)) {
+        store.setWindow(group.farmId, routeSlots[0].label);
+      }
+    }
+  }, [routeKey]);
   const sameMode = groups.length > 0 && groups.every((group) => group.choice.fulfillment === groups[0].choice.fulfillment);
   const things = store.lines.length;
 
@@ -179,18 +190,18 @@ export default function Bag() {
                       {[group.offersDelivery ? `delivery ${group.deliverySummary}` : '', group.offersPickup ? `pickup ${group.pickupSummary}` : ''].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
-                  {group.offersPickup && group.offersDelivery && !pickupOnly ? (
+                  {!sameMode && group.offersPickup && group.offersDelivery && !pickupOnly ? (
                     <Segment
                       track={colors.cream}
                       value={group.choice.fulfillment}
                       onChange={(value) => store.setFulfillment(group.farmId, value as Fulfillment)}
                       options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
                     />
-                  ) : (
-                    <Text style={{ fontFamily: 'Inter', fontSize: 12, color: colors.ink }}>{group.choice.fulfillment} only</Text>
-                  )}
+                  ) : pickupOnly || !group.offersPickup || !group.offersDelivery ? (
+                    <Text style={{ fontFamily: 'Inter', fontSize: 12, color: colors.ink }}>{pickupOnly ? 'pickup only' : `${group.choice.fulfillment} only`}</Text>
+                  ) : null}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                    {(group.choice.fulfillment === 'delivery' ? group.lines[0].windows.delivery : group.lines[0].windows.pickup).map((slot) => (
+                    {(group.choice.fulfillment === 'delivery' ? routeSlots : group.lines[0].windows.pickup).map((slot) => (
                       <Pill key={slot.label} small label={slot.label} on={slot.label === group.choice.windowLabel} onPress={() => store.setWindow(group.farmId, slot.label)} />
                     ))}
                   </View>

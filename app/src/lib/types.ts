@@ -141,6 +141,7 @@ export type Quote = {
     routeId: number | null;
     runDate: string;
     name: string;
+    slots?: { runDate: string; label: string }[];
   } | null;
 };
 

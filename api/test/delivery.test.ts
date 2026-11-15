@@ -12,6 +12,7 @@ import {
   offerForAddress,
   parseAddress,
   partnerSheet,
+  routeDeliverySlots,
   restoreDeliveryFee,
   runCountLabel,
   waiveDeliveryFee,
@@ -57,6 +58,9 @@ test('a provo order on sunday still makes tuesday, and monday 6pm closes it', ()
   assert.equal(closed.runDate, '2026-11-24');
   assert.equal(closed.line, 'delivers tue, nov 24. order by mon 6pm.');
   assert.equal(followingRun(provo, '2026-11-17'), '2026-11-24');
+  const slots = routeDeliverySlots(provo, sundayMorning, 2);
+  assert.deepEqual(slots.map((slot) => slot.label), ['tue, nov 17', 'tue, nov 24']);
+  assert.equal(slots[0].runDate, open.runDate);
 });
 
 test('spanish fork delivers thursday and a zip match beats the town', () => {
@@ -107,19 +111,31 @@ test('a new route defaults to 3 and 5, and the partner list is plain text', () =
   assert.equal(cleaned.cutoffTime, '18:00');
   assert.deepEqual(cleaned.area, ['84057', 'orem']);
   assert.equal(cleaned.isSample, true);
-  const text = partnerSheet({ name: 'sample provo', runDate: '2026-11-17', status: 'confirmed' }, [{
-    name: 'Ada Cole',
-    address: '10 Center St, Provo 84601',
-    phone: '8015550100',
-    items: [{ qty: 2, name: 'Peaches' }],
-    pickups: ['Willow Creek Farm, 4100 S 1700 W'],
-    note: 'gate code 12',
-  }]);
+  const text = partnerSheet({ name: 'sample provo', runDate: '2026-11-17', status: 'confirmed' }, [
+    {
+      name: 'Ada Cole',
+      address: '10 Center St, Provo 84601',
+      phone: '8015550100',
+      items: [{ qty: 2, name: 'Peaches' }],
+      pickups: ['Willow Creek Farm, 4100 S 1700 W'],
+      note: 'gate code 12',
+    },
+    {
+      name: 'Len Park',
+      address: '4 Orchard Rd, Provo 84601',
+      phone: '8015550199',
+      items: [{ qty: 1, name: 'Eggs' }],
+      pickups: ['Willow Creek Farm, 4100 S 1700 W'],
+      note: '',
+    },
+  ]);
   assert.match(text, /sample provo · tue, nov 17 · confirmed/);
+  assert.equal(text.indexOf('pick up from: willow creek farm, 4100 s 1700 w'), text.lastIndexOf('pick up from: willow creek farm, 4100 s 1700 w'));
+  assert.ok(text.indexOf('pick up from:') < text.indexOf('ada cole'));
   assert.match(text, /ada cole/);
   assert.match(text, /10 center st, provo 84601/);
   assert.match(text, /8015550100/);
   assert.match(text, /2 peaches/);
-  assert.match(text, /pickup: willow creek farm, 4100 s 1700 w/);
   assert.match(text, /note: gate code 12/);
+  assert.doesNotMatch(text, /pickup:/);
 });

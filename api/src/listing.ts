@@ -6,7 +6,6 @@ export const LISTING_PHOTO_KEYS = [
   'strawberry',
   'carrot',
   'honey',
-  'eggs',
   'tomato',
   'beets',
   'comb',
