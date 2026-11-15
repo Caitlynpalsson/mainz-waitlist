@@ -12,7 +12,7 @@ import {
   type PayPref,
 } from '../../../api/src/listing';
 import { colors } from '../theme';
-import { Pill, PrimaryButton } from './ui';
+import { FoodImage, Pill, PrimaryButton } from './ui';
 
 export type OnboardingAnswers = {
   reachVia: '' | 'text' | 'email';
@@ -26,19 +26,23 @@ export function FarmOnboarding({
   step,
   answers,
   pickupLines,
+  photo,
   preview,
   busy,
   error,
   onBack,
+  onSeePage,
   onNext,
 }: {
   step: OnboardingStep;
   answers: OnboardingAnswers;
   pickupLines: string[];
+  photo?: string;
   preview: boolean;
   busy: boolean;
   error: string;
   onBack: () => void;
+  onSeePage: () => void;
   onNext: (patch: Partial<OnboardingAnswers> & { done?: boolean; reachPhone?: string }) => void;
 }) {
   const [via, setVia] = useState(answers.reachVia || 'email');
@@ -51,7 +55,6 @@ export function FarmOnboarding({
 
   return (
     <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center', alignItems: 'center', paddingTop: 12 }}>
-      {preview ? <Text style={quiet}>preview of this step. nothing is saved.</Text> : null}
       {step === 'welcome' ? (
         <>
           <Text style={headline}>{ONBOARDING_WELCOME}</Text>
@@ -115,9 +118,21 @@ export function FarmOnboarding({
       ) : null}
       {step === 'done' ? (
         <>
+          {photo ? (
+            <View style={{ width: 72, height: 72, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.cream, marginBottom: 8 }}>
+              <FoodImage photo={photo} name="" width={72} height={72} />
+            </View>
+          ) : (
+            <View style={check}>
+              <Text style={{ fontFamily: 'Inter', fontSize: 22, color: colors.navy }}>✓</Text>
+            </View>
+          )}
           <Text style={headline}>you're all set</Text>
           <Text style={body}>{ONBOARDING_DONE}</Text>
           <TextUsLine style={body} />
+          <View style={{ marginTop: 28, width: '100%' }}>
+            <PrimaryButton label="see my page" onPress={onSeePage} />
+          </View>
         </>
       ) : null}
       {error ? <Text style={{ ...quiet, color: colors.red }}>{error}</Text> : null}
@@ -159,5 +174,6 @@ const headline = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600'
 const body = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 16 };
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };
 const link = { fontFamily: 'Inter' as const, fontSize: 14, color: colors.gray };
+const check = { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.cream, alignItems: 'center' as const, justifyContent: 'center' as const, marginBottom: 8 };
 const row = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 22 };
 const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, backgroundColor: colors.cream, borderRadius: 16, borderWidth: 1, borderColor: colors.hair, paddingVertical: 14, paddingHorizontal: 16, marginTop: 18, width: '100%' as const };

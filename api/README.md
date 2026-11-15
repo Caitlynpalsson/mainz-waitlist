@@ -95,6 +95,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0022_listing_onboarding.sql` stores how a farm wants to be reached, paid, and when pickup looks right. No card is charged and no text is sent. A stored phone is never sent back to the page.
 
+`0023_meet_line.sql` adds an optional meet-the-farm sentence. When a draft already has a full story, that story is copied in. It does not invent new facts.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

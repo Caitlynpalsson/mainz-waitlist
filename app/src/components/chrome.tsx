@@ -19,6 +19,8 @@ export function Shell({
   title,
   right,
   sticky,
+  onScroll,
+  hideOverlay,
   children,
 }: {
   nav?: NavKey;
@@ -28,6 +30,8 @@ export function Shell({
   title?: string;
   right?: ReactNode;
   sticky?: ReactNode;
+  onScroll?: (y: number) => void;
+  hideOverlay?: boolean;
   children: ReactNode;
 }) {
   const { desktop } = useLayout();
@@ -63,12 +67,14 @@ export function Shell({
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: !desktop && showTabs ? 96 + insets.bottom : 24 }}
         keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        onScroll={onScroll ? (event) => onScroll(event.nativeEvent.contentOffset.y) : undefined}
       >
         {children}
         {desktop ? <Footer /> : null}
       </ScrollView>
       {!desktop && showTabs && tab ? <TabBar current={tab} /> : null}
-      {!desktop && top === 'overlay' ? (
+      {!desktop && top === 'overlay' && !hideOverlay ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: Math.max(insets.top, 10), left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CircleBack />
           <View style={{ flexDirection: 'row', gap: 8 }}>{right}</View>

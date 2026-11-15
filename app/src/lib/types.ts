@@ -35,6 +35,7 @@ export type FarmCard = {
   pickupLine?: string;
   pickupDays?: string;
   deliveryDay?: string;
+  meetLine?: string;
   cardFoods: string;
   isDemo: boolean;
   statValue: string;

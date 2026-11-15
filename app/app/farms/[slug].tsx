@@ -24,6 +24,7 @@ export default function FarmPage() {
   const { desktop, shopCols } = useLayout();
   const { follows, toggleFollow } = useStore();
   const [tab, setTab] = useState<'shop' | 'about' | 'reviews'>('shop');
+  const [hideChrome, setHideChrome] = useState(false);
   const farm = data?.farm;
   const followed = farm ? follows.includes(farm.slug) : false;
   const gap = desktop ? 36 : 14;
@@ -37,6 +38,8 @@ export default function FarmPage() {
       tab="farms"
       showTabs
       top="overlay"
+      hideOverlay={hideChrome}
+      onScroll={(y) => setHideChrome(y > 72)}
       right={farm ? (
         <>
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(farm.slug)}>
@@ -66,6 +69,7 @@ export default function FarmPage() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name}</Text>
+                <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
                   <FulfillmentPills
@@ -111,6 +115,7 @@ export default function FarmPage() {
                   town={`${farm.city}, ${farm.state}`}
                   grows={(data?.products || []).map((product) => product.name)}
                   sinceYear={farm.sinceYear}
+                  meetLine={farm.meetLine}
                   photo={farm.profilePhoto}
                   hero={farm.heroPhoto}
                   width={cell * shopCols}
@@ -135,6 +140,8 @@ function Stat({ n, label }: { n: string; label: string }) {
 }
 
 const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
+const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const prose = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const crumb = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray };

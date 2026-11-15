@@ -44,6 +44,7 @@ type StaffListing = {
   isSample: boolean;
   products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
   priceFixes?: { id: number; productName: string; priceCents: number }[];
+  onboarding?: { reachVia?: string; reachEmail?: string; payPref?: string; pickupOk?: boolean; pickupNote?: string; done?: boolean };
 };
 
 type CsvPreview = {
@@ -312,6 +313,17 @@ export default function AdminHome() {
                     <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
                     <Text style={small}>{listing.statusLabel}{listing.denyReason ? ` · ${listing.denyReason}` : ''}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
                     <Text style={small}>{listing.path}</Text>
+                    {listing.onboarding?.reachVia || listing.onboarding?.payPref || listing.onboarding?.done ? (
+                      <Text style={small}>
+                        {[
+                          listing.onboarding.reachVia ? `reach ${listing.onboarding.reachVia}${listing.onboarding.reachEmail ? ` ${listing.onboarding.reachEmail}` : ''}` : '',
+                          listing.onboarding.payPref ? `pay ${listing.onboarding.payPref}` : '',
+                          listing.onboarding.pickupOk ? 'pickup looks right' : '',
+                          listing.onboarding.pickupNote || '',
+                          listing.onboarding.done ? 'onboarding done' : '',
+                        ].filter(Boolean).join(' · ')}
+                      </Text>
+                    ) : null}
                   </Pressable>
                   {listing.products?.length ? (
                     <Pressable onPress={() => setOpenProducts(openProducts === listing.id ? null : listing.id)} style={{ marginTop: 8 }}>

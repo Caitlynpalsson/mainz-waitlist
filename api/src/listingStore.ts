@@ -54,6 +54,7 @@ type DraftRow = {
   pickup_ok: number;
   pickup_note: string;
   onboarding_done: number;
+  meet_line: string;
   created_at: string;
   updated_at: string;
 };
@@ -362,6 +363,7 @@ async function present(env: Env, row: DraftRow) {
     pickupLine: pickupTownLine(pickupOptions, row.pickup_line || ''),
     pickupDays,
     deliveryDay,
+    meetLine: row.meet_line || '',
     pickupPreview: pickupOptions.map((option) => pickupSpotPill(option)).filter(Boolean).slice(0, 6),
     onboarding: publicOnboarding(row),
     isSample: !!row.is_sample,

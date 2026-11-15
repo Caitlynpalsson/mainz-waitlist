@@ -135,31 +135,49 @@ export const WHY_MAINZ_LINES = [
   'your money stays with utah farms.',
 ] as const;
 
+function wordCount(line: string): number {
+  return line.replace(/[.!?]/g, '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+function warmLine(line: string): boolean {
+  return wordCount(line) >= 4;
+}
+
 /**
- * Lines for "meet the farm" that are not already on screen.
- * Uses the rest of the story, then town, what they grow, or years.
+ * One warm sentence for "meet the farm".
+ * A staff meet_line wins when it is not already the header.
+ * Otherwise the rest of the story, then one sentence built only from town and what they sell.
+ * Never a one-word fragment.
  */
 export function meetTheFarmLines(input: {
   story?: string;
   alreadyShown?: string;
+  meetLine?: string;
   town?: string;
   grows?: string[];
   sinceYear?: number | null;
 }): string[] {
   const shown = (input.alreadyShown || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const custom = (input.meetLine || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const customPlain = custom.replace(/[.!?]+$/g, '').trim();
+  if (warmLine(custom) && customPlain && !shown.includes(customPlain)) return [custom.endsWith('.') ? custom : `${custom}.`];
   const fresh = storyLines(input.story || '').filter((line) => {
     const plain = line.replace(/[.!?]+$/g, '').trim();
-    return plain.length > 0 && !shown.includes(plain);
+    return warmLine(line) && plain.length > 0 && !shown.includes(plain);
   });
   if (fresh.length) return fresh.slice(0, 2);
-  const facts: string[] = [];
   const town = (input.town || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  if (town && !shown.includes(town)) facts.push(`in ${town}.`);
   const grows = [...new Set((input.grows || []).map((item) => item.replace(/\s+/g, ' ').trim().toLowerCase()).filter(Boolean))].slice(0, 3);
-  if (grows.length === 1) facts.push(`${grows[0]}.`);
-  else if (grows.length > 1) facts.push(`${grows.slice(0, -1).join(', ')} and ${grows[grows.length - 1]}.`);
-  if (input.sinceYear && input.sinceYear > 1800) facts.push(`farming since ${input.sinceYear}.`);
-  return facts.slice(0, 3);
+  if (grows.length && town && !shown.includes(town)) {
+    const food = grows.length === 1 ? grows[0] : `${grows.slice(0, -1).join(', ')} and ${grows[grows.length - 1]}`;
+    const year = input.sinceYear && input.sinceYear > 1800 ? ` farming there since ${input.sinceYear}` : '';
+    return [`${food} from ${town}${year}.`];
+  }
+  return [];
+}
+
+export function portraitIsLogo(photo: string | null | undefined): boolean {
+  return (photo || '').trim().toLowerCase().startsWith('profile-');
 }
 
 /** Up to three sentences from the farm's own story. Empty when there is no story. */

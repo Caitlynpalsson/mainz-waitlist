@@ -43,6 +43,7 @@ type FarmRow = {
   profile_photo?: string;
   fulfillment_json?: string;
   pickup_line?: string;
+  meet_line?: string;
   card_foods: string;
   offers_pickup: number;
   offers_delivery: number;
@@ -1022,6 +1023,7 @@ function farmCard(row: FarmRow, origin: LatLng | null) {
     profilePhoto: row.profile_photo || '',
     pickupLine: pickupTownLine(parseFulfillment(row.fulfillment_json || '').options, row.pickup_line || ''),
     pickupDays: pickupDayLabel(parseFulfillment(row.fulfillment_json || '').options),
+    meetLine: row.meet_line || '',
     cardFoods: row.card_foods,
     isDemo: !!row.is_demo,
     statValue: row.stat_value,

@@ -230,7 +230,16 @@ test('farm pages keep a short story and never promise a launch', () => {
     town: 'huntington, ut',
     grows: ['tallow'],
     sinceYear: 1998,
-  }), ['in huntington, ut.', 'tallow.', 'farming since 1998.']);
+  }), ['tallow from huntington, ut farming there since 1998.']);
+  assert.deepEqual(meetTheFarmLines({
+    story: 'tallow.',
+    alreadyShown: 'tallow.',
+    grows: ['tallow'],
+  }), []);
+  assert.deepEqual(meetTheFarmLines({
+    meetLine: 'a family dairy raising jersey cows in huntington.',
+    alreadyShown: 'tallow.',
+  }), ['a family dairy raising jersey cows in huntington.']);
   assert.equal(farmPortrait(''), '');
   assert.equal(farmPortrait('placeholder', 'hero'), '');
   assert.equal(farmPortrait('profile-mcarthur-farms', 'profile-mcarthur-farms'), '');

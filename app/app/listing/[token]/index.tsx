@@ -27,6 +27,7 @@ type Listing = {
   pickupDays?: string;
   deliveryDay?: string;
   pickupPreview?: string[];
+  meetLine?: string;
   onboarding?: OnboardingAnswers & { done?: boolean };
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
@@ -245,6 +246,8 @@ export default function ListingApproval() {
             busy={busy}
             error={formError}
             onBack={() => setStep(prevOnboardingStep(step))}
+            onSeePage={() => setStep(null)}
+            photo={data?.profilePhoto}
             onNext={(patch) => {
               const next = nextOnboardingStep(step);
               move(next, { ...patch, done: next === 'done' });
@@ -317,8 +320,8 @@ export default function ListingApproval() {
                 <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                 <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
                 <TextUsLine style={bannerTextUs} />
-                <View style={{ marginTop: 16, width: '100%', maxWidth: 320 }}>
-                  <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy} onPress={() => startOnboarding()} />
+                <View style={{ marginTop: 16, width: '100%', maxWidth: 320, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+                  <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy || sheet} onPress={() => startOnboarding()} />
                 </View>
                 <View style={bannerLinks}>
                   <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
@@ -332,6 +335,7 @@ export default function ListingApproval() {
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
+              <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
               {data.story ? <Text style={bio}>{data.story}</Text> : null}
               {data.pickupDays || data.deliveryDay ? (
                 <View style={{ marginTop: 20 }}>
@@ -391,7 +395,7 @@ export default function ListingApproval() {
                   <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>+ add more products</Text>
                 </Pressable>
               </Grid>
-              <FarmBelow story={data.story} alreadyShown={data.story} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
+              <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
             </View>
           </>
         ) : null}
@@ -537,6 +541,8 @@ const confirmPill = {
   elevation: 4,
 };
 const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
+const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
+const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const banner = { width: '100%' as const, maxWidth: 520, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' as const, marginBottom: 28 };
 const bannerTitle = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 22, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const };
 const bannerBody = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 21, color: colors.ink, textAlign: 'center' as const, marginTop: 10 };
