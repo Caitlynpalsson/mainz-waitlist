@@ -44,9 +44,67 @@ const batch1 = {
   leeks: require('../../assets/photos/leeks.jpg'),
 } as const;
 
+const batch2 = {
+  lettuce: require('../../assets/photos/lettuce.jpg'),
+  spinach: require('../../assets/photos/spinach.jpg'),
+  kale: require('../../assets/photos/kale.jpg'),
+  'swiss-chard': require('../../assets/photos/swiss-chard.jpg'),
+  arugula: require('../../assets/photos/arugula.jpg'),
+  cabbage: require('../../assets/photos/cabbage.jpg'),
+  broccoli: require('../../assets/photos/broccoli.jpg'),
+  cauliflower: require('../../assets/photos/cauliflower.jpg'),
+  'brussels-sprouts': require('../../assets/photos/brussels-sprouts.jpg'),
+  'green-beans': require('../../assets/photos/green-beans.jpg'),
+  'snap-peas': require('../../assets/photos/snap-peas.jpg'),
+  'snow-peas': require('../../assets/photos/snow-peas.jpg'),
+  cucumbers: require('../../assets/photos/cucumbers.jpg'),
+  'pickling-cucumbers': require('../../assets/photos/pickling-cucumbers.jpg'),
+  zucchini: require('../../assets/photos/zucchini.jpg'),
+  'yellow-squash': require('../../assets/photos/yellow-squash.jpg'),
+  'pattypan-squash': require('../../assets/photos/pattypan-squash.jpg'),
+  'butternut-squash': require('../../assets/photos/butternut-squash.jpg'),
+  'acorn-squash': require('../../assets/photos/acorn-squash.jpg'),
+  'delicata-squash': require('../../assets/photos/delicata-squash.jpg'),
+  'spaghetti-squash': require('../../assets/photos/spaghetti-squash.jpg'),
+  pumpkin: require('../../assets/photos/pumpkin.jpg'),
+  radishes: require('../../assets/photos/radishes.jpg'),
+  turnips: require('../../assets/photos/turnips.jpg'),
+  rutabaga: require('../../assets/photos/rutabaga.jpg'),
+} as const;
+
+const batch3 = {
+  parsnips: require('../../assets/photos/parsnips.jpg'),
+  kohlrabi: require('../../assets/photos/kohlrabi.jpg'),
+  asparagus: require('../../assets/photos/asparagus.jpg'),
+  rhubarb: require('../../assets/photos/rhubarb.jpg'),
+  celery: require('../../assets/photos/celery.jpg'),
+  celeriac: require('../../assets/photos/celeriac.jpg'),
+  fennel: require('../../assets/photos/fennel.jpg'),
+  'bell-peppers': require('../../assets/photos/bell-peppers.jpg'),
+  jalapenos: require('../../assets/photos/jalapenos.jpg'),
+  poblanos: require('../../assets/photos/poblanos.jpg'),
+  'hot-peppers': require('../../assets/photos/hot-peppers.jpg'),
+  eggplant: require('../../assets/photos/eggplant.jpg'),
+  okra: require('../../assets/photos/okra.jpg'),
+  artichokes: require('../../assets/photos/artichokes.jpg'),
+  basil: require('../../assets/photos/basil.jpg'),
+  cilantro: require('../../assets/photos/cilantro.jpg'),
+  parsley: require('../../assets/photos/parsley.jpg'),
+  dill: require('../../assets/photos/dill.jpg'),
+  mint: require('../../assets/photos/mint.jpg'),
+  rosemary: require('../../assets/photos/rosemary.jpg'),
+  thyme: require('../../assets/photos/thyme.jpg'),
+  chives: require('../../assets/photos/chives.jpg'),
+  oregano: require('../../assets/photos/oregano.jpg'),
+  sage: require('../../assets/photos/sage.jpg'),
+  microgreens: require('../../assets/photos/microgreens.jpg'),
+} as const;
+
 const stock = {
   ...originals,
   ...batch1,
+  ...batch2,
+  ...batch3,
 } as const;
 
 export type StockKey = keyof typeof stock;
