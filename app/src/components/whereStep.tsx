@@ -87,19 +87,21 @@ export function WhereStep({
           options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
         />
       ) : null}
-      <Text style={zipLabel}>your zip code</Text>
-      <TextInput
-        value={clean}
-        onChangeText={(value) => onZip(digitsZip(value))}
-        placeholder="zip"
-        placeholderTextColor={colors.gray}
-        keyboardType="number-pad"
-        inputMode="numeric"
-        autoFocus
-        maxLength={5}
-        accessibilityLabel="your zip code"
-        style={zipField}
-      />
+      <View style={zipRow}>
+        <Text style={zipLabel}>{delivering ? 'deliver to' : 'pickup near'}</Text>
+        <TextInput
+          value={clean}
+          onChangeText={(value) => onZip(digitsZip(value))}
+          placeholder="zip code"
+          placeholderTextColor={colors.gray}
+          keyboardType="number-pad"
+          inputMode="numeric"
+          autoFocus
+          maxLength={5}
+          accessibilityLabel="zip code"
+          style={zipField}
+        />
+      </View>
       {clean.length === 5 && routeNote && !routeMatched ? <Text style={note}>{routeNote}</Text> : null}
       {!hasSpots && !delivering ? <Text style={note}>{PICKUP_COMING_SOON}</Text> : null}
       {!delivering && hasSpots && spots.visible.length ? (
@@ -186,7 +188,8 @@ function Field({ label, value, onChange, keyboardType, autoCapitalize }: { label
   );
 }
 
-const zipLabel = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray, textAlign: 'center' as const, marginTop: 18 };
+const zipRow = { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };
+const zipLabel = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.gray };
 const fieldBox = {
   fontFamily: 'Inter' as const,
   fontSize: 16,
@@ -201,11 +204,22 @@ const fieldBox = {
   marginTop: 10,
 };
 const zipField = {
-  ...fieldBox,
-  fontSize: 28,
-  fontWeight: '600' as const,
+  fontFamily: 'Inter' as const,
+  fontSize: 16,
+  fontWeight: '400' as const,
+  letterSpacing: 0,
+  color: colors.navy,
   textAlign: 'center' as const,
-  letterSpacing: 4,
+  backgroundColor: colors.cream,
+  borderWidth: 1,
+  borderStyle: 'solid' as const,
+  borderColor: colors.hair,
+  borderRadius: 12,
+  height: 44,
+  width: 152,
+  paddingHorizontal: 12,
+  paddingVertical: 0,
+  outlineWidth: 0,
 };
 const pillRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };
 const linkHit = { marginTop: 12, alignItems: 'center' as const, paddingVertical: 6 };
