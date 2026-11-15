@@ -131,7 +131,6 @@ const farm87 = {
 
 const farmGilgen = {
   'gilgen-raw-honey': require('../../assets/photos/gilgen-raw-honey.jpg'),
-  'gilgen-whole-chicken': require('../../assets/photos/gilgen-whole-chicken.jpg'),
 } as const;
 
 const stock = {
