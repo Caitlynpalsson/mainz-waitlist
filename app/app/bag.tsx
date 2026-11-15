@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Shell } from '../src/components/chrome';
@@ -19,6 +19,7 @@ export default function Bag() {
   const [placing, setPlacing] = useState(false);
   const [formError, setFormError] = useState('');
   const [fixingZip, setFixingZip] = useState(false);
+  const restoreDelivery = useRef(false);
   const groups = useMemo(() => groupCart(store.lines, store.choices), [store.lines, store.choices]);
   const local = useMemo(() => priceGroups(groups.map((group) => ({
     farmId: group.farmId,
@@ -83,14 +84,23 @@ export default function Bag() {
   const routeSlots = quote?.route?.matched ? quote.route.slots || [] : [];
   const routeKey = routeSlots.map((slot) => slot.label).join('|');
   useEffect(() => {
-    if (pickupOnly) {
-      store.setAllFulfillment('pickup');
-      setFixingZip(true);
-    }
+    if (!pickupOnly) return;
+    if (groups.some((group) => group.choice.fulfillment === 'delivery')) restoreDelivery.current = true;
+    store.setAllFulfillment('pickup');
+    setFixingZip(true);
   }, [pickupOnly]);
   useEffect(() => {
-    if (quote?.route?.matched) setFixingZip(false);
-  }, [quote?.route?.matched]);
+    if (!quote?.route?.matched) return;
+    setFixingZip(false);
+    if (!restoreDelivery.current) return;
+    restoreDelivery.current = false;
+    store.setAllFulfillment('delivery');
+    const label = quote.route.slots?.[0]?.label;
+    if (!label) return;
+    for (const group of groups) {
+      if (group.offersDelivery) store.setWindow(group.farmId, label);
+    }
+  }, [quote?.route?.matched, quote?.route?.runDate]);
   useEffect(() => {
     if (!routeSlots.length) return;
     const labels = new Set(routeSlots.map((slot) => slot.label));
@@ -134,7 +144,10 @@ export default function Bag() {
         <Segment
           track={desktop ? colors.white : colors.cream}
           value={groups[0].choice.fulfillment}
-          onChange={(value) => store.setAllFulfillment(value as Fulfillment)}
+          onChange={(value) => {
+            restoreDelivery.current = false;
+            store.setAllFulfillment(value as Fulfillment);
+          }}
           options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
         />
       ) : null}
@@ -227,7 +240,10 @@ export default function Bag() {
                     <Segment
                       track={colors.cream}
                       value={group.choice.fulfillment}
-                      onChange={(value) => store.setFulfillment(group.farmId, value as Fulfillment)}
+                      onChange={(value) => {
+                        restoreDelivery.current = false;
+                        store.setFulfillment(group.farmId, value as Fulfillment);
+                      }}
                       options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
                     />
                   ) : pickupOnly || !group.offersPickup || !group.offersDelivery ? (
