@@ -16,6 +16,15 @@ export function Wrap({ children, style }: { children: ReactNode; style?: ViewSty
   );
 }
 
+export function FarmAvatar({ photo, name, size = 72 }: { photo?: string | null; name: string; size?: number }) {
+  if (!photo || photo === 'placeholder' || !photoSource(photo)) return null;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', marginBottom: 12, backgroundColor: '#111' }}>
+      <FoodImage photo={photo} name={name} width={size} height={size} />
+    </View>
+  );
+}
+
 export function FoodImage({ photo, name, width, height }: { photo: string; name: string; width: number; height: number }) {
   const source = photoSource(photo);
   if (!source) {

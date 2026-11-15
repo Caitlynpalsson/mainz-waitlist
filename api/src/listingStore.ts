@@ -35,6 +35,7 @@ type DraftRow = {
   deny_reason: string;
   is_sample: number;
   farmer_names: string;
+  profile_photo: string;
   created_at: string;
   updated_at: string;
 };
@@ -210,6 +211,7 @@ async function present(env: Env, row: DraftRow) {
     deniedAt: row.denied_at || '',
     denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',
+    profilePhoto: row.profile_photo || '',
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),
@@ -299,9 +301,9 @@ export async function importListingCsv(env: Env, body: Record<string, unknown>):
     const token = newListingToken();
     const sample = farm.farm.toLowerCase().startsWith('sample');
     const inserted = await env.DB.prepare(
-      `INSERT INTO listing_drafts (token, farm_name, farmer_names, story, location, status, is_sample)
-       VALUES (?, ?, ?, ?, ?, 'draft', ?)`,
-    ).bind(token, farm.farm, farm.farmerNames, farm.story, farm.town, sample ? 1 : 0).run();
+      `INSERT INTO listing_drafts (token, farm_name, farmer_names, story, location, status, is_sample, profile_photo)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`,
+    ).bind(token, farm.farm, farm.farmerNames, farm.story, farm.town, sample ? 1 : 0, farm.profilePhoto || '').run();
     const id = inserted.meta.last_row_id;
     let sort = 0;
     for (const product of products) {

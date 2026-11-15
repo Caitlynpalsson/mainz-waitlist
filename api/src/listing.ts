@@ -163,6 +163,7 @@ export type CsvFarm = {
   farmerNames: string;
   town: string;
   story: string;
+  profilePhoto: string;
   products: CsvProduct[];
 };
 
@@ -239,6 +240,10 @@ export function parsePriceToCents(raw: string): number | null {
   return cents;
 }
 
+export function cleanProfileKey(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 80);
+}
+
 export function matchCatalogFood(productName: string, foods: CatalogMatch[]): CatalogMatch | null {
   const needle = productName.trim().toLowerCase();
   if (!needle) return null;
@@ -256,7 +261,7 @@ export function previewFarmCsv(text: string, foods: CatalogMatch[]): CsvPreview 
   if (missing.length) {
     return { farms: [], rowProblems: [{ row: 1, farm: '', product: '', problems: [`missing columns: ${missing.join(', ')}`] }], unmatched: [] };
   }
-  const columns = [...need, 'price_status', 'needs_udaf_check'];
+  const columns = [...need, 'price_status', 'needs_udaf_check', 'profile_photo'];
   const index = Object.fromEntries(columns.map((column) => [column, header.indexOf(column)]));
   const cell = (line: string[], column: string) => {
     const at = index[column];
@@ -292,6 +297,7 @@ export function previewFarmCsv(text: string, foods: CatalogMatch[]): CsvPreview 
         farmerNames: cell(line, 'farmer_names').trim(),
         town: cell(line, 'town').trim(),
         story: cell(line, 'story').trim(),
+        profilePhoto: cleanProfileKey(cell(line, 'profile_photo')),
         products: [],
       };
       groups.set(key, group);
@@ -299,6 +305,7 @@ export function previewFarmCsv(text: string, foods: CatalogMatch[]): CsvPreview 
     if (!group.farmerNames) group.farmerNames = cell(line, 'farmer_names').trim();
     if (!group.town) group.town = cell(line, 'town').trim();
     if (!group.story) group.story = cell(line, 'story').trim();
+    if (!group.profilePhoto) group.profilePhoto = cleanProfileKey(cell(line, 'profile_photo'));
     const match = matchCatalogFood(product, foods);
     if (!match) unmatched.add(product);
     group.products.push({

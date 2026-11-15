@@ -85,6 +85,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0016_eggs_in_season.sql` marks the sample egg products as in season so the eggs filter can show them.
 
+`0017_farm_profile_photo.sql` adds an optional profile photo on farms and listing drafts. Only the 87 Farms draft is filled in.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

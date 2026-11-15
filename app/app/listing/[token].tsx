@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../src/components/chrome';
-import { Cap, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
+import { Cap, FarmAvatar, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { colors, useLayout } from '../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../api/src/listing';
@@ -21,6 +21,7 @@ type Listing = {
   isSample: boolean;
   needsForm: boolean;
   removed?: boolean;
+  profilePhoto?: string;
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
@@ -227,6 +228,7 @@ export default function ListingApproval() {
         {preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 28 : 12, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
+              <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
               {data.story ? <Text style={bio}>{data.story}</Text> : null}

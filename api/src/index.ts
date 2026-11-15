@@ -39,6 +39,7 @@ type FarmRow = {
   lat: number | null;
   lng: number | null;
   hero_photo: string;
+  profile_photo?: string;
   card_foods: string;
   offers_pickup: number;
   offers_delivery: number;
@@ -975,6 +976,7 @@ function farmCard(row: FarmRow, origin: LatLng | null) {
     pickupSummary: row.pickup_summary,
     deliverySummary: row.delivery_summary,
     heroPhoto: row.hero_photo,
+    profilePhoto: row.profile_photo || '',
     cardFoods: row.card_foods,
     isDemo: !!row.is_demo,
     statValue: row.stat_value,

@@ -31,6 +31,7 @@ export type FarmCard = {
   pickupSummary: string;
   deliverySummary: string;
   heroPhoto: string;
+  profilePhoto?: string;
   cardFoods: string;
   isDemo: boolean;
   statValue: string;

@@ -3,6 +3,10 @@ import { Image } from 'react-native';
 // Each batch is a static map of catalog slug to its jpeg.
 // Add the next batch as its own object, then spread it into stock.
 
+const profiles = {
+  'profile-87-farms': require('../../assets/photos/profile-87-farms.jpg'),
+} as const;
+
 const originals = {
   peach: require('../../assets/photos/peach.jpg'),
   strawberry: require('../../assets/photos/strawberry.jpg'),
@@ -100,6 +104,7 @@ const batch3 = {
 } as const;
 
 const stock = {
+  ...profiles,
   ...originals,
   ...batch1,
   ...batch2,

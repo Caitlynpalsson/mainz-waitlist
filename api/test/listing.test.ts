@@ -81,6 +81,7 @@ test('csv rows group by farm and flag a missing price or unknown unit', () => {
   assert.equal(preview.farms[0].products.length, 2);
   assert.equal(preview.farms[0].farmerNames, 'ada cole');
   assert.equal(preview.farms[0].products[0].photoKey, 'eggs');
+  assert.equal(preview.farms[0].profilePhoto, '');
   assert.equal(preview.farms[0].products[1].photoKey, 'placeholder');
   assert.equal(preview.unmatched.includes('kale'), false);
   assert.ok(preview.rowProblems.some((row) => row.problems.includes('missing price')));
@@ -154,6 +155,17 @@ test('a price fix stores the product and the cents and does not publish the draf
   );
   assert.deepEqual(shown, { priceCents: 500, updated: true });
   assert.deepEqual(draftDisplayPrice({ name: 'eggs', priceCents: 700 }, []), { priceCents: 700, updated: false });
+});
+
+test('an optional profile photo column is kept on the farm, not the product', () => {
+  const csv = [
+    'farm,farmer_names,town,story,product,unit,price,source_url,profile_photo',
+    'Anderson Family Farms (87 Farms),ada,provo,beef,eggs,dozen,7,https://87farms.com,profile-87-farms',
+    'Anderson Family Farms (87 Farms),ada,provo,beef,kale,bunch,4,https://87farms.com,',
+  ].join('\n');
+  const preview = previewFarmCsv(csv, foods);
+  assert.equal(preview.farms.length, 1);
+  assert.equal(preview.farms[0].profilePhoto, 'profile-87-farms');
 });
 
 test('the invite uses the first farmer name and the private link', () => {

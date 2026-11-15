@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../../src/components/chrome';
-import { Cap, FulfillmentPills, FoodImage, Grid, Hair, Pill, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
+import { Cap, FarmAvatar, FulfillmentPills, FoodImage, Grid, Hair, Pill, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { IconHeart, IconShare } from '../../src/components/icons';
 import { CircleButton } from '../../src/components/ui';
 import { useApi } from '../../src/lib/useApi';
@@ -62,6 +62,7 @@ export default function FarmPage() {
                 <FoodImage photo={farm.heroPhoto} name={farm.name} width={archW} height={archH} />
               </View>
               <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
+                <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name}</Text>
                 <Text style={bio}>{farm.bio}</Text>
