@@ -134,6 +134,14 @@ export type Quote = {
   platformFeeCents: number;
   totalCents: number;
   currency: string;
+  route?: {
+    matched: boolean;
+    pickupOnly: boolean;
+    line: string;
+    routeId: number | null;
+    runDate: string;
+    name: string;
+  } | null;
 };
 
 export type CatalogFood = {

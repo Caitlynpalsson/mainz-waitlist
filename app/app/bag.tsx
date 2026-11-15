@@ -43,6 +43,8 @@ export default function Bag() {
   const signature = JSON.stringify({
     items: store.lines.map((line) => [line.productId, line.optionId, line.qty]),
     choices: store.choices,
+    address1: store.address1,
+    cityZip: store.cityZip,
   });
 
   useEffect(() => {
@@ -68,6 +70,10 @@ export default function Bag() {
   }, [signature]);
 
   const delivering = groups.some((group) => group.choice.fulfillment === 'delivery');
+  const pickupOnly = !!quote?.route?.pickupOnly;
+  useEffect(() => {
+    if (pickupOnly) store.setAllFulfillment('pickup');
+  }, [pickupOnly]);
   const sameMode = groups.length > 0 && groups.every((group) => group.choice.fulfillment === groups[0].choice.fulfillment);
   const things = store.lines.length;
 
@@ -98,13 +104,17 @@ export default function Bag() {
 
   const summary = (
     <View style={desktop ? card : undefined}>
-      {groups.length > 0 && sameMode ? (
+      {groups.length > 0 && sameMode && !pickupOnly ? (
         <Segment
           track={desktop ? colors.white : colors.cream}
           value={groups[0].choice.fulfillment}
           onChange={(value) => store.setAllFulfillment(value as Fulfillment)}
           options={[{ value: 'pickup', label: 'pickup' }, { value: 'delivery', label: 'delivery' }]}
         />
+      ) : null}
+      {quote?.route?.line ? <Text style={note}>{quote.route.line}</Text> : null}
+      {delivering && quote?.route?.matched ? (
+        <Text style={note}>the delivery fee stays not charged until this route is confirmed.</Text>
       ) : null}
       {delivering ? (
         <Text style={note}>or grab it saturday at the farm stand. it's free.</Text>
@@ -169,7 +179,7 @@ export default function Bag() {
                       {[group.offersDelivery ? `delivery ${group.deliverySummary}` : '', group.offersPickup ? `pickup ${group.pickupSummary}` : ''].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
-                  {group.offersPickup && group.offersDelivery ? (
+                  {group.offersPickup && group.offersDelivery && !pickupOnly ? (
                     <Segment
                       track={colors.cream}
                       value={group.choice.fulfillment}
@@ -251,6 +261,7 @@ function payload(store: ReturnType<typeof useStore>) {
       fulfillment: choice.fulfillment,
       windowLabel: choice.windowLabel,
     })),
+    address: { line1: store.address1, cityZip: store.cityZip },
   };
 }
 

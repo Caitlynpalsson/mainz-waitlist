@@ -75,6 +75,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0010_listing_deny.sql` lets a farm remove its private page. The link then shows only a short goodbye. Staff see the denial and can restore it by editing and resending, which makes a new link. The old link stays removed, and the draft is never published.
 
+`0011_delivery_routes.sql` adds delivery routes. A run is one route on one date. It confirms at the cutoff only when it has the minimum orders (3 unless you edit it). Otherwise each order gets a note in the outbox and on the order page. Nothing is emailed or texted. The delivery fee stays $5 and is not charged. A cron in `wrangler.toml` closes due runs every 15 minutes. Staff can also press "close run now". Two sample routes are included: sample provo (tuesday, order by monday 6pm) and sample spanish fork (thursday, order by wednesday 6pm).
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

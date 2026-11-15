@@ -1,3 +1,4 @@
+import { adminCloseRun, adminRoutes, adminRunSheet, adminSaveRoute } from './deliveryStore';
 import { HttpError, json } from './http';
 import {
   adminGetListing,
@@ -72,6 +73,14 @@ type FarmRow = {
 export async function handleAdmin(request: Request, env: Env, method: string, path: string): Promise<Response> {
   requireAdmin(request, env);
   if (method === 'GET' && path === '/api/admin/dashboard') return dashboard(env);
+  if (method === 'GET' && path === '/api/admin/routes') return adminRoutes(env);
+  if (method === 'POST' && path === '/api/admin/routes') return adminSaveRoute(env, null, await readJson(request));
+  const routeClose = path.match(/^\/api\/admin\/routes\/(\d+)\/close$/);
+  if (method === 'POST' && routeClose) return adminCloseRun(env, Number(routeClose[1]), String((await readJson(request)).runDate || ''));
+  const routeSheet = path.match(/^\/api\/admin\/routes\/(\d+)\/sheet$/);
+  if (method === 'POST' && routeSheet) return adminRunSheet(env, Number(routeSheet[1]), String((await readJson(request)).runDate || ''));
+  const routeOne = path.match(/^\/api\/admin\/routes\/(\d+)$/);
+  if (method === 'PATCH' && routeOne) return adminSaveRoute(env, Number(routeOne[1]), await readJson(request));
   if (method === 'GET' && path === '/api/admin/listings') return adminListings(env);
   if (method === 'POST' && path === '/api/admin/listings/preview') return previewListingCsv(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/listings/import') return importListingCsv(env, await readJson(request));

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { PIPELINE_STAGES } from '../../../api/src/review';
 import { listingInvite } from '../../../api/src/listing';
 import { Shell } from '../../src/components/chrome';
+import { RoutesPanel } from '../../src/components/RoutesPanel';
 import { Cap, Pill, PrimaryButton, Wrap } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { adminHeaders, useAdminToken } from '../../src/lib/adminAuth';
@@ -258,6 +259,7 @@ export default function AdminHome() {
                 </View>
               ))}
             </View>
+            {auth.token ? <RoutesPanel token={auth.token} /> : null}
             <View style={{ marginTop: 36 }}>
               <Cap>listing drafts</Cap>
               <Text style={quiet}>a private link. the farm approves how the page looks. it does not open orders, and it does not go on the shop.</Text>

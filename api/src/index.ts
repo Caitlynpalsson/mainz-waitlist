@@ -5,6 +5,8 @@ import { approvePublicListing, changePublicListing, denyPublicListing, getPublic
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
+import { deliveryFeeOnPlace } from './delivery';
+import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 
 export interface Env {
@@ -109,6 +111,9 @@ export default {
       return withCors(json({ error: 'something went wrong.' }, 500));
     }
   },
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<void> {
+    ctx.waitUntil(closeDueRuns(env));
+  },
 };
 
 async function route(request: Request, env: Env): Promise<Response> {
@@ -127,6 +132,11 @@ async function route(request: Request, env: Env): Promise<Response> {
   const productPage = path.match(/^\/api\/products\/(\d+)$/);
   if (method === 'GET' && productPage) return productDetail(env, Number(productPage[1]));
 
+  const orderChoice = path.match(/^\/api\/orders\/([a-z0-9_]+)\/choice$/);
+  if (method === 'POST' && orderChoice) {
+    const body = await readJson<{ choice?: string }>(request);
+    return chooseOrderRoute(env, orderChoice[1], String(body.choice || ''));
+  }
   const orderPage = path.match(/^\/api\/orders\/([a-z0-9_]+)$/);
   if (method === 'GET' && orderPage) return orderDetail(env, orderPage[1]);
 
@@ -410,7 +420,9 @@ type CartBody = {
 
 async function quote(env: Env, body: CartBody): Promise<Response> {
   const resolved = await resolveCart(env, body);
-  return json(presentQuote(resolved));
+  const addressThere = `${body.address?.line1 || ''}${body.address?.cityZip || ''}`.trim().length > 0;
+  const route = await lookupRoute(env, body.address?.line1 || '', body.address?.cityZip || '', addressThere);
+  return json({ ...presentQuote(resolved), route });
 }
 
 async function placeOrder(env: Env, body: CartBody): Promise<Response> {
@@ -425,17 +437,23 @@ async function placeOrder(env: Env, body: CartBody): Promise<Response> {
   const cityZip = (body.address?.cityZip || '').trim();
   if (needsAddress && (line1.length < 4 || cityZip.length < 4)) throw new HttpError('add a delivery address.');
   const deliveryAddress = needsAddress ? `${line1}, ${cityZip}`.slice(0, 200) : '';
+  const route = await lookupRoute(env, line1, cityZip, needsAddress);
+  if (needsAddress && !route?.matched) throw new HttpError(route?.line || "we don't deliver there yet. pickup is ready when you are.");
   const publicId = makePublicId();
   const priced = resolved.priced;
+  const feeState = needsAddress ? deliveryFeeOnPlace(false) : '';
   const inserted = await env.DB.prepare(
     `INSERT INTO orders (
       public_id, status, payment_status, customer_name, customer_email, customer_phone, delivery_address,
-      merchandise_cents, delivery_fee_cents, platform_fee_cents, total_cents, currency
-    ) VALUES (?, 'placed_test', 'unpaid_test', ?, ?, ?, ?, ?, ?, ?, ?, 'usd')`,
+      merchandise_cents, delivery_fee_cents, platform_fee_cents, total_cents, currency,
+      route_id, run_date, route_status, delivery_fee_state, delivery_fee_quoted_cents
+    ) VALUES (?, 'placed_test', 'unpaid_test', ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, ?, ?, ?, ?)`,
   ).bind(
     publicId, name.slice(0, 80), email.slice(0, 120), phone, deliveryAddress,
     priced.merchandiseCents, priced.deliveryFeeCents, priced.platformFeeCents, priced.totalCents,
+    route?.routeId || null, route?.runDate || '', needsAddress ? 'pending_route' : '', feeState, priced.deliveryFeeCents,
   ).run();
+  if (route?.matched && route.routeId && route.runDate) await ensureRun(env, route.routeId, route.runDate);
   const orderId = inserted.meta.last_row_id;
   for (const group of priced.groups) {
     const farm = resolved.farms.get(group.farmId);
@@ -506,12 +524,20 @@ async function orderDetail(env: Env, publicId: string): Promise<Response> {
       })),
     });
   }
+  const route = await orderRouteSummary(env, {
+    id: Number(order.id),
+    route_id: (order.route_id as number | null) || null,
+    run_date: String(order.run_date || ''),
+    route_status: String(order.route_status || ''),
+    delivery_fee_state: String(order.delivery_fee_state || ''),
+  });
   return json({
     order: {
       publicId: order.public_id,
       status: order.status,
       paymentStatus: order.payment_status,
       customerName: order.customer_name,
+      customerPhone: order.customer_phone,
       deliveryAddress: order.delivery_address,
       merchandiseCents: order.merchandise_cents,
       deliveryFeeCents: order.delivery_fee_cents,
@@ -520,6 +546,7 @@ async function orderDetail(env: Env, publicId: string): Promise<Response> {
       currency: order.currency,
       createdAt: order.created_at,
       groups: presented,
+      route,
     },
   });
 }
