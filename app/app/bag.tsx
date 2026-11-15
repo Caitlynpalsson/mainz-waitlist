@@ -18,6 +18,7 @@ export default function Bag() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [formError, setFormError] = useState('');
+  const [fixingZip, setFixingZip] = useState(false);
   const groups = useMemo(() => groupCart(store.lines, store.choices), [store.lines, store.choices]);
   const local = useMemo(() => priceGroups(groups.map((group) => ({
     farmId: group.farmId,
@@ -82,8 +83,14 @@ export default function Bag() {
   const routeSlots = quote?.route?.matched ? quote.route.slots || [] : [];
   const routeKey = routeSlots.map((slot) => slot.label).join('|');
   useEffect(() => {
-    if (pickupOnly) store.setAllFulfillment('pickup');
+    if (pickupOnly) {
+      store.setAllFulfillment('pickup');
+      setFixingZip(true);
+    }
   }, [pickupOnly]);
+  useEffect(() => {
+    if (quote?.route?.matched) setFixingZip(false);
+  }, [quote?.route?.matched]);
   useEffect(() => {
     if (!routeSlots.length) return;
     const labels = new Set(routeSlots.map((slot) => slot.label));
@@ -138,12 +145,27 @@ export default function Bag() {
       {delivering ? (
         <Text style={note}>or grab it saturday at the farm stand. it's free.</Text>
       ) : null}
-      {delivering ? (
+      {delivering || fixingZip ? (
         <View style={address}>
           <IconPin size={18} />
           <View style={{ flex: 1 }}>
-            <TextInput value={store.address1} onChangeText={(value) => store.setAddress(value, store.cityZip)} style={addr1} />
-            <TextInput value={store.cityZip} onChangeText={(value) => store.setAddress(store.address1, value)} style={addr2} />
+            {fixingZip && !delivering ? <Text style={[note, { marginTop: 0, textAlign: 'left' }]}>change address</Text> : null}
+            <TextInput
+              value={store.address1}
+              onChangeText={(value) => store.setAddress(value, store.cityZip)}
+              placeholder="street"
+              placeholderTextColor={colors.gray}
+              accessibilityLabel="street"
+              style={addr1}
+            />
+            <TextInput
+              value={store.cityZip}
+              onChangeText={(value) => store.setAddress(store.address1, value)}
+              placeholder="zip or town"
+              placeholderTextColor={colors.gray}
+              accessibilityLabel="zip or town"
+              style={addr2}
+            />
           </View>
           <IconChevron size={16} color={colors.gray} />
         </View>
