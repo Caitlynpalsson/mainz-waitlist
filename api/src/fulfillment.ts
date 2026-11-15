@@ -69,18 +69,56 @@ export function pickupChoiceLabel(option: PickupOption): string {
   return [option.name, when].filter(Boolean).join(' · ').toLowerCase();
 }
 
+const DAY_WORD: Record<string, string> = {
+  sun: 'sun', sunday: 'sun',
+  mon: 'mon', monday: 'mon',
+  tue: 'tue', tues: 'tue', tuesday: 'tue',
+  wed: 'wed', wednesday: 'wed',
+  thu: 'thu', thur: 'thu', thurs: 'thu', thursday: 'thu',
+  fri: 'fri', friday: 'fri',
+  sat: 'sat', saturday: 'sat',
+};
+
+const DAY_TOKEN = 'sun(?:day)?|mon(?:day)?|tue(?:s(?:day)?)?|tues|wed(?:nesday)?|thu(?:rs(?:day)?)?|thur|thurs|fri(?:day)?|sat(?:urday)?';
+
+/** Weekdays named in a schedule, including lists, "and", slashes, and ranges like Mon-Fri. */
+export function daysInSchedule(schedule: string): string[] {
+  const text = schedule.toLowerCase();
+  const found = new Set<string>();
+  const range = new RegExp(`\\b(${DAY_TOKEN})\\s*[-–—]\\s*(${DAY_TOKEN})\\b`, 'g');
+  for (const match of text.matchAll(range)) {
+    const start = DAY_WORD[match[1]] || '';
+    const end = DAY_WORD[match[2]] || '';
+    const from = DAY_ORDER.indexOf(start);
+    const to = DAY_ORDER.indexOf(end);
+    if (from < 0 || to < 0) continue;
+    if (from <= to) {
+      for (let i = from; i <= to; i += 1) found.add(DAY_ORDER[i]);
+    } else {
+      for (let i = from; i < DAY_ORDER.length; i += 1) found.add(DAY_ORDER[i]);
+      for (let i = 0; i <= to; i += 1) found.add(DAY_ORDER[i]);
+    }
+  }
+  const single = new RegExp(`\\b(${DAY_TOKEN})\\b`, 'g');
+  for (const match of text.matchAll(single)) {
+    const day = DAY_WORD[match[1]];
+    if (day) found.add(day);
+  }
+  return DAY_ORDER.filter((day) => found.has(day));
+}
+
 /** Days for the farm-page pill, like "wed, sun". "by appointment" when no weekday is published. */
 export function pickupDayLabel(options: PickupOption[]): string {
   if (!options.length) return '';
   const found = new Set<string>();
   let appointment = false;
   for (const option of options) {
-    const schedule = option.schedule.toLowerCase();
-    const day = DAY[schedule];
-    if (day) found.add(day);
-    else if (schedule.includes('appointment')) appointment = true;
+    const days = daysInSchedule(option.schedule);
+    for (const day of days) found.add(day);
+    if (!days.length && option.schedule.toLowerCase().includes('appointment')) appointment = true;
   }
   const days = DAY_ORDER.filter((day) => found.has(day));
+  if (days.length > 4) return 'most days';
   if (days.length) return days.join(', ');
   return appointment ? 'by appointment' : '';
 }
@@ -97,6 +135,19 @@ export function pickupSpotPill(option: PickupOption): string {
   const when = [day, time].filter(Boolean).join(' ') || (schedule.includes('appointment') ? 'by appointment' : schedule);
   const town = shortTown(option.address);
   return [when, town].filter(Boolean).join(' · ');
+}
+
+/** When nearby pills would read the same, add the short spot name. Unique pills stay short. */
+export function checkoutPillLabels(options: PickupOption[]): string[] {
+  const base = options.map((option) => pickupSpotPill(option));
+  const counts = new Map<string, number>();
+  for (const label of base) counts.set(label, (counts.get(label) || 0) + 1);
+  return options.map((option, index) => {
+    const label = base[index];
+    if ((counts.get(label) || 0) < 2) return label;
+    const name = option.name.toLowerCase().replace(/^the /, '');
+    return `${label} · ${name}`;
+  });
 }
 
 /** Quiet line under the selected pill: town and order-by cutoff. */

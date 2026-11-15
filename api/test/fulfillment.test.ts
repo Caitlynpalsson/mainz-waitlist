@@ -11,6 +11,8 @@ import {
   orderPickupOptions,
   parseFulfillment,
   pickupCardLine,
+  checkoutPillLabels,
+  daysInSchedule,
   pickupDayLabel,
   pickupSpotNote,
   pickupSpotPill,
@@ -113,6 +115,18 @@ test('the farm pill lists weekdays, or by appointment when there are none', () =
   const pill = pickupSpotPill(farms.options.find((option) => option.name === 'Vanguard' && option.schedule === 'wednesday')!);
   assert.equal(pill, 'wed 3:30-5:30pm · west valley');
   assert.equal(pickupSpotNote(farms.options.find((option) => option.name === "Marie's")!), "riverton · order by mon 5pm");
+  const meat = parseFulfillment(readFileSync(new URL('../samples/utah-natural-meat-fulfillment.json', import.meta.url), 'utf8'));
+  assert.equal(pickupDayLabel(meat.options), 'tue, thu, sat');
+  assert.deepEqual(daysInSchedule('Tue/Thu/Fri 5-7pm'), ['tue', 'thu', 'fri']);
+  const homer = parseFulfillment(readFileSync(new URL('../samples/homers-honeybee-fulfillment.json', import.meta.url), 'utf8'));
+  assert.equal(pickupDayLabel(homer.options), 'most days');
+  const becca = farms.options.find((option) => option.name === "Becca's")!;
+  const jenkins = farms.options.find((option) => option.name === 'Jenkins Lane')!;
+  const labels = checkoutPillLabels([becca, jenkins, farms.options.find((option) => option.schedule === 'sunday')!]);
+  assert.equal(labels[0], "wed · west jordan · becca's");
+  assert.equal(labels[1], 'wed · west jordan · jenkins lane');
+  assert.equal(labels[2].includes("vanguard"), false);
+  assert.equal(labels[2], 'sun 12:00-1:00pm · west valley');
 });
 
 test('checkout shows at most the three nearest spots', () => {

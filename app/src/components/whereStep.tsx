@@ -6,8 +6,8 @@ import {
   canContinueWhere,
   checkoutSpots,
   pickupChoiceLabel,
+  checkoutPillLabels,
   pickupSpotNote,
-  pickupSpotPill,
   type PickupOption,
 } from '../../../api/src/fulfillment';
 import type { Fulfillment } from '../lib/orderMath';
@@ -104,10 +104,11 @@ export function WhereStep({
       {!hasSpots && !delivering ? <Text style={note}>{PICKUP_COMING_SOON}</Text> : null}
       {!delivering && hasSpots && spots.visible.length ? (
         <View style={pillRow}>
-          {spots.visible.map((option) => {
+          {checkoutPillLabels(spots.visible).map((text, index) => {
+            const option = spots.visible[index];
             const label = pickupChoiceLabel(option);
             const on = !!selected && label === pickupChoiceLabel(selected);
-            return <Pill key={label} small cream={!on} on={on} label={pickupSpotPill(option)} onPress={() => onSelect(label)} />;
+            return <Pill key={label} small cream={!on} on={on} label={text} onPress={() => onSelect(label)} />;
           })}
         </View>
       ) : null}
