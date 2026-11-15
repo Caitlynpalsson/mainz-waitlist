@@ -10,7 +10,13 @@ import {
   LISTING_CONFIRM_LINE,
   PICKUP_WORKS_LINE,
   WHY_MAINZ_LINES,
+  ONBOARDING_DONE,
+  ONBOARDING_TEXT_US,
+  ONBOARDING_WELCOME,
   farmPortrait,
+  onboardingQuestions,
+  onboardingStep,
+  publicOnboarding,
   storyLines,
   LISTING_REMOVED_LINE,
   LISTING_THANKS_LINE,
@@ -219,4 +225,27 @@ test('farm pages keep a short story and never promise a launch', () => {
   assert.equal(/launch|approved to receive orders/i.test(copy), false);
   assert.equal(PICKUP_WORKS_LINE.includes('zip'), true);
   assert.equal(WHY_MAINZ_LINES.length, 3);
+});
+
+test('onboarding saves a preference and never shows a stored phone', () => {
+  assert.equal(onboardingStep('pay'), 'pay');
+  assert.equal(onboardingStep('nope'), null);
+  assert.equal(ONBOARDING_WELCOME, 'yay, welcome to mainz! 🌱');
+  const shown = publicOnboarding({
+    reach_via: 'text',
+    reach_email: 'ada@farm.test',
+    reach_phone: '435-609-1700',
+    pay_pref: 'set this up later',
+    pickup_ok: 1,
+    pickup_note: '',
+    onboarding_done: 0,
+  });
+  const text = JSON.stringify(shown);
+  assert.equal(text.includes('435'), false);
+  assert.equal(text.includes('phone'), false);
+  assert.equal(shown.payPref, 'set this up later');
+  assert.equal(shown.reachVia, 'text');
+  const copy = `${ONBOARDING_WELCOME} ${ONBOARDING_DONE} ${onboardingQuestions()}`;
+  assert.equal(/launch|approved to receive orders/i.test(copy), false);
+  assert.equal(onboardingQuestions().includes(ONBOARDING_TEXT_US), true);
 });

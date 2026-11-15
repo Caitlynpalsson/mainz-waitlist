@@ -7,7 +7,8 @@ import { FarmBelow } from '../../../src/components/farmBelow';
 import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
-import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice } from '../../../../api/src/listing';
+import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice, onboardingStep, type OnboardingStep, type PayPref } from '../../../../api/src/listing';
+import { FarmOnboarding, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -25,13 +26,18 @@ type Listing = {
   profilePhoto?: string;
   pickupDays?: string;
   deliveryDay?: string;
+  pickupPreview?: string[];
+  onboarding?: OnboardingAnswers & { done?: boolean };
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
 
 
 export default function ListingApproval() {
-  const { token } = useLocalSearchParams<{ token: string }>();
+  const params = useLocalSearchParams<{ token: string; preview_step?: string }>();
+  const token = params.token;
+  const previewing = onboardingStep(params.preview_step);
+  const [step, setStep] = useState<OnboardingStep | null>(previewing);
   const { desktop, shopCols } = useLayout();
   const gap = desktop ? 36 : 14;
   const cell = useBoxWidth(shopCols, gap);
@@ -176,6 +182,44 @@ export default function ListingApproval() {
     setSheet(true);
   }
 
+  async function startOnboarding() {
+    setSheet(false);
+    if (previewing) {
+      setStep('welcome');
+      return;
+    }
+    if (!token) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const next = await api<Listing>(`/api/listings/${token}/approve`, { method: 'POST' });
+      take(next, false);
+      setStep('welcome');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function move(next: OnboardingStep | null, patch: Partial<OnboardingAnswers> & { done?: boolean; reachPhone?: string }) {
+    const saving = !previewing && token && (patch.reachVia || patch.payPref || patch.pickupNote != null || patch.pickupOk != null || patch.done);
+    if (saving) {
+      setBusy(true);
+      setFormError('');
+      try {
+        const saved = await api<Listing>(`/api/listings/${token}/onboarding`, { method: 'POST', body: JSON.stringify(patch) });
+        take(saved, false);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : 'try again.');
+        setBusy(false);
+        return;
+      }
+      setBusy(false);
+    }
+    setStep(next);
+  }
+
   const approved = data?.status === 'farm_approved';
   const denied = data?.status === 'farm_denied' || data?.removed === true;
   const preview = !!data && !denied && !approved && !filling;
@@ -183,7 +227,7 @@ export default function ListingApproval() {
   return (
     <Shell
       top="none"
-      sticky={preview ? (
+      sticky={preview && !step ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="this is my farm"
@@ -195,16 +239,37 @@ export default function ListingApproval() {
       ) : null}
     >
       <Wrap style={{ paddingTop: desktop ? 48 : 28 }}>
-        {error ? <Text style={quiet}>{error}</Text> : null}
-        {!data && !error ? <Text style={quiet}>loading.</Text> : null}
-        {data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
-        {data && !denied && approved ? (
+        {step ? (
+          <FarmOnboarding
+            step={step}
+            answers={{
+              reachVia: data?.onboarding?.reachVia || '',
+              reachEmail: data?.onboarding?.reachEmail || '',
+              payPref: (data?.onboarding?.payPref || '') as '' | PayPref,
+              pickupNote: data?.onboarding?.pickupNote || '',
+              pickupOk: !!data?.onboarding?.pickupOk,
+            }}
+            pickupLines={data?.pickupPreview || []}
+            preview={!!previewing}
+            busy={busy}
+            error={formError}
+            onBack={() => setStep(prevOnboardingStep(step))}
+            onNext={(patch) => {
+              const next = nextOnboardingStep(step);
+              move(next, { ...patch, done: next === 'done' });
+            }}
+          />
+        ) : null}
+        {!step && error ? <Text style={quiet}>{error}</Text> : null}
+        {!step && !data && !error ? <Text style={quiet}>loading.</Text> : null}
+        {!step && data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
+        {!step && data && !denied && approved ? (
           <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
             <Text style={headline}>thank you.</Text>
             <Text style={{ ...storyStyle, marginTop: 16 }}>{LISTING_THANKS_LINE}</Text>
           </View>
         ) : null}
-        {data && !denied && !approved && filling ? (
+        {!step && data && !denied && !approved && filling ? (
           <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
             <Text style={headline}>tell us about your farm</Text>
             <Text style={{ ...quiet, marginTop: 12 }}>a few lines. then you can approve the page.</Text>
@@ -244,14 +309,14 @@ export default function ListingApproval() {
             ) : null}
           </View>
         ) : null}
-        {preview && data ? (
+        {!step && preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
               <View style={banner}>
                 <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                 <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
                 <View style={{ marginTop: 16, width: '100%', maxWidth: 320 }}>
-                  <PrimaryButton label="this is my farm, love it" disabled={busy} onPress={() => send(`/api/listings/${token}/approve`)} />
+                  <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy} onPress={() => startOnboarding()} />
                 </View>
                 <View style={bannerLinks}>
                   <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
@@ -343,7 +408,7 @@ export default function ListingApproval() {
         denyNote={denyNote}
         setDenyNote={setDenyNote}
         onClose={() => setSheet(false)}
-        onConfirm={() => send(`/api/listings/${token}/approve`)}
+        onConfirm={() => startOnboarding()}
         onChanges={() => send(`/api/listings/${token}/changes`, { note })}
         onDeny={() => send(`/api/listings/${token}/deny`, { note: denyNote })}
       />

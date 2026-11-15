@@ -84,6 +84,47 @@ export type ListingProductInput = {
 export const LISTING_NEXT_BATCH = 'next batch coming';
 export const PREVIEW_PAY_LINE = 'this is a preview of what shoppers see';
 
+export const ONBOARDING_STEPS = ['welcome', 'reach', 'pay', 'pickup', 'done'] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
+
+export const ONBOARDING_WELCOME = 'yay, welcome to mainz! 🌱';
+export const ONBOARDING_DONE = "our team gives your page a final look. we'll text you when your first order comes in.";
+/** Placeholder. Replace with the real number before any text is sent. Nothing sends a text today. */
+export const ONBOARDING_TEXT_US = '801-000-0000';
+export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
+export type PayPref = (typeof PAY_PREFS)[number];
+
+export function onboardingStep(raw: string | undefined | null): OnboardingStep | null {
+  const value = String(raw || '').trim().toLowerCase();
+  return (ONBOARDING_STEPS as readonly string[]).includes(value) ? value as OnboardingStep : null;
+}
+
+export function onboardingQuestions(): string {
+  return `questions? text us at ${ONBOARDING_TEXT_US}`;
+}
+
+/** What the page may show. A stored phone number is never included. */
+export function publicOnboarding(row: {
+  reach_via?: string;
+  reach_email?: string;
+  reach_phone?: string;
+  pay_pref?: string;
+  pickup_note?: string;
+  pickup_ok?: number;
+  onboarding_done?: number;
+}): { reachVia: '' | 'text' | 'email'; reachEmail: string; payPref: '' | PayPref; pickupNote: string; pickupOk: boolean; done: boolean } {
+  const via = row.reach_via === 'text' || row.reach_via === 'email' ? row.reach_via : '';
+  const pay = (PAY_PREFS as readonly string[]).includes(String(row.pay_pref || '')) ? row.pay_pref as PayPref : '';
+  return {
+    reachVia: via,
+    reachEmail: String(row.reach_email || '').trim(),
+    payPref: pay,
+    pickupNote: String(row.pickup_note || ''),
+    pickupOk: Number(row.pickup_ok) === 1,
+    done: Number(row.onboarding_done) === 1,
+  };
+}
+
 export const PICKUP_WORKS_LINE = "add your zip and we'll show the closest pickup spots at checkout.";
 
 export const WHY_MAINZ_LINES = [

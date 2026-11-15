@@ -1,8 +1,9 @@
 import { lookupRoute, weekdayForFarmStops } from './deliveryStore';
-import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
+import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupSpotPill, pickupTownLine, shortTown } from './fulfillment';
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
+  PAY_PREFS,
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
@@ -18,11 +19,13 @@ import {
   parseUdafFlag,
   previewFarmCsv,
   previewItemAddable,
+  publicOnboarding,
   requestListingChanges,
   resendDeniedListing,
   staffApproveListing,
   type CatalogMatch,
   type ListingProductInput,
+  type PayPref,
 } from './listing';
 
 type Env = { DB: D1Database };
@@ -44,6 +47,13 @@ type DraftRow = {
   profile_photo: string;
   fulfillment_json: string;
   pickup_line: string;
+  reach_via: string;
+  reach_email: string;
+  reach_phone: string;
+  pay_pref: string;
+  pickup_ok: number;
+  pickup_note: string;
+  onboarding_done: number;
   created_at: string;
   updated_at: string;
 };
@@ -168,6 +178,29 @@ export async function getPublicListing(env: Env, token: string): Promise<Respons
   }
   if (listing.status === 'farm_denied') return json(removedListingPayload());
   return json(await present(env, listing));
+}
+
+export async function saveOnboarding(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
+  const via = body.reachVia === 'text' || body.reachVia === 'email' ? body.reachVia : (listing.reach_via === 'text' || listing.reach_via === 'email' ? listing.reach_via : '');
+  const email = body.reachEmail != null ? String(body.reachEmail).trim().slice(0, 120) : (listing.reach_email || '');
+  if (via === 'email' && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('add an email we can use.');
+  const typedPhone = body.reachPhone != null ? String(body.reachPhone).replace(/\D/g, '').slice(0, 15) : (listing.reach_phone || '');
+  if (via === 'text' && body.reachPhone != null && typedPhone.length < 7) throw new HttpError('add a number we can text.');
+  const payRaw = body.payPref != null ? String(body.payPref) : (listing.pay_pref || '');
+  const pay: '' | PayPref = (PAY_PREFS as readonly string[]).includes(payRaw) ? payRaw as PayPref : '';
+  const pickupOk = body.pickupOk === true ? 1 : body.pickupOk === false ? 0 : (Number(listing.pickup_ok) === 1 ? 1 : 0);
+  const pickupNote = body.pickupNote != null ? String(body.pickupNote).trim().slice(0, 500) : (listing.pickup_note || '');
+  const done = body.done === true ? 1 : (Number(listing.onboarding_done) === 1 ? 1 : 0);
+  await env.DB.prepare(
+    `UPDATE listing_drafts
+     SET reach_via = ?, reach_email = ?, reach_phone = ?, pay_pref = ?, pickup_ok = ?, pickup_note = ?, onboarding_done = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+  ).bind(via, email, typedPhone, pay, pickupOk, pickupNote, done, listing.id).run();
+  const saved = await byToken(env, token);
+  return json(await present(env, saved!));
 }
 
 export async function approvePublicListing(env: Env, token: string): Promise<Response> {
@@ -329,6 +362,8 @@ async function present(env: Env, row: DraftRow) {
     pickupLine: pickupTownLine(pickupOptions, row.pickup_line || ''),
     pickupDays,
     deliveryDay,
+    pickupPreview: pickupOptions.map((option) => pickupSpotPill(option)).filter(Boolean).slice(0, 6),
+    onboarding: publicOnboarding(row),
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),
