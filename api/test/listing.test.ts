@@ -11,6 +11,8 @@ import {
   PICKUP_WORKS_LINE,
   WHY_MAINZ_LINES,
   ONBOARDING_DONE,
+  ONBOARDING_SMS,
+  ONBOARDING_TEXT_LINE,
   ONBOARDING_TEXT_US,
   ONBOARDING_WELCOME,
   farmPortrait,
@@ -247,5 +249,8 @@ test('onboarding saves a preference and never shows a stored phone', () => {
   assert.equal(shown.reachVia, 'text');
   const copy = `${ONBOARDING_WELCOME} ${ONBOARDING_DONE} ${onboardingQuestions()}`;
   assert.equal(/launch|approved to receive orders/i.test(copy), false);
-  assert.equal(onboardingQuestions().includes(ONBOARDING_TEXT_US), true);
+  assert.equal(onboardingQuestions(), ONBOARDING_TEXT_LINE);
+  assert.equal(ONBOARDING_TEXT_LINE, 'text us at 972-510-3326 to stay in touch with the mainz team 💬');
+  assert.equal(ONBOARDING_SMS, 'sms:+19725103326');
+  assert.equal(ONBOARDING_TEXT_LINE.includes(ONBOARDING_TEXT_US), true);
 });

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, Text, TextInput, View, type TextStyle } from 'react-native';
 import {
   ONBOARDING_DONE,
+  ONBOARDING_SMS,
   ONBOARDING_STEPS,
+  ONBOARDING_TEXT_LINE,
+  ONBOARDING_TEXT_US,
   ONBOARDING_WELCOME,
   PAY_PREFS,
-  onboardingQuestions,
   type OnboardingStep,
   type PayPref,
 } from '../../../api/src/listing';
@@ -115,7 +117,7 @@ export function FarmOnboarding({
         <>
           <Text style={headline}>you're all set</Text>
           <Text style={body}>{ONBOARDING_DONE}</Text>
-          <Text style={body}>{onboardingQuestions()}</Text>
+          <TextUsLine style={body} />
         </>
       ) : null}
       {error ? <Text style={{ ...quiet, color: colors.red }}>{error}</Text> : null}
@@ -123,6 +125,23 @@ export function FarmOnboarding({
         <Text style={link}>back</Text>
       </Pressable>
     </View>
+  );
+}
+
+export function TextUsLine({ style }: { style?: TextStyle }) {
+  const [before, after] = ONBOARDING_TEXT_LINE.split(ONBOARDING_TEXT_US);
+  return (
+    <Text style={style}>
+      {before}
+      <Text
+        accessibilityRole="link"
+        onPress={() => Linking.openURL(ONBOARDING_SMS).catch(() => undefined)}
+        style={{ color: colors.navy }}
+      >
+        {ONBOARDING_TEXT_US}
+      </Text>
+      {after}
+    </Text>
   );
 }
 

@@ -89,8 +89,10 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export const ONBOARDING_WELCOME = 'yay, welcome to mainz! 🌱';
 export const ONBOARDING_DONE = "our team gives your page a final look. we'll text you when your first order comes in.";
-/** Placeholder. Replace with the real number before any text is sent. Nothing sends a text today. */
-export const ONBOARDING_TEXT_US = '801-000-0000';
+/** Shown only to the farm. Nothing sends a text today. */
+export const ONBOARDING_TEXT_US = '972-510-3326';
+export const ONBOARDING_SMS = 'sms:+19725103326';
+export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch with the mainz team 💬';
 export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
 export type PayPref = (typeof PAY_PREFS)[number];
 
@@ -100,7 +102,7 @@ export function onboardingStep(raw: string | undefined | null): OnboardingStep |
 }
 
 export function onboardingQuestions(): string {
-  return `questions? text us at ${ONBOARDING_TEXT_US}`;
+  return ONBOARDING_TEXT_LINE;
 }
 
 /** What the page may show. A stored phone number is never included. */

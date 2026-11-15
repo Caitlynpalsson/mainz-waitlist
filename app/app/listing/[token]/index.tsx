@@ -8,7 +8,7 @@ import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap,
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice, onboardingStep, type OnboardingStep, type PayPref } from '../../../../api/src/listing';
-import { FarmOnboarding, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
+import { FarmOnboarding, TextUsLine, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -315,6 +315,7 @@ export default function ListingApproval() {
               <View style={banner}>
                 <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                 <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
+                <TextUsLine style={bannerTextUs} />
                 <View style={{ marginTop: 16, width: '100%', maxWidth: 320 }}>
                   <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy} onPress={() => startOnboarding()} />
                 </View>
@@ -538,6 +539,7 @@ const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '6
 const banner = { width: '100%' as const, maxWidth: 520, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' as const, marginBottom: 28 };
 const bannerTitle = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 22, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const };
 const bannerBody = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 21, color: colors.ink, textAlign: 'center' as const, marginTop: 10 };
+const bannerTextUs = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };
 const bannerLinks = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 18, marginTop: 14 };
 const bannerLink = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
 const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 12, marginTop: 16, width: '100%' as const };
