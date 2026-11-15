@@ -83,6 +83,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0015_eggs_placeholder.sql` points eggs at the placeholder. The old picture stays in the repo, but the shop no longer uses it.
 
+`0016_eggs_in_season.sql` marks the sample egg products as in season so the eggs filter can show them.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

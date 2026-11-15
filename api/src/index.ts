@@ -829,18 +829,21 @@ async function resolveCart(env: Env, body: CartBody) {
     else if (row.offers_delivery) fulfillment = 'delivery';
     else if (row.offers_pickup) fulfillment = 'pickup';
     else throw new HttpError(`${row.farm_name} is not selling right now.`);
+    const askedDelivery = fulfillment === 'delivery';
+    if (fulfillment === 'delivery' && route?.pickupOnly && row.offers_pickup) fulfillment = 'pickup';
     if (fulfillment === 'delivery' && !row.offers_delivery) throw new HttpError(`${row.farm_name} does not deliver.`);
     if (fulfillment === 'pickup' && !row.offers_pickup) throw new HttpError(`${row.farm_name} does not offer pickup.`);
     if (fulfillment === 'delivery' && route?.pickupOnly) throw new HttpError(route.line);
     const windows = parseWindows(row.windows_json);
     const choices = fulfillment === 'delivery' && routeLabels.length ? routeLabels.map((label) => ({ day: '', label })) : fulfillment === 'delivery' ? [] : windows.pickup;
     const requestedLabel = (ask?.windowLabel || '').trim();
+    const switchedToPickup = askedDelivery && fulfillment === 'pickup';
     let windowLabel = choices[0]?.label || '';
-    if (requestedLabel && choices.some((choice) => choice.label === requestedLabel)) {
+    if (!switchedToPickup && requestedLabel && choices.some((choice) => choice.label === requestedLabel)) {
       windowLabel = requestedLabel.slice(0, 80);
-    } else if (requestedLabel && fulfillment === 'pickup' && !choices.length) {
+    } else if (!switchedToPickup && requestedLabel && fulfillment === 'pickup' && !choices.length) {
       windowLabel = requestedLabel.slice(0, 80);
-    } else if (requestedLabel && fulfillment === 'pickup' && choices.length) {
+    } else if (!switchedToPickup && requestedLabel && fulfillment === 'pickup' && choices.length) {
       throw new HttpError(`that window is not open at ${row.farm_name}.`);
     }
     return { farmId: row.farm_id, fulfillment, windowLabel, lines };

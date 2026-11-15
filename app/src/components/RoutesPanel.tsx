@@ -144,7 +144,7 @@ export function RoutesPanel({ token }: { token: string }) {
   }
 
   return (
-    <View style={{ marginTop: 36 }}>
+    <View style={{ marginTop: 36, marginBottom: 36 }}>
       <Cap>routes</Cap>
       <Text style={quiet}>a route needs at least 3 orders. 5 is the target. nothing is texted or emailed.</Text>
       {routes.map((route) => (
@@ -245,4 +245,17 @@ const small = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray, 
 const link = { fontFamily: 'Inter' as const, color: colors.navy, fontWeight: '600' as const, fontSize: 13 };
 const input = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 10, marginTop: 12 };
 const card = { borderWidth: 1, borderColor: colors.hair, borderRadius: 18, padding: 16, marginTop: 12, backgroundColor: colors.white };
-const sheetBox = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.navy, minHeight: 120, marginTop: 8, textAlignVertical: 'top' as const };
+const sheetBox = {
+  fontFamily: 'Inter' as const,
+  fontSize: 13,
+  lineHeight: 20,
+  color: colors.navy,
+  minHeight: 120,
+  marginTop: 16,
+  marginBottom: 8,
+  padding: 12,
+  textAlignVertical: 'top' as const,
+  borderWidth: 1,
+  borderColor: colors.hair,
+  borderRadius: 12,
+};

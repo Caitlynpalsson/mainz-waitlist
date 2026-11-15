@@ -47,6 +47,11 @@ export default function Bag() {
     cityZip: store.cityZip,
   });
 
+  const addressKey = `${store.address1}\n${store.cityZip}`;
+  useEffect(() => {
+    setQuote((current) => (current?.route ? { ...current, route: null } : current));
+  }, [addressKey]);
+
   useEffect(() => {
     if (!store.lines.length) {
       setQuote(null);
@@ -62,7 +67,10 @@ export default function Bag() {
         }
       })
       .catch((err: Error) => {
-        if (!cancel) setQuoteError(err.message);
+        if (!cancel) {
+          setQuoteError(err.message);
+          setQuote((current) => (current ? { ...current, route: null } : current));
+        }
       });
     return () => {
       cancel = true;
@@ -187,7 +195,10 @@ export default function Bag() {
                       {group.farmName.toLowerCase()} · {group.farmCity.toLowerCase()}
                     </Text>
                     <Text style={{ fontFamily: 'Inter', fontSize: 11, color: colors.gray }}>
-                      {[group.offersDelivery ? `delivery ${group.deliverySummary}` : '', group.offersPickup ? `pickup ${group.pickupSummary}` : ''].filter(Boolean).join(' · ')}
+                      {[
+                        quote?.route?.matched && group.offersDelivery ? `delivery ${(quote.route.slots?.[0]?.label || '').split(',')[0]}` : '',
+                        group.offersPickup ? `pickup ${group.pickupSummary}` : '',
+                      ].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
                   {!sameMode && group.offersPickup && group.offersDelivery && !pickupOnly ? (
