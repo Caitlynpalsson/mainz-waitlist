@@ -1,3 +1,7 @@
+# Photo credits
+
+- strawberries (`app/assets/photos/strawberry.jpg`, catalog key `strawberry`): Pexels License, Polina Tankilevitch, https://www.pexels.com/photo/4828559/
+
 # Foods that still need a licensed stock photo
 
 These catalog foods use the branded placeholder. Do not pull random images from the web.
