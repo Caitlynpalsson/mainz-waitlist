@@ -5,12 +5,17 @@ import {
   approveListing,
   cleanListingProduct,
   listingAppearsInBrowse,
+  LISTING_REMOVED_LINE,
+  denyListing,
+  listingCanBePublished,
   listingInvite,
   listingShowsForm,
   listingStatusLabel,
+  newListingToken,
   previewFarmCsv,
   priceNote,
   requestListingChanges,
+  resendDeniedListing,
   shopFlagsForUdafCheck,
 } from '../src/listing.ts';
 import { isShopVisible } from '../src/orderMath.ts';
@@ -99,6 +104,27 @@ test('price status defaults to public, and a udaf check stays off the shop', () 
   assert.equal(shopperCanSeeProduct({ active: hidden.active, needsUdaf: hidden.needsUdaf, udafOn: hidden.udafOn }), false);
   const plain = shopFlagsForUdafCheck(false);
   assert.equal(shopperCanSeeProduct({ active: plain.active, needsUdaf: plain.needsUdaf, udafOn: plain.udafOn }), true);
+});
+
+test('denying a listing records the reason, hides the page, and cannot publish it', () => {
+  const denied = denyListing('2026-11-15T15:00:00Z', '  not for us  ');
+  assert.equal(denied.status, 'farm_denied');
+  assert.equal(denied.deniedAt, '2026-11-15T15:00:00Z');
+  assert.equal(denied.denyReason, 'not for us');
+  assert.equal(denied.shopVisible, false);
+  assert.equal(listingStatusLabel(denied.status), 'denied');
+  assert.equal(listingAppearsInBrowse(denied.status, false), false);
+  assert.equal(listingCanBePublished(denied.status), false);
+  assert.equal(listingCanBePublished('farm_approved'), false);
+  const blank = denyListing('2026-11-15T15:00:00Z', '   ');
+  assert.equal(blank.denyReason, '');
+  assert.throws(() => denyListing('2026-11-15T15:00:00Z', 'x'.repeat(161)), /one line/);
+  const resent = resendDeniedListing({ status: 'farm_denied', nextToken: newListingToken() });
+  assert.equal(resent.status, 'sent');
+  assert.notEqual(resent.token, SAMPLE_LISTING_TOKEN);
+  assert.equal(listingCanBePublished(resent.status), false);
+  assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
+  assert.equal(LISTING_REMOVED_LINE, "got it. we've removed your page. thank you for your time.");
 });
 
 test('the invite uses the first farmer name and the private link', () => {

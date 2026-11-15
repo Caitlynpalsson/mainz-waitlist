@@ -16,7 +16,9 @@ export const LISTING_PHOTO_KEYS = [
 
 export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 
-export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested';
+export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
+
+export const LISTING_REMOVED_LINE = "got it. we've removed your page. thank you for your time.";
 
 export type ListingProductInput = {
   name: string;
@@ -30,10 +32,11 @@ export type ListingProductInput = {
 
 export type PriceStatus = 'public' | 'converted' | 'suggested';
 
-const STATUSES = new Set<string>(['draft', 'sent', 'farm_approved', 'changes_requested']);
+const STATUSES = new Set<string>(['draft', 'sent', 'farm_approved', 'changes_requested', 'farm_denied']);
 
 export function listingStatusLabel(status: string): string {
   if (status === 'farm_approved') return 'approved';
+  if (status === 'farm_denied') return 'denied';
   if (status === 'changes_requested') return 'changes requested';
   if (status === 'sent') return 'sent';
   return 'draft';
@@ -48,8 +51,26 @@ export function listingAppearsInBrowse(_status: string, _isSample: boolean): boo
   return false;
 }
 
+/** A draft is never a shop listing. Denying it does not create a way to publish it. */
+export function listingCanBePublished(_status: string): boolean {
+  return false;
+}
+
 export function approveListing(nowIso: string): { status: 'farm_approved'; approvedAt: string; shopVisible: false } {
   return { status: 'farm_approved', approvedAt: nowIso, shopVisible: false };
+}
+
+export function denyListing(nowIso: string, reason: string): { status: 'farm_denied'; deniedAt: string; denyReason: string; shopVisible: false } {
+  const denyReason = reason.trim().replace(/\s+/g, ' ');
+  if (denyReason.length > 160) throw new Error('keep it to one line.');
+  return { status: 'farm_denied', deniedAt: nowIso, denyReason, shopVisible: false };
+}
+
+/** The only way back from a denial is a new link. The old one stays removed. */
+export function resendDeniedListing(input: { status: string; nextToken: string }): { status: 'sent'; token: string } {
+  if (input.status !== 'farm_denied') throw new Error('only a denied page gets a new link.');
+  if (!/^lk_[0-9a-f]{32}$/.test(input.nextToken)) throw new Error('need a new token.');
+  return { status: 'sent', token: input.nextToken };
 }
 
 export function requestListingChanges(note: string): { status: 'changes_requested'; changeNote: string; shopVisible: false } {
@@ -268,7 +289,7 @@ export function listingShowsForm(productCount: number): boolean {
 }
 
 export function canFarmEditListing(status: string): boolean {
-  return status !== 'farm_approved';
+  return status !== 'farm_approved' && status !== 'farm_denied';
 }
 
 export function listingInvite(input: { farmerNames: string; farmName: string; link: string }): string {

@@ -20,6 +20,8 @@ type Listing = {
   status: string;
   changeNote: string;
   approvedAt: string;
+  denyReason?: string;
+  deniedAt?: string;
   isSample: boolean;
   products: { name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; needsUdafCheck?: boolean }[];
 };
@@ -110,7 +112,7 @@ export default function ListingEditor() {
           ) : (
             <>
               <Text style={headline}>{creating ? 'new listing' : farmName.toLowerCase() || 'listing'}</Text>
-              {saved ? <Text style={quiet}>{saved.isSample ? 'sample. ' : ''}{saved.statusLabel}{saved.changeNote ? `. note: ${saved.changeNote}` : ''}{saved.approvedAt ? `. approved ${saved.approvedAt.slice(0, 10)}` : ''}</Text> : null}
+              {saved ? <Text style={quiet}>{saved.isSample ? 'sample. ' : ''}{saved.statusLabel}{saved.denyReason ? `. ${saved.denyReason}` : ''}{saved.deniedAt ? `. ${saved.deniedAt.slice(0, 10)}` : ''}{saved.changeNote ? `. note: ${saved.changeNote}` : ''}{saved.approvedAt ? `. approved ${saved.approvedAt.slice(0, 10)}` : ''}</Text> : null}
               <Field label="farm name" value={farmName} onChange={setFarmName} />
               <Field label="story line" value={story} onChange={setStory} />
               <Field label="location" value={location} onChange={setLocation} />
@@ -138,7 +140,8 @@ export default function ListingEditor() {
               </View>
               {saved && saved.status !== 'farm_approved' ? (
                 <View style={{ marginTop: 12 }}>
-                  <PrimaryButton label="mark sent" onPress={markSent} />
+                  <PrimaryButton label={saved.status === 'farm_denied' ? 'resend' : 'mark sent'} onPress={markSent} />
+                  {saved.status === 'farm_denied' ? <Text style={quiet}>resend makes a new link. the old page stays removed.</Text> : null}
                 </View>
               ) : null}
               {saved ? (

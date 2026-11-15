@@ -6,6 +6,7 @@ import { FoodImage, PrimaryButton, Wrap } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { dollars } from '../../src/lib/money';
 import { colors, useLayout } from '../../src/theme';
+import { LISTING_REMOVED_LINE } from '../../../api/src/listing';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -19,6 +20,7 @@ type Listing = {
   approvedAt: string;
   isSample: boolean;
   needsForm: boolean;
+  removed?: boolean;
   products: Product[];
 };
 
@@ -30,6 +32,8 @@ export default function ListingApproval() {
   const [data, setData] = useState<Listing | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [denyNote, setDenyNote] = useState('');
+  const [removing, setRemoving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [filling, setFilling] = useState(false);
@@ -50,7 +54,7 @@ export default function ListingApproval() {
       setFarmerNames(next.farmerNames);
       setTown(next.location);
       setStory(next.story);
-      setFilling(next.needsForm && next.status !== 'farm_approved');
+      setFilling(next.needsForm && next.status !== 'farm_approved' && next.status !== 'farm_denied');
       setOpened(true);
     }
   }
@@ -127,6 +131,7 @@ export default function ListingApproval() {
   }
 
   const approved = data?.status === 'farm_approved';
+  const denied = data?.status === 'farm_denied' || data?.removed === true;
 
   return (
     <Shell top="bar" title="your listing">
@@ -134,14 +139,15 @@ export default function ListingApproval() {
         <View style={{ maxWidth: 420, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
           {error ? <Text style={quiet}>{error}</Text> : null}
           {!data && !error ? <Text style={quiet}>loading.</Text> : null}
-          {data && approved ? (
+          {data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
+          {data && !denied && approved ? (
             <>
               <Text style={headline}>thank you.</Text>
               <Text style={{ ...storyStyle, marginTop: 16 }}>{thanks}</Text>
               <NoteBox note={note} setNote={setNote} busy={busy} error={formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
             </>
           ) : null}
-          {data && !approved && filling ? (
+          {data && !denied && !approved && filling ? (
             <>
               <Text style={headline}>tell us about your farm</Text>
               <Text style={{ ...quiet, marginTop: 12 }}>a few lines. then you can approve the page.</Text>
@@ -181,7 +187,7 @@ export default function ListingApproval() {
               ) : null}
             </>
           ) : null}
-          {data && !approved && !filling ? (
+          {data && !denied && !approved && !filling ? (
             <>
               {data.isSample ? <Text style={quiet}>sample. this farm is made up.</Text> : null}
               <Text style={headline}>your mainz listing</Text>
@@ -207,7 +213,28 @@ export default function ListingApproval() {
               <View style={{ width: '100%' }}>
                 <PrimaryButton label={busy ? 'saving…' : 'approve my listing'} disabled={busy} onPress={() => send(`/api/listings/${token}/approve`)} />
               </View>
-              <NoteBox note={note} setNote={setNote} busy={busy} error={formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
+              <Pressable onPress={() => setRemoving(true)} style={{ marginTop: 18, padding: 10 }}>
+                <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.gray }}>no thanks, remove my page</Text>
+              </Pressable>
+              {removing ? (
+                <View style={{ width: '100%', alignItems: 'center' }}>
+                  <TextInput
+                    value={denyNote}
+                    onChangeText={setDenyNote}
+                    placeholder="anything you'd like us to know?"
+                    placeholderTextColor={colors.gray}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="anything you'd like us to know?"
+                    style={field}
+                  />
+                  <Pressable onPress={() => send(`/api/listings/${token}/deny`, { note: denyNote })} disabled={busy} style={{ marginTop: 12, padding: 8 }}>
+                    <Text style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: '600', color: colors.navy }}>{busy ? 'saving…' : 'remove my page'}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              <NoteBox note={note} setNote={setNote} busy={busy} error={removing ? '' : formError} onSend={() => send(`/api/listings/${token}/changes`, { note })} />
+              {removing && formError ? <Text style={{ ...quiet, color: colors.red, marginTop: 8 }}>{formError}</Text> : null}
             </>
           ) : null}
         </View>

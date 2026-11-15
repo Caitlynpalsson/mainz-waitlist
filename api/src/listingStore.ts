@@ -3,6 +3,7 @@ import {
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
+  denyListing,
   listingAppearsInBrowse,
   listingShowsForm,
   listingStatusLabel,
@@ -11,6 +12,7 @@ import {
   parseUdafFlag,
   previewFarmCsv,
   requestListingChanges,
+  resendDeniedListing,
   type CatalogMatch,
   type ListingProductInput,
 } from './listing';
@@ -26,6 +28,8 @@ type DraftRow = {
   status: string;
   change_note: string;
   approved_at: string;
+  denied_at: string;
+  deny_reason: string;
   is_sample: number;
   farmer_names: string;
   created_at: string;
@@ -46,13 +50,18 @@ type ProductRow = {
 
 export async function getPublicListing(env: Env, token: string): Promise<Response> {
   const listing = await byToken(env, token);
-  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (!listing) {
+    if (await retiredToken(env, token)) return json(removedListingPayload());
+    throw new HttpError('we cannot find that listing.', 404);
+  }
+  if (listing.status === 'farm_denied') return json(removedListingPayload());
   return json(await present(env, listing));
 }
 
 export async function approvePublicListing(env: Env, token: string): Promise<Response> {
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
   const next = approveListing(new Date().toISOString());
   await env.DB.prepare(
     `UPDATE listing_drafts SET status = ?, approved_at = ?, updated_at = datetime('now') WHERE id = ?`,
@@ -61,9 +70,26 @@ export async function approvePublicListing(env: Env, token: string): Promise<Res
   return json(await present(env, saved!));
 }
 
+export async function denyPublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') return json(removedListingPayload());
+  let next;
+  try {
+    next = denyListing(new Date().toISOString(), String(body.note ?? ''));
+  } catch (error) {
+    throw new HttpError(error instanceof Error ? error.message : 'could not remove the page.');
+  }
+  await env.DB.prepare(
+    `UPDATE listing_drafts SET status = ?, denied_at = ?, deny_reason = ?, updated_at = datetime('now') WHERE id = ?`,
+  ).bind(next.status, next.deniedAt, next.denyReason, listing.id).run();
+  return json(removedListingPayload());
+}
+
 export async function changePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
   let next;
   try {
     next = requestListingChanges(String(body.note ?? ''));
@@ -130,9 +156,17 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
   const existing = await byId(env, id);
   if (!existing) throw new HttpError('no listing with that id.', 404);
   if (existing.status === 'farm_approved') throw new HttpError('the farm already approved this listing.');
-  await env.DB.prepare(
-    `UPDATE listing_drafts SET status = 'sent', updated_at = datetime('now') WHERE id = ?`,
-  ).bind(id).run();
+  if (existing.status === 'farm_denied') {
+    const next = resendDeniedListing({ status: existing.status, nextToken: newListingToken() });
+    await env.DB.prepare(`INSERT INTO listing_retired_tokens (token) VALUES (?)`).bind(existing.token).run();
+    await env.DB.prepare(
+      `UPDATE listing_drafts SET token = ?, status = ?, denied_at = '', deny_reason = '', updated_at = datetime('now') WHERE id = ?`,
+    ).bind(next.token, next.status, id).run();
+  } else {
+    await env.DB.prepare(
+      `UPDATE listing_drafts SET status = 'sent', updated_at = datetime('now') WHERE id = ?`,
+    ).bind(id).run();
+  }
   const saved = await byId(env, id);
   return json({ listing: await present(env, saved!) });
 }
@@ -152,6 +186,8 @@ async function present(env: Env, row: DraftRow) {
     statusLabel: listingStatusLabel(row.status),
     changeNote: row.change_note,
     approvedAt: row.approved_at,
+    deniedAt: row.denied_at || '',
+    denyReason: row.deny_reason || '',
     farmerNames: row.farmer_names || '',
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
@@ -174,6 +210,7 @@ async function present(env: Env, row: DraftRow) {
 export async function savePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  if (listing.status === 'farm_denied') throw new HttpError('this page was removed.');
   if (!canEdit(listing.status)) throw new HttpError('this listing is approved. ask for changes if something is off.');
   const farmName = String(body.farmName ?? listing.farm_name).trim().slice(0, 80);
   const farmerNames = String(body.farmerNames ?? listing.farmer_names ?? '').trim().slice(0, 120);
@@ -230,7 +267,28 @@ async function catalogFoods(env: Env): Promise<CatalogMatch[]> {
 }
 
 function canEdit(status: string): boolean {
-  return status !== 'farm_approved';
+  return status !== 'farm_approved' && status !== 'farm_denied';
+}
+
+function removedListingPayload() {
+  return {
+    status: 'farm_denied' as const,
+    statusLabel: 'denied',
+    removed: true,
+    shopVisible: false,
+    products: [] as [],
+    farmName: '',
+    farmerNames: '',
+    story: '',
+    location: '',
+    changeNote: '',
+    needsForm: false,
+  };
+}
+
+async function retiredToken(env: Env, token: string): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT token FROM listing_retired_tokens WHERE token = ?`).bind(token).first<{ token: string }>();
+  return !!row;
 }
 
 function readFarmProducts(value: unknown) {

@@ -37,6 +37,7 @@ type StaffListing = {
   statusLabel: string;
   changeNote: string;
   approvedAt: string;
+  denyReason?: string;
   isSample: boolean;
   products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
 };
@@ -289,7 +290,7 @@ export default function AdminHome() {
                 <View key={listing.id} style={card}>
                   <Pressable onPress={() => router.push(`/admin/listing/${listing.id}`)}>
                     <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
-                    <Text style={small}>{listing.statusLabel}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
+                    <Text style={small}>{listing.statusLabel}{listing.denyReason ? ` · ${listing.denyReason}` : ''}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
                     <Text style={small}>{listing.path}</Text>
                     {listing.products?.map((product) => (
                       <Text key={product.name} style={small}>

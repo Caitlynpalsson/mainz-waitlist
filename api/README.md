@@ -73,6 +73,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0009_price_status_udaf_foods.sql` adds an optional price status and a UDAF check on each draft product. A blank price status is public. Converted and suggested prices show a note on the farm's private page. The UDAF tag is staff-only. A product created with that check stays hidden until staff turn it on. The same migration adds honey, sourdough bread, jam, and the extra meat cuts, and skips any that already exist.
 
+`0010_listing_deny.sql` lets a farm remove its private page. The link then shows only a short goodbye. Staff see the denial and can restore it by editing and resending, which makes a new link. The old link stays removed, and the draft is never published.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.
