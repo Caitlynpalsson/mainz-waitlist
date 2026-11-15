@@ -67,6 +67,8 @@ The stages, the five standards, the document list, the goal times, and the messa
 npx wrangler d1 migrations apply mainz --remote
 ```
 
+`0006_listing_approval.sql` adds private draft listings. A farm approves how the page looks. That does not publish the farm. The sample link is `/listing/lk_4c8e91ab7d2f60e3a15b84c0` after you apply the migration. It is also listed in the admin desk.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

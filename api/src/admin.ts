@@ -1,5 +1,11 @@
 import { HttpError, json } from './http';
 import {
+  adminGetListing,
+  adminListings,
+  adminMarkSent,
+  adminSaveListing,
+} from './listingStore';
+import {
   DOCUMENTS,
   ONBOARDING_ITEMS,
   STANDARDS,
@@ -64,6 +70,13 @@ type FarmRow = {
 export async function handleAdmin(request: Request, env: Env, method: string, path: string): Promise<Response> {
   requireAdmin(request, env);
   if (method === 'GET' && path === '/api/admin/dashboard') return dashboard(env);
+  if (method === 'GET' && path === '/api/admin/listings') return adminListings(env);
+  if (method === 'POST' && path === '/api/admin/listings') return adminSaveListing(env, null, await readJson(request));
+  const listingOne = path.match(/^\/api\/admin\/listings\/(\d+)$/);
+  if (method === 'GET' && listingOne) return adminGetListing(env, Number(listingOne[1]));
+  if (method === 'PATCH' && listingOne) return adminSaveListing(env, Number(listingOne[1]), await readJson(request));
+  const listingSent = path.match(/^\/api\/admin\/listings\/(\d+)\/sent$/);
+  if (method === 'POST' && listingSent) return adminMarkSent(env, Number(listingSent[1]));
   if (method === 'GET' && path === '/api/admin/farms') return listFarms(env);
   const detail = path.match(/^\/api\/admin\/farms\/(\d+)$/);
   if (method === 'GET' && detail) return farmReview(env, Number(detail[1]));

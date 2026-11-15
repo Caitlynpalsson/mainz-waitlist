@@ -1,6 +1,7 @@
 import { handleAdmin } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
+import { approvePublicListing, changePublicListing, getPublicListing } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
@@ -131,6 +132,13 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && path === '/api/quote') return quote(env, await readJson(request));
   if (method === 'POST' && path === '/api/orders') return placeOrder(env, await readJson(request));
   if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
+
+  const listingApprove = path.match(/^\/api\/listings\/([a-z0-9_]+)\/approve$/);
+  if (method === 'POST' && listingApprove) return approvePublicListing(env, listingApprove[1]);
+  const listingChanges = path.match(/^\/api\/listings\/([a-z0-9_]+)\/changes$/);
+  if (method === 'POST' && listingChanges) return changePublicListing(env, listingChanges[1], await readJson(request));
+  const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
+  if (method === 'GET' && listingPage) return getPublicListing(env, listingPage[1]);
 
   if (path.startsWith('/api/admin/')) return handleAdmin(request, env, method, path);
   if (path.startsWith('/api/farm/')) return farmDesk(request, env, method, path);

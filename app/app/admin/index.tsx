@@ -28,6 +28,16 @@ type Brief = {
   removed: boolean;
 };
 
+type StaffListing = {
+  id: number;
+  farmName: string;
+  path: string;
+  statusLabel: string;
+  changeNote: string;
+  approvedAt: string;
+  isSample: boolean;
+};
+
 type WindowTotals = { orders: number; merchandiseCents: number; totalCents: number };
 
 type Dashboard = {
@@ -60,6 +70,7 @@ export default function AdminHome() {
   const { desktop } = useLayout();
   const auth = useAdminToken();
   const [data, setData] = useState<Dashboard | null>(null);
+  const [listings, setListings] = useState<StaffListing[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -71,6 +82,12 @@ export default function AdminHome() {
     setError('');
     try {
       setData(await api<Dashboard>('/api/admin/dashboard', { headers: adminHeaders(current) }));
+      try {
+        const drafts = await api<{ listings: StaffListing[] }>('/api/admin/listings', { headers: adminHeaders(current) });
+        setListings(drafts.listings);
+      } catch {
+        setListings([]);
+      }
     } catch (err) {
       setData(null);
       setError(err instanceof Error ? err.message : 'could not open admin.');
@@ -163,6 +180,20 @@ export default function AdminHome() {
                   <Text style={name}>{buyer.name.toLowerCase() || 'shopper'}</Text>
                   <Text style={small}>{[buyer.email, phoneText(buyer.phone), `${buyer.orders} orders`, dollars(buyer.totalCents)].filter(Boolean).join(' · ')}</Text>
                 </View>
+              ))}
+            </View>
+            <View style={{ marginTop: 36 }}>
+              <Cap>listing drafts</Cap>
+              <Text style={quiet}>a private link. the farm approves how the page looks. it does not open orders, and it does not go on the shop.</Text>
+              <Pressable onPress={() => router.push('/admin/listing/new')} style={{ marginTop: 12 }}>
+                <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>new listing</Text>
+              </Pressable>
+              {listings.map((listing) => (
+                <Pressable key={listing.id} onPress={() => router.push(`/admin/listing/${listing.id}`)} style={card}>
+                  <Text style={name}>{listing.farmName.toLowerCase()}{listing.isSample ? ' · sample' : ''}</Text>
+                  <Text style={small}>{listing.statusLabel}{listing.changeNote ? ` · ${listing.changeNote}` : ''}{listing.approvedAt ? ` · ${listing.approvedAt.slice(0, 10)}` : ''}</Text>
+                  <Text style={small}>{listing.path}</Text>
+                </Pressable>
               ))}
             </View>
           </>
