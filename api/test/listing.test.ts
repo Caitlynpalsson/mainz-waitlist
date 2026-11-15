@@ -19,6 +19,7 @@ import {
   onboardingQuestions,
   onboardingStep,
   publicOnboarding,
+  meetTheFarmLines,
   storyLines,
   LISTING_REMOVED_LINE,
   LISTING_THANKS_LINE,
@@ -154,9 +155,9 @@ test('denying a listing records the reason, hides the page, and cannot publish i
   assert.equal(listingCanBePublished(resent.status), false);
   assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
   assert.equal(LISTING_REMOVED_LINE, "got it. we've removed your page. thank you for your time.");
-  assert.equal(LISTING_CONFIRM_LINE, "once you confirm, our team gives it a final look and your page goes live. thank you for growing such good food.");
+  assert.equal(LISTING_CONFIRM_LINE, "once you confirm, our team gives your page a final look. thank you for growing such good food.");
   assert.equal(LISTING_THANKS_LINE, "thank you. we're so happy to have you. our team is giving your page a final look.");
-  assert.equal(/launch|coming soon|not taking orders|orders open at launch|pre-launch/i.test(`${LISTING_CONFIRM_LINE} ${LISTING_THANKS_LINE} ${LISTING_REMOVED_LINE}`), false);
+  assert.equal(/launch|goes live|approved to receive orders|coming soon|not taking orders|orders open at launch|pre-launch/i.test(`${LISTING_CONFIRM_LINE} ${LISTING_THANKS_LINE} ${LISTING_REMOVED_LINE}`), false);
 });
 
 test('a price fix stores the product and the cents and does not publish the draft', () => {
@@ -219,6 +220,17 @@ test('farm pages keep a short story and never promise a launch', () => {
   assert.deepEqual(storyLines('one line about the farm.'), ['one line about the farm.']);
   const many = storyLines('First. Second! Third? Fourth. Fifth.');
   assert.deepEqual(many, ['first.', 'second!', 'third?']);
+  assert.deepEqual(meetTheFarmLines({
+    story: 'a family dairy in huntington. they raise jersey cows.',
+    alreadyShown: 'a family dairy in huntington.',
+  }), ['they raise jersey cows.']);
+  assert.deepEqual(meetTheFarmLines({
+    story: 'a family dairy in huntington.',
+    alreadyShown: 'a family dairy in huntington.',
+    town: 'huntington, ut',
+    grows: ['tallow'],
+    sinceYear: 1998,
+  }), ['in huntington, ut.', 'tallow.', 'farming since 1998.']);
   assert.equal(farmPortrait(''), '');
   assert.equal(farmPortrait('placeholder', 'hero'), '');
   assert.equal(farmPortrait('profile-mcarthur-farms', 'profile-mcarthur-farms'), '');

@@ -227,16 +227,7 @@ export default function ListingApproval() {
   return (
     <Shell
       top="none"
-      sticky={preview && !step ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="this is my farm"
-          onPress={() => { setOff(false); setRemoving(false); setFormError(''); setSheet(true); }}
-          style={confirmPill}
-        >
-          <Text style={confirmText}>this is my farm</Text>
-        </Pressable>
-      ) : null}
+      sticky={null}
     >
       <Wrap style={{ paddingTop: desktop ? 48 : 28 }}>
         {step ? (
@@ -312,6 +303,16 @@ export default function ListingApproval() {
         {!step && preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
+              <View style={{ alignSelf: 'flex-end', marginBottom: 10 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="this is my farm"
+                  onPress={() => { setOff(false); setRemoving(false); setFormError(''); setSheet(true); }}
+                  style={confirmPill}
+                >
+                  <Text style={confirmText}>this is my farm</Text>
+                </Pressable>
+              </View>
               <View style={banner}>
                 <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                 <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
@@ -390,7 +391,7 @@ export default function ListingApproval() {
                   <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>+ add more products</Text>
                 </Pressable>
               </Grid>
-              <FarmBelow story={data.story} photo={data.profilePhoto} width={cell * shopCols} />
+              <FarmBelow story={data.story} alreadyShown={data.story} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
             </View>
           </>
         ) : null}

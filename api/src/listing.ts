@@ -67,7 +67,7 @@ export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
 
 export const LISTING_REMOVED_LINE = "got it. we've removed your page. thank you for your time.";
-export const LISTING_CONFIRM_LINE = "once you confirm, our team gives it a final look and your page goes live. thank you for growing such good food.";
+export const LISTING_CONFIRM_LINE = "once you confirm, our team gives your page a final look. thank you for growing such good food.";
 export const LISTING_THANKS_LINE = "thank you. we're so happy to have you. our team is giving your page a final look.";
 
 export type ListingProductInput = {
@@ -134,6 +134,33 @@ export const WHY_MAINZ_LINES = [
   'local and small batch.',
   'your money stays with utah farms.',
 ] as const;
+
+/**
+ * Lines for "meet the farm" that are not already on screen.
+ * Uses the rest of the story, then town, what they grow, or years.
+ */
+export function meetTheFarmLines(input: {
+  story?: string;
+  alreadyShown?: string;
+  town?: string;
+  grows?: string[];
+  sinceYear?: number | null;
+}): string[] {
+  const shown = (input.alreadyShown || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const fresh = storyLines(input.story || '').filter((line) => {
+    const plain = line.replace(/[.!?]+$/g, '').trim();
+    return plain.length > 0 && !shown.includes(plain);
+  });
+  if (fresh.length) return fresh.slice(0, 2);
+  const facts: string[] = [];
+  const town = (input.town || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (town && !shown.includes(town)) facts.push(`in ${town}.`);
+  const grows = [...new Set((input.grows || []).map((item) => item.replace(/\s+/g, ' ').trim().toLowerCase()).filter(Boolean))].slice(0, 3);
+  if (grows.length === 1) facts.push(`${grows[0]}.`);
+  else if (grows.length > 1) facts.push(`${grows.slice(0, -1).join(', ')} and ${grows[grows.length - 1]}.`);
+  if (input.sinceYear && input.sinceYear > 1800) facts.push(`farming since ${input.sinceYear}.`);
+  return facts.slice(0, 3);
+}
 
 /** Up to three sentences from the farm's own story. Empty when there is no story. */
 export function storyLines(raw: string, max = 3): string[] {

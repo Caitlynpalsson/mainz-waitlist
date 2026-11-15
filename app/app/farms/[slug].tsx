@@ -104,7 +104,18 @@ export default function FarmPage() {
               ) : null}
               {tab === 'about' ? <Text style={prose}>{farm.about || farm.bio}</Text> : null}
               {tab === 'reviews' ? <Text style={prose}>no reviews yet. they show up after real orders.</Text> : null}
-              {tab === 'shop' ? <FarmBelow story={farm.about || farm.bio} photo={farm.profilePhoto} hero={farm.heroPhoto} width={cell * shopCols} /> : null}
+              {tab === 'shop' ? (
+                <FarmBelow
+                  story={farm.about || ''}
+                  alreadyShown={farm.bio}
+                  town={`${farm.city}, ${farm.state}`}
+                  grows={(data?.products || []).map((product) => product.name)}
+                  sinceYear={farm.sinceYear}
+                  photo={farm.profilePhoto}
+                  hero={farm.heroPhoto}
+                  width={cell * shopCols}
+                />
+              ) : null}
             </View>
           </>
         ) : null}

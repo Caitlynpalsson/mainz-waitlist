@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { Children, useRef, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, Text, View, type TextStyle, type ViewStyle } from 'react-native';
 import { router } from 'expo-router';
 import { colors, useLayout } from '../theme';
@@ -343,11 +343,11 @@ export function Hair() {
   return <View style={{ height: 1, backgroundColor: colors.hair }} />;
 }
 
-export function Grid({ children, cols, gap }: { children: ReactNode[]; cols: number; gap: number }) {
+export function Grid({ children, cols, gap }: { children: ReactNode; cols: number; gap: number }) {
   const { box } = useLayout();
   const width = (box - gap * (cols - 1)) / cols;
   const rows: ReactNode[][] = [];
-  children.forEach((child, index) => {
+  Children.toArray(children).forEach((child, index) => {
     const row = Math.floor(index / cols);
     rows[row] = rows[row] || [];
     rows[row].push(<View key={index} style={{ width }}>{child}</View>);

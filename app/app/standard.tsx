@@ -18,7 +18,7 @@ export default function Standard() {
       <Wrap style={{ paddingTop: desktop ? 72 : 20 }}>
         <View style={{ alignItems: 'center' }}>
           <Cap>the mainz standard</Cap>
-          <Text style={lede}>five things we check before a farm goes live.</Text>
+          <Text style={lede}>five things we check. our team gives each farm a final look.</Text>
         </View>
         <View style={{ marginTop: 36, borderTopWidth: 1, borderTopColor: colors.navy }}>
           {checks.map(([n, title, body]) => (
