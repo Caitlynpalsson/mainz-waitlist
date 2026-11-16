@@ -446,7 +446,7 @@ export default function ListingApproval() {
                 </Pressable>
               </Grid>
               {productQuery && searchProducts(data.products, productQuery).length === 0 ? <Text style={{ ...quiet, marginTop: 22 }}>{SEARCH_EMPTY}</Text> : null}
-              <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} pickupLine={data.pickupLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
+              {productQuery.trim() ? null : <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} pickupLine={data.pickupLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />}
             </View>
           </>
         ) : null}

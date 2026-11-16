@@ -6,6 +6,25 @@ import { IconSearch } from './icons';
 
 export { SEARCH_EMPTY };
 
+const PILL_CLASS = 'mainz-search-pill';
+let focusCssReady = false;
+
+function ensureFocusCss() {
+  if (Platform.OS !== 'web' || focusCssReady || typeof document === 'undefined') return;
+  focusCssReady = true;
+  const node = document.createElement('style');
+  node.textContent = `
+    .${PILL_CLASS}:focus-within { box-shadow: 0 0 0 2px ${colors.peri}; }
+    .${PILL_CLASS} input { outline: none; }
+  `;
+  document.head.appendChild(node);
+}
+
+function pillProps(): { className?: string } {
+  ensureFocusCss();
+  return Platform.OS === 'web' ? { className: PILL_CLASS } : {};
+}
+
 export function ProductSearchIcon({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="search products" onPress={onPress} style={hit}>
@@ -28,7 +47,7 @@ export function ProductSearchField({
   const placeholder = `search ${farmName.trim().toLowerCase()} products`;
   const [focused, setFocused] = useState(false);
   return (
-    <View style={[field, focused ? fieldFocus : null]}>
+    <View {...pillProps()} style={[field, Platform.OS === 'web' || !focused ? null : fieldFocus]}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         autoFocus
@@ -44,7 +63,7 @@ export function ProductSearchField({
         onKeyPress={(event) => {
           if (event.nativeEvent.key === 'Escape') onClose();
         }}
-        style={[input, focused ? inputFocus : inputRest]}
+        style={input}
       />
       {value ? (
         <Pressable accessibilityRole="button" accessibilityLabel="clear search" onPress={() => onChange('')} style={hit}>
@@ -61,7 +80,7 @@ export function ProductSearchField({
 export function FarmSearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [focused, setFocused] = useState(false);
   return (
-    <View style={[field, focused ? fieldFocus : null]}>
+    <View {...pillProps()} style={[field, Platform.OS === 'web' || !focused ? null : fieldFocus]}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         value={value}
@@ -73,7 +92,7 @@ export function FarmSearchField({ value, onChange }: { value: string; onChange: 
         accessibilityLabel="search farms"
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        style={[input, focused ? inputFocus : inputRest]}
+        style={input}
       />
       {value ? (
         <Pressable accessibilityRole="button" accessibilityLabel="clear search" onPress={() => onChange('')} style={hit}>
@@ -88,8 +107,6 @@ const hit = { width: 44, height: 44, alignItems: 'center' as const, justifyConte
 const cancelHit = { minWidth: 44, height: 44, paddingHorizontal: 8, alignItems: 'center' as const, justifyContent: 'center' as const };
 const field = { minHeight: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row' as const, alignItems: 'center' as const, paddingLeft: 14, paddingRight: 4, borderWidth: 1, borderColor: 'transparent' };
 const fieldFocus = { borderColor: colors.peri };
-const input = { flex: 1, fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, paddingVertical: 0, marginLeft: 8 };
-const inputRest = Platform.OS === 'web' ? { outlineWidth: 0 } : null;
-const inputFocus = Platform.OS === 'web' ? { outlineWidth: 2, outlineStyle: 'solid' as const, outlineColor: colors.peri, outlineOffset: 2 } : null;
+const input = { flex: 1, fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, paddingVertical: 0, marginLeft: 8, ...(Platform.OS === 'web' ? { outlineWidth: 0 } : null) };
 const clearMark = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.gray };
 const cancelText = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };

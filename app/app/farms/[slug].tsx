@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Shell } from '../../src/components/chrome';
+import { CircleBack, Shell } from '../../src/components/chrome';
 import { FarmBelow } from '../../src/components/farmBelow';
 import { Cap, FarmAvatar, FulfillmentPills, FoodImage, Grid, Hair, Pill, ShopCard, Wrap, useBoxWidth } from '../../src/components/ui';
 import { IconHeart, IconShare } from '../../src/components/icons';
@@ -45,7 +45,7 @@ export default function FarmPage() {
       tab="farms"
       showTabs
       top="overlay"
-      hideOverlay={hideChrome}
+      hideOverlay={hideChrome || searchOpen}
       onScroll={(y) => setHideChrome(y > 72)}
       right={farm && !searchOpen ? (
         <>
@@ -59,13 +59,16 @@ export default function FarmPage() {
         </>
       ) : null}
       sticky={searchOpen && farm ? (
-        <View style={{ width: '100%', marginTop: desktop ? 0 : 48 }}>
-          <ProductSearchField
-            farmName={farm.name}
-            value={productQuery}
-            onChange={(value) => { setProductQuery(value); if (value.trim()) setTab('shop'); }}
-            onClose={closeSearch}
-          />
+        <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {desktop ? null : <CircleBack />}
+          <View style={{ flex: 1 }}>
+            <ProductSearchField
+              farmName={farm.name}
+              value={productQuery}
+              onChange={(value) => { setProductQuery(value); if (value.trim()) setTab('shop'); }}
+              onClose={closeSearch}
+            />
+          </View>
         </View>
       ) : null}
     >
@@ -136,7 +139,7 @@ export default function FarmPage() {
               ) : null}
               {tab === 'about' ? <Text style={prose}>{farm.about || farm.bio}</Text> : null}
               {tab === 'reviews' ? <Text style={prose}>no reviews yet. they show up after real orders.</Text> : null}
-              {tab === 'shop' ? (
+              {tab === 'shop' && !searching ? (
                 <FarmBelow
                   story={farm.about || ''}
                   alreadyShown={farm.bio}
