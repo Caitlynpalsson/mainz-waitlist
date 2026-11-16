@@ -3,7 +3,6 @@ import { WHY_MAINZ_LINES, farmPortrait, howPickupWorks, meetTheFarmLines, portra
 import { colors } from '../theme';
 import { FoodImage } from './ui';
 
-export const FOUNDING_FARM = 'founding farm 🌱';
 export const FARM_THANKS = "thank you for feeding utah. we're so glad you're here.";
 
 export function FarmBelow({

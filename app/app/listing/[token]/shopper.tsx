@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { CircleBack, Shell } from '../../../src/components/chrome';
 import { FarmBelow } from '../../../src/components/farmBelow';
@@ -47,6 +48,7 @@ export default function StaffShopperPreview() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const auth = useAdminToken();
   const { desktop, shopCols } = useLayout();
+  const insets = useSafeAreaInsets();
   const { follows, toggleFollow } = useStore();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState('');
@@ -142,7 +144,7 @@ export default function StaffShopperPreview() {
         </View>
       ) : null}
     >
-      <Wrap style={{ paddingTop: desktop ? 28 : 8 }}>
+      <Wrap style={{ paddingTop: desktop ? 28 : insets.top + 56 }}>
         {desktop && farm && !searchOpen ? (
           <View style={{ alignItems: 'flex-end' }}>
             <ProductSearchIcon onPress={() => setSearchOpen(true)} />
