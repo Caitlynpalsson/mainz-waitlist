@@ -52,7 +52,7 @@ export function Shell({
           paddingRight: desktop ? 28 : 16,
           paddingLeft: 16,
           backgroundColor: colors.white,
-          alignItems: 'flex-end',
+          alignItems: 'stretch',
           zIndex: 5,
           shadowColor: '#14213D',
           shadowOpacity: 0.08,

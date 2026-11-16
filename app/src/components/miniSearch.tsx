@@ -1,4 +1,5 @@
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SEARCH_EMPTY } from '../../../api/src/search';
 import { colors } from '../theme';
 import { IconSearch } from './icons';
@@ -25,8 +26,9 @@ export function ProductSearchField({
   onClose: () => void;
 }) {
   const placeholder = `search ${farmName.trim().toLowerCase()} products`;
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={field}>
+    <View style={[field, focused ? fieldFocus : null]}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         autoFocus
@@ -37,10 +39,12 @@ export function ProductSearchField({
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel={placeholder}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onKeyPress={(event) => {
           if (event.nativeEvent.key === 'Escape') onClose();
         }}
-        style={input}
+        style={[input, focused ? inputFocus : inputRest]}
       />
       {value ? (
         <Pressable accessibilityRole="button" accessibilityLabel="clear search" onPress={() => onChange('')} style={hit}>
@@ -55,8 +59,9 @@ export function ProductSearchField({
 }
 
 export function FarmSearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={field}>
+    <View style={[field, focused ? fieldFocus : null]}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         value={value}
@@ -66,7 +71,9 @@ export function FarmSearchField({ value, onChange }: { value: string; onChange: 
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel="search farms"
-        style={input}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={[input, focused ? inputFocus : inputRest]}
       />
       {value ? (
         <Pressable accessibilityRole="button" accessibilityLabel="clear search" onPress={() => onChange('')} style={hit}>
@@ -79,7 +86,10 @@ export function FarmSearchField({ value, onChange }: { value: string; onChange: 
 
 const hit = { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
 const cancelHit = { minWidth: 44, height: 44, paddingHorizontal: 8, alignItems: 'center' as const, justifyContent: 'center' as const };
-const field = { minHeight: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row' as const, alignItems: 'center' as const, paddingLeft: 14, paddingRight: 4 };
+const field = { minHeight: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row' as const, alignItems: 'center' as const, paddingLeft: 14, paddingRight: 4, borderWidth: 1, borderColor: 'transparent' };
+const fieldFocus = { borderColor: colors.peri };
 const input = { flex: 1, fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, paddingVertical: 0, marginLeft: 8 };
+const inputRest = Platform.OS === 'web' ? { outlineWidth: 0 } : null;
+const inputFocus = Platform.OS === 'web' ? { outlineWidth: 2, outlineStyle: 'solid' as const, outlineColor: colors.peri, outlineOffset: 2 } : null;
 const clearMark = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.gray };
 const cancelText = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };

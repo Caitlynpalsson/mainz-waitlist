@@ -384,7 +384,7 @@ export default function ListingApproval() {
               )}
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
-              <Text style={title}>{data.farmName}</Text>
+              <Text style={title}>{data.farmName.toLowerCase()}</Text>
               <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
               {data.story ? <Text style={bio}>{data.story}</Text> : null}
               {data.pickupDays || data.deliveryDay ? (
@@ -626,7 +626,7 @@ function Field({ label, value, onChange, onBlur }: { label: string; value: strin
 }
 
 const headline = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600' as const, letterSpacing: -0.6, lineHeight: 34, color: colors.navy, textAlign: 'center' as const };
-const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const title = { fontFamily: 'Inter' as const, fontWeight: '600' as const, fontSize: 26, letterSpacing: -0.4, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const storyStyle = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const productName = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '600' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };

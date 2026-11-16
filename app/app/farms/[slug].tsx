@@ -36,6 +36,8 @@ export default function FarmPage() {
   const cell = useBoxWidth(shopCols, gap);
   const archW = desktop ? 380 : Math.min(320, cell * shopCols);
   const archH = Math.round(archW * 1.21);
+  const searching = productQuery.trim().length > 0;
+  const closeSearch = () => { setSearchOpen(false); setProductQuery(''); };
 
   return (
     <Shell
@@ -45,20 +47,9 @@ export default function FarmPage() {
       top="overlay"
       hideOverlay={hideChrome}
       onScroll={(y) => setHideChrome(y > 72)}
-      right={farm ? (
+      right={farm && !searchOpen ? (
         <>
-          {searchOpen ? (
-            <View style={{ flex: 1 }}>
-              <ProductSearchField
-                farmName={farm.name}
-                value={productQuery}
-                onChange={(value) => { setProductQuery(value); if (value.trim()) setTab('shop'); }}
-                onClose={() => { setSearchOpen(false); setProductQuery(''); }}
-              />
-            </View>
-          ) : (
-            <ProductSearchIcon onPress={() => setSearchOpen(true)} />
-          )}
+          <ProductSearchIcon onPress={() => setSearchOpen(true)} />
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(farm.slug)}>
             <IconHeart filled={followed} />
           </CircleButton>
@@ -67,8 +58,23 @@ export default function FarmPage() {
           </CircleButton>
         </>
       ) : null}
+      sticky={searchOpen && farm ? (
+        <View style={{ width: '100%', marginTop: desktop ? 0 : 48 }}>
+          <ProductSearchField
+            farmName={farm.name}
+            value={productQuery}
+            onChange={(value) => { setProductQuery(value); if (value.trim()) setTab('shop'); }}
+            onClose={closeSearch}
+          />
+        </View>
+      ) : null}
     >
       <Wrap style={{ paddingTop: desktop ? 28 : 8 }}>
+        {desktop && farm && !searchOpen ? (
+          <View style={{ alignItems: 'flex-end' }}>
+            <ProductSearchIcon onPress={() => setSearchOpen(true)} />
+          </View>
+        ) : null}
         {desktop && farm ? (
           <Text style={crumb}>
             farms  /  {farm.city.toLowerCase()}  /  <Text style={{ color: colors.navy }}>{farm.name.toLowerCase()}</Text>
@@ -78,7 +84,7 @@ export default function FarmPage() {
         {loading && !farm ? <Text style={quiet}>loading.</Text> : null}
         {farm ? (
           <>
-            <View style={{ marginTop: desktop ? 36 : 12, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: desktop ? 24 : 22 }}>
+            {searching ? null : <View style={{ marginTop: desktop ? 36 : 12, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: desktop ? 24 : 22 }}>
               {farm.heroPhoto && photoSource(farm.heroPhoto) ? (
                 <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
                   <FoodImage photo={farm.heroPhoto} name={farm.name} width={archW} height={archH} />
@@ -106,9 +112,9 @@ export default function FarmPage() {
                 </View>
                 <Text style={{ fontFamily: 'Inter', fontSize: 11, color: colors.gray, marginTop: 26 }}>prices set by the farmer. not by us.</Text>
               </View>
-            </View>
+            </View>}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: desktop ? 40 : 22, marginTop: desktop ? 72 : 40 }}>
+            {searching ? null : <View style={{ flexDirection: 'row', justifyContent: 'center', gap: desktop ? 40 : 22, marginTop: desktop ? 72 : 40 }}>
               {(['shop', 'about', 'reviews'] as const).map((label) => {
                 const on = tab === label;
                 return (
@@ -117,9 +123,9 @@ export default function FarmPage() {
                   </Pressable>
                 );
               })}
-            </View>
-            <Hair />
-            <View style={{ marginTop: 28 }}>
+            </View>}
+            {searching ? null : <Hair />}
+            <View style={{ marginTop: searching ? 8 : 28 }}>
               {tab === 'shop' ? (
                 <>
                   <Grid cols={shopCols} gap={gap}>
