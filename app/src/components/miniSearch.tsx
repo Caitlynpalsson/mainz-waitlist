@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { SEARCH_EMPTY } from '../../../api/src/search';
 import { colors } from '../theme';
@@ -26,9 +25,8 @@ export function ProductSearchField({
   onClose: () => void;
 }) {
   const placeholder = `search ${farmName.trim().toLowerCase()} products`;
-  const [focused, setFocused] = useState(false);
   return (
-    <View style={[field, focused ? fieldFocus : null]}>
+    <View style={field}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         autoFocus
@@ -36,11 +34,11 @@ export function ProductSearchField({
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor={colors.gray}
+        selectionColor={colors.ink}
+        cursorColor={colors.ink}
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel={placeholder}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         onKeyPress={(event) => {
           if (event.nativeEvent.key === 'Escape') onClose();
         }}
@@ -59,20 +57,19 @@ export function ProductSearchField({
 }
 
 export function FarmSearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const [focused, setFocused] = useState(false);
   return (
-    <View style={[field, focused ? fieldFocus : null]}>
+    <View style={field}>
       <IconSearch size={15} color={colors.gray} />
       <TextInput
         value={value}
         onChangeText={onChange}
         placeholder="search farms"
         placeholderTextColor={colors.gray}
+        selectionColor={colors.ink}
+        cursorColor={colors.ink}
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel="search farms"
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         style={[input, bareInput]}
       />
       {value ? (
@@ -87,8 +84,7 @@ export function FarmSearchField({ value, onChange }: { value: string; onChange: 
 const hit = { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
 const clearHit = { width: 44, height: 44, flexGrow: 0, flexShrink: 0, alignItems: 'center' as const, justifyContent: 'center' as const };
 const cancelHit = { minWidth: 44, height: 44, paddingHorizontal: 10, flexGrow: 0, flexShrink: 0, alignItems: 'center' as const, justifyContent: 'center' as const };
-const field = { width: '100%' as const, minWidth: 0, minHeight: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row' as const, alignItems: 'center' as const, paddingLeft: 14, paddingRight: 4, borderWidth: 0 };
-const fieldFocus = { boxShadow: '0 0 0 2px #9FBBE0' };
+const field = { width: '100%' as const, minWidth: 0, minHeight: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row' as const, alignItems: 'center' as const, paddingLeft: 14, paddingRight: 4, borderWidth: 0, boxShadow: 'none' as const };
 const input = {
   flexGrow: 1,
   flexShrink: 1,
@@ -101,6 +97,6 @@ const input = {
   marginLeft: 8,
   borderWidth: 0,
 };
-const bareInput = { outlineStyle: 'none', outlineWidth: 0, borderWidth: 0 } as object;
+const bareInput = { outlineStyle: 'none', outlineWidth: 0, borderWidth: 0, caretColor: colors.ink } as object;
 const clearMark = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.gray };
 const cancelText = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };
