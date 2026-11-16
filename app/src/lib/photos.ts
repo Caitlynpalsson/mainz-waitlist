@@ -19,6 +19,7 @@ const profiles = {
   'profile-hollow-tree-honey': require('../../assets/photos/profile-hollow-tree-honey.jpg'),
   'profile-keeper-of-the-b': require('../../assets/photos/profile-keeper-of-the-b.jpg'),
   'profile-utah-natural-meat': require('../../assets/photos/profile-utah-natural-meat.jpg'),
+  'profile-christiansens-family-farm': require('../../assets/photos/profile-christiansens-family-farm.jpg'),
 } as const;
 
 const originals = {
@@ -206,6 +207,11 @@ const farmKeeper = {
 } as const;
 
 
+const farmChristiansen = {
+  'christiansen-steak': require('../../assets/photos/christiansen-steak.jpg'),
+  'christiansen-beef-roast': require('../../assets/photos/christiansen-beef-roast.jpg'),
+} as const;
+
 const stockFills = {
   'stock-ground-beef': require('../../assets/photos/stock-ground-beef.jpg'),
   'stock-steak': require('../../assets/photos/stock-steak.jpg'),
@@ -235,6 +241,7 @@ const stock = {
   ...farmPapaBears,
   ...farmHollowTree,
   ...farmKeeper,
+  ...farmChristiansen,
   ...stockFills,
 } as const;
 
