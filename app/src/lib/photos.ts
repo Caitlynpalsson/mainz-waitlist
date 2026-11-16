@@ -205,6 +205,16 @@ const farmKeeper = {
   'keeper-creamed-honey': require('../../assets/photos/keeper-creamed-honey.jpg'),
 } as const;
 
+
+const stockFills = {
+  'stock-ground-beef': require('../../assets/photos/stock-ground-beef.jpg'),
+  'stock-steak': require('../../assets/photos/stock-steak.jpg'),
+  'stock-pork-belly': require('../../assets/photos/stock-pork-belly.jpg'),
+  'stock-comb-honey': require('../../assets/photos/stock-comb-honey.jpg'),
+  'stock-milk': require('../../assets/photos/stock-milk.jpg'),
+  'stock-butter': require('../../assets/photos/stock-butter.jpg'),
+} as const;
+
 const stock = {
   ...profiles,
   ...originals,
@@ -225,6 +235,7 @@ const stock = {
   ...farmPapaBears,
   ...farmHollowTree,
   ...farmKeeper,
+  ...stockFills,
 } as const;
 
 export type StockKey = keyof typeof stock;
