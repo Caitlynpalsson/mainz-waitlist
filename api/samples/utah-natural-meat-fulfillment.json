@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the farm store",
+      "address": "7400 South 5600 West, West Jordan, UT 84081",
+      "schedule": "tuesday and thursday 12-6pm, saturday 10am-3pm",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84081"
+    }
+  ]
+}

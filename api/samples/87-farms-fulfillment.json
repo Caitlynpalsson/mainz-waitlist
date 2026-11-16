@@ -1,0 +1,110 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the farm",
+      "address": "987 Utah 31, Huntington, UT 84528",
+      "schedule": "any day by appointment",
+      "windows": [],
+      "cutoff": "order by noon 2 days ahead",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84528"
+    },
+    {
+      "name": "Vanguard",
+      "address": "2650 S. Decker Lake Ln, West Valley City, UT 84119",
+      "schedule": "sunday",
+      "windows": [
+        "12:00-1:00pm",
+        "3:00-4:00pm"
+      ],
+      "cutoff": "order by fri 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84119"
+    },
+    {
+      "name": "Vanguard",
+      "address": "2650 S. Decker Lake Ln, West Valley City, UT 84119",
+      "schedule": "wednesday",
+      "windows": [
+        "3:30-5:30pm"
+      ],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84119"
+    },
+    {
+      "name": "John's Marketplace",
+      "address": "4141 S Redwood Rd, Salt Lake City, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84123"
+    },
+    {
+      "name": "Bountify Baby",
+      "address": "3650 W 2150 S, Salt Lake City, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84119"
+    },
+    {
+      "name": "Karen's",
+      "address": "3274 W Spring Glen Circle, West Valley City, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84119"
+    },
+    {
+      "name": "Becca's",
+      "address": "6710 S 2700 W, West Jordan, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84084"
+    },
+    {
+      "name": "Jenkins Lane",
+      "address": "8667 S 3130 W, West Jordan, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84088"
+    },
+    {
+      "name": "Marie's",
+      "address": "3568 New Private Drive, Riverton, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84065"
+    },
+    {
+      "name": "ABL Trucking",
+      "address": "901 S 1800 W, Woods Cross, UT",
+      "schedule": "wednesday",
+      "windows": [],
+      "cutoff": "order by mon 5pm",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84087"
+    }
+  ]
+}

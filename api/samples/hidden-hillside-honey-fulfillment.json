@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the farm",
+      "address": "7501 North 6500 West, American Fork, UT 84003",
+      "schedule": "by appointment, walk-ins welcome",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84003"
+    }
+  ]
+}

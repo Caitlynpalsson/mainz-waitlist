@@ -1,0 +1,35 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "Provo shop",
+      "address": "54 N 400 W, Provo, UT 84601",
+      "schedule": "butcher shop",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84601"
+    },
+    {
+      "name": "Lehi shop",
+      "address": "139 N 1800 E, Lehi, UT 84043",
+      "schedule": "butcher shop",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84043"
+    },
+    {
+      "name": "Santaquin shop",
+      "address": "167 W Main Street, Santaquin, UT 84655",
+      "schedule": "butcher shop",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84655"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the west jordan shop",
+      "address": "3853 Westland Dr, West Jordan, UT 84088",
+      "schedule": "tuesday, thursday, and friday 5-7pm, saturday 9am-noon",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84088"
+    },
+    {
+      "name": "the layton shop",
+      "address": "1261 E 300 N, Layton, UT 84040",
+      "schedule": "monday-friday 5-7pm, saturday 9am-noon",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84040"
+    }
+  ]
+}

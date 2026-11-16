@@ -1,0 +1,15 @@
+{
+  "offersDelivery": false,
+  "options": [
+    {
+      "name": "the shop",
+      "address": "2109 E 200 S, Layton, UT 84040",
+      "schedule": "monday-friday, weekends by appointment",
+      "windows": [],
+      "cutoff": "",
+      "feeCents": 0,
+      "minimumCents": null,
+      "zip": "84040"
+    }
+  ]
+}

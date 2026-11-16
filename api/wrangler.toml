@@ -1,0 +1,21 @@
+name = "mainz-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# Replace database_id after `npx wrangler d1 create mainz`.
+# The placeholder is enough for `wrangler dev` on this machine.
+[[d1_databases]]
+binding = "DB"
+database_name = "mainz"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
+
+# Close delivery runs every 15 minutes. A run confirms at its cutoff, or sooner from the admin button.
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# 500 basis points = 5%. A placeholder until Stripe Connect sets the real fee.
+PLATFORM_FEE_BPS = "500"
+# Charged once per farm sub-order that the shopper marks as delivery. Placeholder.
+DELIVERY_FEE_CENTS = "500"
