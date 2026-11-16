@@ -116,6 +116,7 @@ export default function FarmPage() {
                   grows={(data?.products || []).map((product) => product.name)}
                   sinceYear={farm.sinceYear}
                   meetLine={farm.meetLine}
+                  pickupLine={farm.pickupLine}
                   photo={farm.profilePhoto}
                   hero={farm.heroPhoto}
                   width={cell * shopCols}

@@ -99,6 +99,10 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0024_meet_line_warm.sql` replaces thin meet lines with a sentence taken from that farm's own website. Farms without a readable site are left alone.
 
+`0025_pickup_and_stock_photos.sql` fills Gilgen and Lavender Hive pickup from their own sites, and points a few placeholder products at stock photos.
+
+`0026_meet_and_pickup_lines.sql` sets 87 Farms' pickup line from stops we already stored, and plain meet lines for McArthur and Papa Bear's. Those two sites belong to other farms, so the lines do not borrow their history.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

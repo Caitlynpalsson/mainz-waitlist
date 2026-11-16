@@ -148,7 +148,14 @@ export function publicOnboarding(row: {
   };
 }
 
-export const PICKUP_WORKS_LINE = "add your zip and we'll show the closest pickup spots at checkout.";
+export const PICKUP_WORKS_LINE = "we'll confirm pickup with you. nothing is set until the farm says so.";
+
+/** Use the farm's own pickup line when we have one. Otherwise stay general. */
+export function howPickupWorks(line?: string): string {
+  const custom = (line || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!custom) return PICKUP_WORKS_LINE;
+  return /[.!?]$/.test(custom) ? custom : `${custom}.`;
+}
 
 export const WHY_MAINZ_LINES = [
   'buy straight from the farmer.',

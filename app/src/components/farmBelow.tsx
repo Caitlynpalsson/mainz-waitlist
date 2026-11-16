@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { PICKUP_WORKS_LINE, WHY_MAINZ_LINES, farmPortrait, meetTheFarmLines, portraitIsLogo } from '../../../api/src/listing';
+import { WHY_MAINZ_LINES, farmPortrait, howPickupWorks, meetTheFarmLines, portraitIsLogo } from '../../../api/src/listing';
 import { colors } from '../theme';
 import { FoodImage } from './ui';
 
@@ -10,6 +10,7 @@ export function FarmBelow({
   story,
   alreadyShown,
   meetLine,
+  pickupLine,
   town,
   grows,
   sinceYear,
@@ -20,6 +21,7 @@ export function FarmBelow({
   story: string;
   alreadyShown?: string;
   meetLine?: string;
+  pickupLine?: string;
   town?: string;
   grows?: string[];
   sinceYear?: number | null;
@@ -48,7 +50,7 @@ export function FarmBelow({
       ) : null}
       <View style={{ alignItems: 'center', width: '100%', maxWidth: 420 }}>
         <Text style={heading}>how pickup works</Text>
-        <Text style={body}>{PICKUP_WORKS_LINE}</Text>
+        <Text style={body}>{howPickupWorks(pickupLine)}</Text>
       </View>
       <View style={{ alignItems: 'center', width: '100%', maxWidth: 420 }}>
         <Text style={heading}>why mainz</Text>

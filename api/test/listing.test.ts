@@ -9,6 +9,7 @@ import {
   listingAppearsInBrowse,
   LISTING_CONFIRM_LINE,
   PICKUP_WORKS_LINE,
+  howPickupWorks,
   WHY_MAINZ_LINES,
   ONBOARDING_DONE,
   ONBOARDING_SMS,
@@ -249,9 +250,11 @@ test('farm pages keep a short story and never promise a launch', () => {
   assert.equal(farmPortrait('placeholder', 'hero'), '');
   assert.equal(farmPortrait('profile-mcarthur-farms', 'profile-mcarthur-farms'), '');
   assert.equal(farmPortrait('profile-mcarthur-farms', 'mcarthur-tallow'), 'profile-mcarthur-farms');
-  const copy = `${PICKUP_WORKS_LINE} ${WHY_MAINZ_LINES.join(' ')}`;
-  assert.equal(/launch|approved to receive orders/i.test(copy), false);
-  assert.equal(PICKUP_WORKS_LINE.includes('zip'), true);
+  const copy = `${PICKUP_WORKS_LINE} ${WHY_MAINZ_LINES.join(' ')} ${howPickupWorks('pickup at the farm in huntington, any day by appointment, and at spots in the salt lake valley')}`;
+  assert.equal(/launch|approved to receive orders|goes live/i.test(copy), false);
+  assert.equal(PICKUP_WORKS_LINE, "we'll confirm pickup with you. nothing is set until the farm says so.");
+  assert.equal(howPickupWorks(''), PICKUP_WORKS_LINE);
+  assert.equal(howPickupWorks('pickup at the farm in huntington, any day by appointment, and at spots in the salt lake valley'), 'pickup at the farm in huntington, any day by appointment, and at spots in the salt lake valley.');
   assert.equal(WHY_MAINZ_LINES.length, 3);
 });
 

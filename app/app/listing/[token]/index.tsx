@@ -27,6 +27,7 @@ type Listing = {
   pickupDays?: string;
   deliveryDay?: string;
   pickupPreview?: string[];
+  pickupLine?: string;
   meetLine?: string;
   onboarding?: OnboardingAnswers & { done?: boolean };
   products: Product[];
@@ -316,24 +317,24 @@ export default function ListingApproval() {
                   <Text style={confirmText}>this is my farm</Text>
                 </Pressable>
               </View>
-              <View style={banner}>
-                <View style={{ opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+              {sheet ? null : (
+                <View style={banner}>
                   <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                   <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
                   <TextUsLine style={bannerTextUs} />
+                  <View style={{ marginTop: 16, width: '100%', maxWidth: 320 }}>
+                    <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy} onPress={() => startOnboarding()} />
+                  </View>
+                  <View style={bannerLinks}>
+                    <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
+                      <Text style={bannerLink}>change something</Text>
+                    </Pressable>
+                    <Pressable onPress={openRemove} accessibilityRole="button">
+                      <Text style={bannerLink}>take it down</Text>
+                    </Pressable>
+                  </View>
                 </View>
-                <View style={{ marginTop: 16, width: '100%', maxWidth: 320, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
-                  <PrimaryButton label={busy ? 'saving…' : 'this is my farm, love it'} disabled={busy || sheet} onPress={() => startOnboarding()} />
-                </View>
-                <View style={[bannerLinks, { opacity: sheet ? 0 : 1 }]} pointerEvents={sheet ? 'none' : 'auto'}>
-                  <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
-                    <Text style={bannerLink}>change something</Text>
-                  </Pressable>
-                  <Pressable onPress={openRemove} accessibilityRole="button">
-                    <Text style={bannerLink}>take it down</Text>
-                  </Pressable>
-                </View>
-              </View>
+              )}
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName}</Text>
@@ -397,7 +398,7 @@ export default function ListingApproval() {
                   <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>+ add more products</Text>
                 </Pressable>
               </Grid>
-              <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
+              <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} pickupLine={data.pickupLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
             </View>
           </>
         ) : null}
