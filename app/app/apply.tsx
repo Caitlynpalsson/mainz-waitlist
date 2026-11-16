@@ -75,8 +75,7 @@ export default function Apply() {
               </View>
               <TextInput value={company} onChangeText={setCompany} style={{ position: 'absolute', left: -9999, height: 0 }} accessibilityElementsHidden importantForAccessibility="no" />
               {error ? <Text style={[quiet, { color: colors.red, marginTop: 18 }]}>{error}</Text> : null}
-              <Text style={[quiet, { marginTop: 36 }]}>founding farms get the sign-up fee waived.</Text>
-              <View style={{ marginTop: 16 }}>
+              <View style={{ marginTop: 36 }}>
                 <PrimaryButton label={sending ? 'sending…' : 'apply to sell on mainz'} disabled={sending} onPress={submit} />
               </View>
             </>

@@ -28,8 +28,7 @@ export default function ForFarmers() {
             ))}
           </View>
           <Text style={[quiet, { marginTop: desktop ? 28 : 16 }]}>every farm is reviewed. our team gives the page a final look.</Text>
-          <Text style={[quiet, { marginTop: 8 }]}>founding farms get the sign-up fee waived.</Text>
-          <View style={{ marginTop: 22, width: '100%', maxWidth: 320 }}>
+          <View style={{ marginTop: 28, width: '100%', maxWidth: 320 }}>
             <PrimaryButton label="apply to sell on mainz" onPress={() => router.push('/apply')} />
           </View>
         </View>
