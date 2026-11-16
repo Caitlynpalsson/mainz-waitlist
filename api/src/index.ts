@@ -1,10 +1,10 @@
 import { handleAdmin, isAdminRequest } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
-import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, saveOnboarding, savePublicListing } from './listingStore';
+import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, redeemStaffPreviewCode, saveOnboarding, savePublicListing, staffSessionAllows } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
-import { shopFlagsForUdafCheck } from './listing';
+import { shopFlagsForUdafCheck, shopperHero } from './listing';
 import { deliveryFeeOnPlace, parseAddress } from './delivery';
 import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary, weekdayForFarmStops } from './deliveryStore';
@@ -101,7 +101,7 @@ type ProductJoin = {
 const corsHeaders: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS',
-  'access-control-allow-headers': 'content-type, authorization, x-farm-token',
+  'access-control-allow-headers': 'content-type, authorization, x-farm-token, x-staff-session',
   'access-control-max-age': '86400',
 };
 
@@ -163,8 +163,13 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && listingChanges) return changePublicListing(env, listingChanges[1], await readJson(request));
   const listingShopper = path.match(/^\/api\/listings\/([a-z0-9_]+)\/shopper$/);
   if (method === 'GET' && listingShopper) {
-    if (!isAdminRequest(request, env)) throw new HttpError('that farm is not on mainz.', 404);
+    const allowed = isAdminRequest(request, env) || await staffSessionAllows(env, request, listingShopper[1]);
+    if (!allowed) throw new HttpError('that farm is not on mainz.', 404);
     return getStaffShopperPreview(env, listingShopper[1]);
+  }
+  if (method === 'POST' && path === '/api/staff-preview/redeem') {
+    const body = await readJson<{ code?: string }>(request);
+    return redeemStaffPreviewCode(env, String(body.code || ''));
   }
   const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
   if (method === 'GET' && listingPage) return getPublicListing(env, listingPage[1]);
@@ -308,6 +313,10 @@ async function farmDetail(env: Env, slug: string, url: URL): Promise<Response> {
      ORDER BY p.shop_order, p.id`,
   ).bind(farm.id).all<ProductJoin>();
   const view = farmDetailCard(farm, products.results.length, origin);
+  view.heroPhoto = shopperHero({
+    heroPhoto: view.heroPhoto,
+    products: products.results.map((row) => ({ name: row.food_name, photoKey: row.photo || row.photo_key })),
+  });
   const stops = parseFulfillment(farm.fulfillment_json || '').options.map((option) => ({
     zip: option.zip,
     town: shortTown(option.address),

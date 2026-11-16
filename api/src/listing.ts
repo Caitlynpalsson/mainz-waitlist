@@ -15,6 +15,7 @@ export const LISTING_PHOTO_KEYS = [
   '87-eggs',
   '87-ground-beef',
   '87-steak',
+  'ribeye-steak',
   '87-beef-roast',
   '87-stew-meat',
   '87-beef-bones',
@@ -73,6 +74,23 @@ export function shopperPreviewPath(token: string): string {
   return `/listing/${token}/shopper`;
 }
 
+const SKIP_HERO = /^(placeholder|stock-|profile-)/;
+
+/** A real product photo can stand in for a missing hero. Logos, placeholders, and stock fills cannot. */
+export function shopperHero(input: {
+  heroPhoto?: string;
+  products?: { name?: string; photoKey?: string }[];
+}): string {
+  const explicit = (input.heroPhoto || '').trim();
+  if (explicit && !SKIP_HERO.test(explicit)) return explicit;
+  const real = (input.products || []).filter((product) => {
+    const photo = (product.photoKey || '').trim();
+    return photo && !SKIP_HERO.test(photo);
+  });
+  const steak = real.find((product) => /ribeye|steak/i.test(`${product.name || ''} ${product.photoKey || ''}`));
+  return (steak || real[0])?.photoKey?.trim() || '';
+}
+
 /** A read-only shopper shape. It does not change status or shop visibility. */
 export function staffShopperFromDraft(input: {
   farmName: string;
@@ -80,6 +98,7 @@ export function staffShopperFromDraft(input: {
   story: string;
   status: string;
   profilePhoto?: string;
+  heroPhoto?: string;
   meetLine?: string;
   pickupLine?: string;
   pickupDays?: string;
@@ -130,7 +149,7 @@ export function staffShopperFromDraft(input: {
       bio: input.story,
       about: input.story,
       profilePhoto: input.profilePhoto || '',
-      heroPhoto: '',
+      heroPhoto: shopperHero({ heroPhoto: input.heroPhoto, products: input.products }),
       meetLine: input.meetLine || '',
       pickupLine: input.pickupLine || '',
       pickupDays: input.pickupDays || '',
@@ -476,6 +495,7 @@ export type CsvProduct = {
   matchedName: string;
   priceStatus: PriceStatus;
   needsUdafCheck: boolean;
+  availability?: string;
   problems: string[];
 };
 

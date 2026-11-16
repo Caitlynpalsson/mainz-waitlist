@@ -40,6 +40,7 @@ export default function ListingEditor() {
   const [products, setProducts] = useState<ProductDraft[]>([emptyProduct()]);
   const [saved, setSaved] = useState<Listing | null>(null);
   const [error, setError] = useState('');
+  const [phoneLink, setPhoneLink] = useState('');
 
   useEffect(() => {
     if (!auth.token || creating || !id) return;
@@ -88,6 +89,23 @@ export default function ListingEditor() {
     }
   }
 
+  async function makePhoneLink() {
+    if (!auth.token || !saved?.path.startsWith('/listing/')) return;
+    setError('');
+    const listingToken = saved.path.slice('/listing/'.length);
+    try {
+      const next = await api<{ path: string }>(`/api/admin/listings/shopper-link`, {
+        method: 'POST',
+        headers: adminHeaders(auth.token),
+        body: JSON.stringify({ token: listingToken }),
+      });
+      const origin = typeof window === 'undefined' ? '' : window.location.origin;
+      setPhoneLink(origin ? `${origin}${next.path}` : next.path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not make a link.');
+    }
+  }
+
   async function markSent() {
     if (!auth.token || !saved) return;
     setError('');
@@ -119,6 +137,12 @@ export default function ListingEditor() {
                   <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.navy }}>see it like a shopper</Text>
                 </Pressable>
               ) : null}
+              {saved?.path ? (
+                <Pressable onPress={makePhoneLink} style={{ marginTop: 10, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.gray }}>make a 15 minute phone link</Text>
+                </Pressable>
+              ) : null}
+              {phoneLink ? <Text style={[quiet, { marginTop: 8 }]}>{phoneLink}</Text> : null}
               <Field label="farm name" value={farmName} onChange={setFarmName} />
               <Field label="story line" value={story} onChange={setStory} />
               <Field label="location" value={location} onChange={setLocation} />

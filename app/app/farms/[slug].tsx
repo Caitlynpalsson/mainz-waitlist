@@ -11,6 +11,7 @@ import { originQuery, usePlace } from '../../src/lib/place';
 import { useStore } from '../../src/lib/store';
 import type { FarmDetail, ProductCard } from '../../src/lib/types';
 import { miles } from '../../src/lib/money';
+import { photoSource } from '../../src/lib/photos';
 import { colors, useLayout } from '../../src/theme';
 
 type Payload = { farm: FarmDetail; products: ProductCard[] };
@@ -62,13 +63,15 @@ export default function FarmPage() {
         {farm ? (
           <>
             <View style={{ marginTop: desktop ? 36 : 12, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: desktop ? 24 : 22 }}>
-              <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
-                <FoodImage photo={farm.heroPhoto} name={farm.name} width={archW} height={archH} />
-              </View>
+              {farm.heroPhoto && photoSource(farm.heroPhoto) ? (
+                <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
+                  <FoodImage photo={farm.heroPhoto} name={farm.name} width={archW} height={archH} />
+                </View>
+              ) : null}
               <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
-                <Text style={title}>{farm.name}</Text>
+                <Text style={title}>{farm.name.toLowerCase()}</Text>
                 <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
@@ -140,7 +143,7 @@ function Stat({ n, label }: { n: string; label: string }) {
   );
 }
 
-const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const title = { fontFamily: 'Inter' as const, fontWeight: '600' as const, fontSize: 26, letterSpacing: -0.4, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
 const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
 const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };

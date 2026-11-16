@@ -107,6 +107,10 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0029_listing_deny_note.sql` stores the optional note when a farm takes their page down and picks other. The one-tap reason stays in `deny_reason`.
 
+`0030_listing_hero.sql` stores an optional hero photo. 87 Farms uses the ribeye photo.
+
+`0031_staff_preview_links.sql` stores hashed one-time staff links and short sessions. The admin token is never in the link. Make one with `POST /api/admin/listings/shopper-link` and `Authorization: Bearer` the admin token. The body is `{ "token": "<listing token>" }`. The reply `path` is `/staff/go/<code>` and lasts 15 minutes. Opening it spends the code. A second open, or a late one, says this link expired.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

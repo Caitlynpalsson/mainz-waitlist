@@ -122,6 +122,7 @@ const farm87 = {
   '87-eggs': require('../../assets/photos/87-eggs.jpg'),
   '87-ground-beef': require('../../assets/photos/87-ground-beef.jpg'),
   '87-steak': require('../../assets/photos/87-steak.jpg'),
+  'ribeye-steak': require('../../assets/photos/ribeye-steak.jpg'),
   '87-beef-roast': require('../../assets/photos/87-beef-roast.jpg'),
   '87-stew-meat': require('../../assets/photos/87-stew-meat.jpg'),
   '87-beef-bones': require('../../assets/photos/87-beef-bones.jpg'),

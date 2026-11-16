@@ -1,6 +1,7 @@
 import { lookupRoute, weekdayForFarmStops } from './deliveryStore';
 import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupSpotPill, pickupTownLine, shortTown } from './fulfillment';
 import { HttpError, json } from './http';
+import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, makeStaffSession, readStaffSession, sessionCookie, sha256Hex, staffCodeStatus } from './staffPreview';
 import { priceGroups } from './orderMath';
 import {
   payPrefForSave,
@@ -58,6 +59,7 @@ type DraftRow = {
   pickup_note: string;
   onboarding_done: number;
   meet_line: string;
+  hero_photo?: string;
   created_at: string;
   updated_at: string;
 };
@@ -180,7 +182,7 @@ export async function getPublicListing(env: Env, token: string): Promise<Respons
     if (await retiredToken(env, token)) return json(removedListingPayload());
     throw new HttpError('we cannot find that listing.', 404);
   }
-  if (listing.status === 'farm_denied') return json(removedListingPayload(listing.profile_photo || ''));
+  if (listing.status === 'farm_denied') return json(removedListingPayload(listing));
   return json(await present(env, listing));
 }
 
@@ -195,12 +197,72 @@ export async function getStaffShopperPreview(env: Env, token: string): Promise<R
     story: view.story,
     status: view.status,
     profilePhoto: view.profilePhoto,
+    heroPhoto: view.heroPhoto,
     meetLine: view.meetLine,
     pickupLine: view.pickupLine,
     pickupDays: view.pickupDays,
     deliveryDay: view.deliveryDay,
     products: view.products,
   }));
+}
+
+export async function staffSessionAllows(env: Env, request: Request, listingToken: string): Promise<boolean> {
+  const raw = readStaffSession(request);
+  if (!raw) return false;
+  const row = await env.DB.prepare(
+    `SELECT listing_token, expires_at FROM staff_preview_sessions WHERE session_hash = ?`,
+  ).bind(await sha256Hex(raw)).first<{ listing_token: string; expires_at: string }>();
+  if (!row || row.listing_token !== listingToken) return false;
+  return Date.parse(row.expires_at) > Date.now();
+}
+
+export async function createStaffPreviewLink(env: Env, listingToken: string): Promise<Response> {
+  const token = listingToken.trim();
+  if (!/^lk_[0-9a-f]{32}$/.test(token)) throw new HttpError('that listing link is not right.');
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('we cannot find that listing.', 404);
+  const made = await makeStaffPreviewCode(Date.now());
+  await env.DB.prepare(
+    `INSERT INTO staff_preview_codes (code_hash, listing_token, expires_at) VALUES (?, ?, ?)`,
+  ).bind(made.codeHash, token, made.expiresAt).run();
+  return json({
+    path: made.path,
+    shopperPath: `/listing/${token}/shopper`,
+    expiresAt: made.expiresAt,
+  });
+}
+
+export async function redeemStaffPreviewCode(env: Env, code: string): Promise<Response> {
+  const clean = code.trim();
+  if (!/^[0-9a-f]{64}$/.test(clean)) return expiredLink();
+  const now = new Date();
+  const hash = await sha256Hex(clean);
+  const row = await env.DB.prepare(
+    `SELECT code_hash, listing_token, expires_at, used_at FROM staff_preview_codes WHERE code_hash = ?`,
+  ).bind(hash).first<{ code_hash: string; listing_token: string; expires_at: string; used_at: string }>();
+  if (!row || staffCodeStatus({ expiresAt: row.expires_at, usedAt: row.used_at, nowMs: now.getTime() }) !== 'ok') return expiredLink();
+  const spent = await env.DB.prepare(
+    `UPDATE staff_preview_codes SET used_at = ? WHERE code_hash = ? AND used_at = ''`,
+  ).bind(now.toISOString(), hash).run();
+  if (!Number(spent.meta?.changes || 0)) return expiredLink();
+  const session = await makeStaffSession(now.getTime());
+  await env.DB.prepare(
+    `INSERT INTO staff_preview_sessions (session_hash, listing_token, expires_at) VALUES (?, ?, ?)`,
+  ).bind(session.sessionHash, row.listing_token, session.expiresAt).run();
+  const headers = new Headers({
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-store',
+    'set-cookie': sessionCookie(session.session),
+  });
+  return new Response(JSON.stringify({
+    shopperPath: `/listing/${row.listing_token}/shopper`,
+    session: session.session,
+    expiresAt: session.expiresAt,
+  }), { headers });
+}
+
+function expiredLink(): Response {
+  return json({ error: STAFF_LINK_EXPIRED }, 410);
 }
 
 export async function saveOnboarding(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
@@ -241,7 +303,7 @@ export async function approvePublicListing(env: Env, token: string): Promise<Res
 export async function denyPublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
-  if (listing.status === 'farm_denied') return json(removedListingPayload(listing.profile_photo || ''));
+  if (listing.status === 'farm_denied') return json(removedListingPayload(listing));
   const deniedAt = new Date().toISOString();
   let denyReason = '';
   let denyNote = '';
@@ -259,7 +321,7 @@ export async function denyPublicListing(env: Env, token: string, body: Record<st
   await env.DB.prepare(
     `UPDATE listing_drafts SET status = ?, denied_at = ?, deny_reason = ?, deny_note = ?, updated_at = datetime('now') WHERE id = ?`,
   ).bind('farm_denied', deniedAt, denyReason, denyNote, listing.id).run();
-  return json(removedListingPayload(listing.profile_photo || ''));
+  return json(removedListingPayload(listing));
 }
 
 export async function changePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
@@ -391,6 +453,7 @@ async function present(env: Env, row: DraftRow) {
     denyNote: row.deny_note || '',
     farmerNames: row.farmer_names || '',
     profilePhoto: row.profile_photo || '',
+    heroPhoto: row.hero_photo || '',
     pickupLine: pickupTownLine(pickupOptions, row.pickup_line || ''),
     pickupDays,
     deliveryDay,
@@ -516,19 +579,19 @@ function canEdit(status: string): boolean {
   return status !== 'farm_approved' && status !== 'farm_denied';
 }
 
-function removedListingPayload(profilePhoto = '') {
+function removedListingPayload(listing?: { profile_photo?: string; farm_name?: string }) {
   return {
     status: 'farm_denied' as const,
     statusLabel: 'denied',
     removed: true,
     shopVisible: false,
     products: [] as [],
-    farmName: '',
+    farmName: listing?.farm_name || '',
     farmerNames: '',
     story: '',
     location: '',
     changeNote: '',
-    profilePhoto,
+    profilePhoto: listing?.profile_photo || '',
     needsForm: false,
   };
 }

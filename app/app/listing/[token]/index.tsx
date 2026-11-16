@@ -266,12 +266,13 @@ export default function ListingApproval() {
         {!step && data && denied ? (
           <View style={{ minHeight: Math.max(420, height - 140), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
             <DownPortrait photo={data.profilePhoto} name={data.farmName} />
+            {data.farmName ? <Text style={doneName}>{data.farmName.toLowerCase()}</Text> : null}
             <Text style={doneLine}>
               {(LISTING_REMOVED_LINE.split(ONBOARDING_TEXT_US)[0] || '').replace('letting us know 💛', 'letting\u00A0us\u00A0know\u00A0💛')}
               <Text
                 accessibilityRole="link"
                 onPress={() => Linking.openURL(ONBOARDING_SMS).catch(() => undefined)}
-                style={{ color: colors.navy }}
+                style={smsLink}
               >
                 {ONBOARDING_TEXT_US}
               </Text>
@@ -634,7 +635,9 @@ const quietClose = { width: 44, height: 44, alignItems: 'center' as const, justi
 const quietCloseMark = { fontFamily: 'Inter' as const, fontSize: 18, fontWeight: '500' as const, color: colors.gray };
 const reasonRow = { width: '100%' as const, gap: 8, marginTop: 22 };
 const reasonPill = { width: '100%' as const, minHeight: 48, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center' as const, justifyContent: 'center' as const };
-const doneLine = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 24, color: colors.ink, textAlign: 'center' as const, marginTop: 22, maxWidth: 340 };
+const doneName = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const, marginTop: 14 };
+const doneLine = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 24, color: colors.ink, textAlign: 'center' as const, marginTop: 14, maxWidth: 340 };
+const smsLink = { color: colors.navy, whiteSpace: 'nowrap' as const };
 const reasonPillOn = { backgroundColor: colors.navy };
 const reasonText = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 18, color: colors.navy, textAlign: 'center' as const };
 const reasonTextOn = { color: colors.white };

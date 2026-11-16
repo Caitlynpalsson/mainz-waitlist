@@ -10,6 +10,7 @@ import { adminHeaders, useAdminToken } from '../../../src/lib/adminAuth';
 import { useStore } from '../../../src/lib/store';
 import { miles } from '../../../src/lib/money';
 import { colors, useLayout } from '../../../src/theme';
+import { photoSource } from '../../../src/lib/photos';
 import { STAFF_PREVIEW_TAG } from '../../../../api/src/listing';
 
 type Farm = {
@@ -59,7 +60,8 @@ export default function StaffShopperPreview() {
 
   useEffect(() => {
     if (!auth.ready) return undefined;
-    if (!auth.token || !token) {
+    const session = typeof sessionStorage === 'undefined' ? '' : (sessionStorage.getItem('mainz.staffSession') || '');
+    if ((!auth.token && !session) || !token) {
       setData(null);
       setError('that farm is not on mainz.');
       setLoading(false);
@@ -67,7 +69,8 @@ export default function StaffShopperPreview() {
     }
     let cancel = false;
     setLoading(true);
-    api<Payload>(`/api/listings/${token}/shopper`, { headers: adminHeaders(auth.token) })
+    const headers = auth.token ? adminHeaders(auth.token) : { 'x-staff-session': session };
+    api<Payload>(`/api/listings/${token}/shopper`, { headers })
       .then((next) => {
         if (!cancel) {
           setData(next);
@@ -114,19 +117,15 @@ export default function StaffShopperPreview() {
           <>
             <View style={staffTag}><Text style={staffTagText}>{data?.tag || STAFF_PREVIEW_TAG}</Text></View>
             <View style={{ marginTop: desktop ? 28 : 12, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: desktop ? 24 : 22 }}>
-              {farm.heroPhoto ? (
+              {farm.heroPhoto && photoSource(farm.heroPhoto) ? (
                 <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
                   <FoodImage photo={farm.heroPhoto} name={farm.name} width={archW} height={archH} />
                 </View>
-              ) : (
-                <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                  <Text style={{ fontFamily: 'Inter', fontSize: 22, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>{farm.name.toLowerCase()}</Text>
-                </View>
-              )}
+              ) : null}
               <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: desktop ? 20 : 0 }}>
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 {farm.city ? <Cap muted>{`${farm.city}${farm.state ? `, ${farm.state}` : ''}`.toLowerCase()}</Cap> : null}
-                <Text style={title}>{farm.name}</Text>
+                <Text style={title}>{farm.name.toLowerCase()}</Text>
                 <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
                 {farm.bio ? <Text style={bio}>{farm.bio}</Text> : null}
                 {farm.pickupDays || farm.deliveryDay ? (
@@ -203,7 +202,7 @@ function Stat({ n, label }: { n: string; label: string }) {
   );
 }
 
-const title = { fontFamily: 'Inter' as const, fontWeight: '800' as const, fontSize: 26, letterSpacing: -1, textTransform: 'uppercase' as const, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
+const title = { fontFamily: 'Inter' as const, fontWeight: '600' as const, fontSize: 26, letterSpacing: -0.4, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
 const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
 const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };

@@ -6,6 +6,7 @@ import {
   adminMarkSent,
   adminPublishListing,
   adminSaveListing,
+  createStaffPreviewLink,
   importListingCsv,
   previewListingCsv,
 } from './listingStore';
@@ -85,6 +86,10 @@ export async function handleAdmin(request: Request, env: Env, method: string, pa
   if (method === 'GET' && path === '/api/admin/listings') return adminListings(env);
   if (method === 'POST' && path === '/api/admin/listings/preview') return previewListingCsv(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/listings/import') return importListingCsv(env, await readJson(request));
+  if (method === 'POST' && path === '/api/admin/listings/shopper-link') {
+    const body = await readJson(request);
+    return createStaffPreviewLink(env, String(body.token || ''));
+  }
   if (method === 'POST' && path === '/api/admin/listings') return adminSaveListing(env, null, await readJson(request));
   const listingOne = path.match(/^\/api\/admin\/listings\/(\d+)$/);
   if (method === 'GET' && listingOne) return adminGetListing(env, Number(listingOne[1]));
