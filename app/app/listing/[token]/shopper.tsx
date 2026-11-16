@@ -11,6 +11,8 @@ import { useStore } from '../../../src/lib/store';
 import { miles } from '../../../src/lib/money';
 import { colors, useLayout } from '../../../src/theme';
 import { photoSource } from '../../../src/lib/photos';
+import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../src/components/miniSearch';
+import { searchProducts } from '../../../../api/src/search';
 import { STAFF_PREVIEW_TAG } from '../../../../api/src/listing';
 
 type Farm = {
@@ -50,6 +52,8 @@ export default function StaffShopperPreview() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'shop' | 'about' | 'reviews'>('shop');
   const [hideChrome, setHideChrome] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [productQuery, setProductQuery] = useState('');
   const gap = desktop ? 36 : 14;
   const cell = useBoxWidth(shopCols, gap);
   const farm = data?.farm;
@@ -101,6 +105,18 @@ export default function StaffShopperPreview() {
       onScroll={(y) => setHideChrome(y > 72)}
       right={farm ? (
         <>
+          {searchOpen ? (
+            <View style={{ flex: 1 }}>
+              <ProductSearchField
+                farmName={farm.name}
+                value={productQuery}
+                onChange={(value) => { setProductQuery(value); if (value.trim()) setTab('shop'); }}
+                onClose={() => { setSearchOpen(false); setProductQuery(''); }}
+              />
+            </View>
+          ) : (
+            <ProductSearchIcon onPress={() => setSearchOpen(true)} />
+          )}
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(followKey)}>
             <IconHeart filled={followed} />
           </CircleButton>
@@ -157,16 +173,19 @@ export default function StaffShopperPreview() {
             <Hair />
             <View style={{ marginTop: 28 }}>
               {tab === 'shop' ? (
-                <Grid cols={shopCols} gap={gap}>
-                  {(data?.products || []).map((product) => (
-                    <ShopCard
-                      key={product.id}
-                      width={cell}
-                      product={product}
-                      onPress={() => router.push(`/listing/${token}/product/${product.id}`)}
-                    />
-                  ))}
-                </Grid>
+                <>
+                  <Grid cols={shopCols} gap={gap}>
+                    {searchProducts(data?.products || [], productQuery).map((product) => (
+                      <ShopCard
+                        key={product.id}
+                        width={cell}
+                        product={product}
+                        onPress={() => router.push(`/listing/${token}/product/${product.id}`)}
+                      />
+                    ))}
+                  </Grid>
+                  {productQuery && searchProducts(data?.products || [], productQuery).length === 0 ? <Text style={quiet}>{SEARCH_EMPTY}</Text> : null}
+                </>
               ) : null}
               {tab === 'about' ? <Text style={prose}>{farm.about || farm.bio}</Text> : null}
               {tab === 'reviews' ? <Text style={prose}>no reviews yet. they show up after real orders.</Text> : null}

@@ -77,7 +77,7 @@ export function Shell({
       {!desktop && top === 'overlay' && !hideOverlay ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: Math.max(insets.top, 10), left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CircleBack />
-          <View style={{ flexDirection: 'row', gap: 8 }}>{right}</View>
+          <View style={{ flex: 1, marginLeft: 20, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>{right}</View>
         </View>
       ) : null}
     </View>

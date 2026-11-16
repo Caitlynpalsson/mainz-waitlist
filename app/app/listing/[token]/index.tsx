@@ -10,6 +10,8 @@ import { colors, useLayout } from '../../../src/theme';
 import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, ONBOARDING_SMS, ONBOARDING_TEXT_US, REMOVE_REASONS, draftDisplayPrice, onboardingStep, portraitIsLogo, type OnboardingStep, type PayPref, type RemoveReason } from '../../../../api/src/listing';
 import { FarmOnboarding, TextUsLine, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
 import { photoSource } from '../../../src/lib/photos';
+import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../src/components/miniSearch';
+import { searchProducts } from '../../../../api/src/search';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -67,6 +69,8 @@ export default function ListingApproval() {
   const [picked, setPicked] = useState<Food | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [productQuery, setProductQuery] = useState('');
 
   function take(next: Listing, first: boolean) {
     setData(next);
@@ -331,6 +335,9 @@ export default function ListingApproval() {
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
               <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 32, marginBottom: 10 }}>
                 <View style={{ opacity: sheet || down ? 0 : 1 }} pointerEvents={sheet || down ? 'none' : 'auto'}>
+                  {searchOpen ? null : <ProductSearchIcon onPress={() => setSearchOpen(true)} />}
+                </View>
+                <View style={{ opacity: sheet || down ? 0 : 1 }} pointerEvents={sheet || down ? 'none' : 'auto'}>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="this is my farm"
@@ -350,6 +357,16 @@ export default function ListingApproval() {
                   <Text style={quietCloseMark}>x</Text>
                 </Pressable>
               </View>
+              {searchOpen && !sheet && !down ? (
+                <View style={{ width: '100%', maxWidth: 520, marginBottom: 18 }}>
+                  <ProductSearchField
+                    farmName={data.farmName}
+                    value={productQuery}
+                    onChange={setProductQuery}
+                    onClose={() => { setSearchOpen(false); setProductQuery(''); }}
+                  />
+                </View>
+              ) : null}
               {sheet || down ? null : (
                 <View style={banner}>
                   <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
@@ -379,7 +396,7 @@ export default function ListingApproval() {
             </View>
             <View style={{ marginTop: desktop ? 48 : 32 }}>
               <Grid cols={shopCols} gap={gap}>
-                {data.products.map((product) => {
+                {searchProducts(data.products, productQuery).map((product) => {
                   const shown = draftDisplayPrice(product, data.priceFixes || []);
                   return (
                   <View key={product.id || product.name}>
@@ -428,6 +445,7 @@ export default function ListingApproval() {
                   <Text style={{ fontFamily: 'Inter', fontSize: 15, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>+ add more products</Text>
                 </Pressable>
               </Grid>
+              {productQuery && searchProducts(data.products, productQuery).length === 0 ? <Text style={{ ...quiet, marginTop: 22 }}>{SEARCH_EMPTY}</Text> : null}
               <FarmBelow story={data.story} alreadyShown={data.story} meetLine={data.meetLine} pickupLine={data.pickupLine} town={data.location} grows={data.products.map((product) => product.name)} photo={data.profilePhoto} width={cell * shopCols} />
             </View>
           </>

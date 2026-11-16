@@ -10,6 +10,8 @@ import { originQuery, usePlace } from '../src/lib/place';
 import { useStore } from '../src/lib/store';
 import type { BrowseResponse, ProductCard } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
+import { searchPublicFarms } from '../../api/src/search';
+import { FarmSearchField, SEARCH_EMPTY } from '../src/components/miniSearch';
 
 const CATS = ['all', 'produce', 'eggs', 'honey', 'dairy', 'meat', 'bakery', 'pantry'];
 
@@ -28,6 +30,7 @@ export default function Browse() {
   const { desktop, seasonCols } = useLayout();
   const { saved, toggleSaved } = useStore();
   const [draft, setDraft] = useState(q);
+  const [farmQuery, setFarmQuery] = useState('');
   useEffect(() => setDraft(q), [q]);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -37,7 +40,7 @@ export default function Browse() {
   }, [draft, q]);
 
   const products = data?.products || [];
-  const farms = data?.farms || [];
+  const farms = searchPublicFarms(data?.farms || [], farmQuery);
   const gap = desktop ? 36 : 18;
   const cols = !desktop && !q && season === 'week' ? 1 : desktop ? seasonCols : 2;
   const cell = useBoxWidth(Math.max(cols, 1), gap);
@@ -107,13 +110,16 @@ export default function Browse() {
         </View>
 
         <View style={{ marginTop: desktop ? 88 : 48 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 22 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 18 }}>
             <Cap>farms near you</Cap>
             <Pressable onPress={() => router.push('/farms')}><Text style={see}>see all {data?.farmCount || ''}</Text></Pressable>
           </View>
-          <FarmGrid farms={farms.slice(0, 3)} />
+          <View style={{ maxWidth: 420, marginBottom: 22 }}>
+            <FarmSearchField value={farmQuery} onChange={setFarmQuery} />
+          </View>
+          <FarmGrid farms={farmQuery.trim() ? farms : farms.slice(0, 3)} />
           {!loading && farms.length === 0 ? (
-            <Text style={quiet}>no farms within 40 miles of {here.place.name.toLowerCase()} yet.</Text>
+            <Text style={quiet}>{farmQuery.trim() ? SEARCH_EMPTY : `no farms within 40 miles of ${here.place.name.toLowerCase()} yet.`}</Text>
           ) : null}
         </View>
 
