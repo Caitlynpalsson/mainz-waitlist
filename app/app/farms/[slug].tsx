@@ -97,7 +97,6 @@ export default function FarmPage() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name.toLowerCase()}</Text>
-                <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
                   <FulfillmentPills
@@ -172,8 +171,6 @@ function Stat({ n, label }: { n: string; label: string }) {
 }
 
 const title = { fontFamily: 'Inter' as const, fontWeight: '600' as const, fontSize: 26, letterSpacing: -0.4, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
-const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
-const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const prose = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const crumb = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray };

@@ -385,7 +385,6 @@ export default function ListingApproval() {
               <FarmAvatar photo={data.profilePhoto} name={data.farmName} size={desktop ? 96 : 72} />
               {data.location ? <Cap muted>{data.location.toLowerCase()}</Cap> : null}
               <Text style={title}>{data.farmName.toLowerCase()}</Text>
-              <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
               {data.story ? <Text style={bio}>{data.story}</Text> : null}
               {data.pickupDays || data.deliveryDay ? (
                 <View style={{ marginTop: 20 }}>
@@ -659,8 +658,6 @@ const smsLink = { color: colors.navy, whiteSpace: 'nowrap' as const };
 const reasonPillOn = { backgroundColor: colors.navy };
 const reasonText = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 18, color: colors.navy, textAlign: 'center' as const };
 const reasonTextOn = { color: colors.white };
-const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
-const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const banner = { width: '100%' as const, maxWidth: 520, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' as const, marginBottom: 28 };
 const bannerTitle = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 22, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const };
 const bannerBody = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 21, color: colors.ink, textAlign: 'center' as const, marginTop: 10 };

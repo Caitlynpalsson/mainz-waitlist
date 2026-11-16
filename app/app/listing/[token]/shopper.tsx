@@ -167,7 +167,6 @@ export default function StaffShopperPreview() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 {farm.city ? <Cap muted>{`${farm.city}${farm.state ? `, ${farm.state}` : ''}`.toLowerCase()}</Cap> : null}
                 <Text style={title}>{farm.name.toLowerCase()}</Text>
-                <View style={badge}><Text style={badgeText}>founding farm 🌱</Text></View>
                 {farm.bio ? <Text style={bio}>{farm.bio}</Text> : null}
                 {farm.pickupDays || farm.deliveryDay ? (
                   <View style={{ marginTop: 20 }}>
@@ -247,8 +246,6 @@ function Stat({ n, label }: { n: string; label: string }) {
 }
 
 const title = { fontFamily: 'Inter' as const, fontWeight: '600' as const, fontSize: 26, letterSpacing: -0.4, color: colors.navy, marginTop: 12, textAlign: 'center' as const };
-const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
-const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const bio = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const prose = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 22, color: colors.ink, textAlign: 'center' as const };
 const quiet = { fontFamily: 'Inter' as const, color: colors.gray, textAlign: 'center' as const, marginTop: 40 };
