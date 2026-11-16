@@ -7,6 +7,7 @@ import {
   adminPublishListing,
   adminSaveListing,
   createStaffPreviewLink,
+  revokeStaffSessions,
   importListingCsv,
   previewListingCsv,
 } from './listingStore';
@@ -86,6 +87,7 @@ export async function handleAdmin(request: Request, env: Env, method: string, pa
   if (method === 'GET' && path === '/api/admin/listings') return adminListings(env);
   if (method === 'POST' && path === '/api/admin/listings/preview') return previewListingCsv(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/listings/import') return importListingCsv(env, await readJson(request));
+  if (method === 'POST' && path === '/api/admin/staff-sessions/revoke') return revokeStaffSessions(env);
   if (method === 'POST' && path === '/api/admin/listings/shopper-link') {
     const body = await readJson(request);
     return createStaffPreviewLink(env, String(body.token || ''));

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import { staffLinkMessage } from '../../../../api/src/staffPreview';
+import { STAFF_SESSION_KEY, staffLinkMessage } from '../../../../api/src/staffPreview';
 import { colors } from '../../../src/theme';
 
 export default function StaffGo() {
@@ -21,7 +21,7 @@ export default function StaffGo() {
     })
       .then((next) => {
         if (cancel) return;
-        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('mainz.staffSession', next.session);
+        if (typeof localStorage !== 'undefined') localStorage.setItem(STAFF_SESSION_KEY, next.session);
         router.replace(next.shopperPath);
       })
       .catch((err: unknown) => {

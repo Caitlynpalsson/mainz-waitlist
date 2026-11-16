@@ -1,4 +1,8 @@
-const FIFTEEN_MINUTES = 15 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+const LINK_LIFE = DAY;
+const SESSION_LIFE = 30 * DAY;
+
+export const STAFF_SESSION_KEY = 'mainz.staffSession';
 
 export const STAFF_LINK_EXPIRED = 'this link expired';
 export const STAFF_LINK_RETRY = 'something went wrong, try again';
@@ -30,7 +34,7 @@ export async function makeStaffPreviewCode(nowMs: number): Promise<{ code: strin
     code,
     codeHash: await sha256Hex(code),
     path: staffGoPath(code),
-    expiresAt: new Date(nowMs + FIFTEEN_MINUTES).toISOString(),
+    expiresAt: new Date(nowMs + LINK_LIFE).toISOString(),
   };
 }
 
@@ -39,8 +43,13 @@ export async function makeStaffSession(nowMs: number): Promise<{ session: string
   return {
     session,
     sessionHash: await sha256Hex(session),
-    expiresAt: new Date(nowMs + FIFTEEN_MINUTES).toISOString(),
+    expiresAt: new Date(nowMs + SESSION_LIFE).toISOString(),
   };
+}
+
+/** A saved session opens any hidden draft until it expires. It is not tied to one listing. */
+export function staffSessionOpen(expiresAt: string, nowMs: number): boolean {
+  return Date.parse(expiresAt) > nowMs;
 }
 
 export function staffCodeStatus(input: { expiresAt: string; usedAt: string; nowMs: number }): 'ok' | 'expired' {
@@ -49,14 +58,8 @@ export function staffCodeStatus(input: { expiresAt: string; usedAt: string; nowM
   return 'ok';
 }
 
-export function sessionCookie(session: string): string {
-  return `mainz_staff=${session}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=900`;
-}
-
 export function readStaffSession(request: Request): string {
   const header = request.headers.get('x-staff-session') || '';
-  if (/^[0-9a-f]{64}$/.test(header.trim())) return header.trim();
-  const cookie = request.headers.get('cookie') || '';
-  const match = cookie.match(/(?:^|;\s*)mainz_staff=([0-9a-f]{64})/);
-  return match?.[1] || '';
+  const value = header.trim();
+  return /^[0-9a-f]{64}$/.test(value) ? value : '';
 }

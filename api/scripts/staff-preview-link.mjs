@@ -1,5 +1,6 @@
-// Makes a one-time staff shopper link. Reads ADMIN_TOKEN from the environment.
-// It prints the path only. It does not print the admin token.
+// Makes a one-time staff shopper link. The code lasts 24 hours.
+// The first open keeps that phone signed in for 30 days.
+// Reads ADMIN_TOKEN from the environment. Prints the path only.
 const token = process.argv[2] || '';
 const api = (process.env.MAINZ_API_URL || process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
 const admin = process.env.ADMIN_TOKEN || '';

@@ -109,7 +109,7 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0030_listing_hero.sql` stores an optional hero photo. 87 Farms uses the ribeye photo.
 
-`0031_staff_preview_links.sql` stores hashed one-time staff links and short sessions. The admin token is never in the link. Make one with `POST /api/admin/listings/shopper-link` and `Authorization: Bearer` the admin token. The body is `{ "token": "<listing token>" }`. The reply `path` is `/staff/go/<code>` and lasts 15 minutes. Opening it spends the code. A second open, or a late one, says this link expired.
+`0031_staff_preview_links.sql` stores hashed one-time staff links and sessions. The admin token is never in the link or the phone. Make one with `POST /api/admin/listings/shopper-link` and `Authorization: Bearer` the admin token. The body is `{ "token": "<listing token>" }`. The reply `path` is `/staff/go/<code>`. The code can be opened for 24 hours and is spent on the first open. That phone then keeps a staff session for 30 days and can open any hidden draft at `/listing/<token>/shopper`. `POST /api/admin/staff-sessions/revoke` with the same admin header ends every staff session.
 
 ## Sample data
 

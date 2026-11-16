@@ -1,7 +1,7 @@
 import { handleAdmin, isAdminRequest } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
-import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, redeemStaffPreviewCode, saveOnboarding, savePublicListing, staffSessionAllows } from './listingStore';
+import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, redeemStaffPreviewCode, saveOnboarding, savePublicListing, signOutStaffSession, staffSessionAllows } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck, shopperHero } from './listing';
@@ -171,6 +171,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     const body = await readJson<{ code?: string }>(request);
     return redeemStaffPreviewCode(env, String(body.code || ''));
   }
+  if (method === 'POST' && path === '/api/staff-preview/sign-out') return signOutStaffSession(env, request);
   const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
   if (method === 'GET' && listingPage) return getPublicListing(env, listingPage[1]);
   if (method === 'PATCH' && listingPage) return savePublicListing(env, listingPage[1], await readJson(request));

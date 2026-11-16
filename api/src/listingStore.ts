@@ -1,7 +1,7 @@
 import { lookupRoute, weekdayForFarmStops } from './deliveryStore';
 import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupSpotPill, pickupTownLine, shortTown } from './fulfillment';
 import { HttpError, json } from './http';
-import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, makeStaffSession, readStaffSession, sha256Hex, staffCodeStatus } from './staffPreview';
+import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, makeStaffSession, readStaffSession, sha256Hex, staffCodeStatus, staffSessionOpen } from './staffPreview';
 import { priceGroups } from './orderMath';
 import {
   payPrefForSave,
@@ -206,14 +206,27 @@ export async function getStaffShopperPreview(env: Env, token: string): Promise<R
   }));
 }
 
-export async function staffSessionAllows(env: Env, request: Request, listingToken: string): Promise<boolean> {
+export async function staffSessionAllows(env: Env, request: Request, _listingToken: string): Promise<boolean> {
   const raw = readStaffSession(request);
   if (!raw) return false;
   const row = await env.DB.prepare(
-    `SELECT listing_token, expires_at FROM staff_preview_sessions WHERE session_hash = ?`,
-  ).bind(await sha256Hex(raw)).first<{ listing_token: string; expires_at: string }>();
-  if (!row || row.listing_token !== listingToken) return false;
-  return Date.parse(row.expires_at) > Date.now();
+    `SELECT expires_at FROM staff_preview_sessions WHERE session_hash = ?`,
+  ).bind(await sha256Hex(raw)).first<{ expires_at: string }>();
+  if (!row) return false;
+  return staffSessionOpen(row.expires_at, Date.now());
+}
+
+export async function signOutStaffSession(env: Env, request: Request): Promise<Response> {
+  const raw = readStaffSession(request);
+  if (raw) {
+    await env.DB.prepare(`DELETE FROM staff_preview_sessions WHERE session_hash = ?`).bind(await sha256Hex(raw)).run();
+  }
+  return json({ signedOut: true });
+}
+
+export async function revokeStaffSessions(env: Env): Promise<Response> {
+  const removed = await env.DB.prepare(`DELETE FROM staff_preview_sessions`).run();
+  return json({ revoked: Number(removed.meta?.changes || 0) });
 }
 
 export async function createStaffPreviewLink(env: Env, listingToken: string): Promise<Response> {

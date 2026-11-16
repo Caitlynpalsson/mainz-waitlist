@@ -139,7 +139,7 @@ export default function ListingEditor() {
               ) : null}
               {saved?.path ? (
                 <Pressable onPress={makePhoneLink} style={{ marginTop: 10, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.gray }}>make a 15 minute phone link</Text>
+                  <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.gray }}>make a 24 hour phone link</Text>
                 </Pressable>
               ) : null}
               {phoneLink ? <Text style={[quiet, { marginTop: 8 }]}>{phoneLink}</Text> : null}

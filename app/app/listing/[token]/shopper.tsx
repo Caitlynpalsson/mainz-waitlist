@@ -14,6 +14,7 @@ import { photoSource } from '../../../src/lib/photos';
 import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../src/components/miniSearch';
 import { searchProducts } from '../../../../api/src/search';
 import { STAFF_PREVIEW_TAG } from '../../../../api/src/listing';
+import { STAFF_SESSION_KEY } from '../../../../api/src/staffPreview';
 
 type Farm = {
   name: string;
@@ -54,6 +55,7 @@ export default function StaffShopperPreview() {
   const [hideChrome, setHideChrome] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [productQuery, setProductQuery] = useState('');
+  const [signedOut, setSignedOut] = useState(false);
   const gap = desktop ? 36 : 14;
   const cell = useBoxWidth(shopCols, gap);
   const farm = data?.farm;
@@ -65,8 +67,8 @@ export default function StaffShopperPreview() {
   const closeSearch = () => { setSearchOpen(false); setProductQuery(''); };
 
   useEffect(() => {
-    if (!auth.ready) return undefined;
-    const session = typeof sessionStorage === 'undefined' ? '' : (sessionStorage.getItem('mainz.staffSession') || '');
+    if (!auth.ready || signedOut) return undefined;
+    const session = typeof localStorage === 'undefined' ? '' : (localStorage.getItem(STAFF_SESSION_KEY) || '');
     if ((!auth.token && !session) || !token) {
       setData(null);
       setError('that farm is not on mainz.');
@@ -95,7 +97,17 @@ export default function StaffShopperPreview() {
     return () => {
       cancel = true;
     };
-  }, [auth.ready, auth.token, token]);
+  }, [auth.ready, auth.token, token, signedOut]);
+
+  async function signOutStaff() {
+    const session = typeof localStorage === 'undefined' ? '' : (localStorage.getItem(STAFF_SESSION_KEY) || '');
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(STAFF_SESSION_KEY);
+    if (session) {
+      await api('/api/staff-preview/sign-out', { method: 'POST', headers: { 'x-staff-session': session } }).catch(() => undefined);
+    }
+    setData(null);
+    setSignedOut(true);
+  }
 
   return (
     <Shell
@@ -136,11 +148,15 @@ export default function StaffShopperPreview() {
             <ProductSearchIcon onPress={() => setSearchOpen(true)} />
           </View>
         ) : null}
+        {signedOut ? <Text style={quiet}>signed out</Text> : null}
         {error ? <Text style={quiet}>{error}</Text> : null}
         {loading && !farm ? <Text style={quiet}>loading.</Text> : null}
         {farm ? (
           <>
             <View style={staffTag}><Text style={staffTagText}>{data?.tag || STAFF_PREVIEW_TAG}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="sign out staff" onPress={signOutStaff} style={{ alignSelf: 'center', minHeight: 44, justifyContent: 'center' }}>
+              <Text style={staffTagText}>sign out staff</Text>
+            </Pressable>
             {searching ? null : <View style={{ marginTop: desktop ? 28 : 12, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: desktop ? 24 : 22 }}>
               {farm.heroPhoto && photoSource(farm.heroPhoto) ? (
                 <View style={{ width: archW, height: archH, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
