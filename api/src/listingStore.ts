@@ -1,7 +1,7 @@
 import { lookupRoute, weekdayForFarmStops } from './deliveryStore';
 import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupSpotPill, pickupTownLine, shortTown } from './fulfillment';
 import { HttpError, json } from './http';
-import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, makeStaffSession, readStaffSession, sessionCookie, sha256Hex, staffCodeStatus } from './staffPreview';
+import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, makeStaffSession, readStaffSession, sha256Hex, staffCodeStatus } from './staffPreview';
 import { priceGroups } from './orderMath';
 import {
   payPrefForSave,
@@ -252,7 +252,6 @@ export async function redeemStaffPreviewCode(env: Env, code: string): Promise<Re
   const headers = new Headers({
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'set-cookie': sessionCookie(session.session),
   });
   return new Response(JSON.stringify({
     shopperPath: `/listing/${row.listing_token}/shopper`,

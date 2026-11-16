@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { shopperHero } from '../src/listing.ts';
-import { STAFF_LINK_EXPIRED, makeStaffPreviewCode, sessionCookie, sha256Hex, staffCodeStatus } from '../src/staffPreview.ts';
+import { STAFF_LINK_EXPIRED, STAFF_LINK_RETRY, makeStaffPreviewCode, sessionCookie, sha256Hex, staffCodeStatus, staffLinkMessage } from '../src/staffPreview.ts';
 
 test('a staff preview code is hashed, single use, and lasts 15 minutes', async () => {
   const now = Date.parse('2026-11-16T00:00:00.000Z');
@@ -18,6 +18,13 @@ test('a staff preview code is hashed, single use, and lasts 15 minutes', async (
   assert.equal(STAFF_LINK_EXPIRED, 'this link expired');
   assert.equal(sessionCookie('abc').includes('HttpOnly'), true);
   assert.equal(sessionCookie('abc').includes('ADMIN'), false);
+});
+
+test('a failed redeem is expired only when the server says so', () => {
+  assert.equal(staffLinkMessage(STAFF_LINK_EXPIRED), 'this link expired');
+  assert.equal(staffLinkMessage('the market is not reachable. is the api running?'), STAFF_LINK_RETRY);
+  assert.equal(staffLinkMessage(''), STAFF_LINK_RETRY);
+  assert.equal(STAFF_LINK_RETRY, 'something went wrong, try again');
 });
 
 test('a missing hero uses a real product photo, and a steak photo wins', () => {

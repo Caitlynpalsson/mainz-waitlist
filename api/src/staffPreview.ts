@@ -1,6 +1,12 @@
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 
 export const STAFF_LINK_EXPIRED = 'this link expired';
+export const STAFF_LINK_RETRY = 'something went wrong, try again';
+
+/** Only a used or expired code gets the expired line. Network and other failures stay separate. */
+export function staffLinkMessage(serverMessage: string): string {
+  return serverMessage === STAFF_LINK_EXPIRED ? STAFF_LINK_EXPIRED : STAFF_LINK_RETRY;
+}
 
 export async function sha256Hex(value: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));

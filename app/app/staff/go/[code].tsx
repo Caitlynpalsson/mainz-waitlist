@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { api } from '../../../src/lib/api';
-import { STAFF_LINK_EXPIRED } from '../../../../api/src/staffPreview';
+import { staffLinkMessage } from '../../../../api/src/staffPreview';
 import { colors } from '../../../src/theme';
 
 export default function StaffGo() {
@@ -11,13 +11,12 @@ export default function StaffGo() {
 
   useEffect(() => {
     if (!code) {
-      setMessage(STAFF_LINK_EXPIRED);
+      setMessage(staffLinkMessage(''));
       return undefined;
     }
     let cancel = false;
     api<{ shopperPath: string; session: string }>('/api/staff-preview/redeem', {
       method: 'POST',
-      credentials: 'include',
       body: JSON.stringify({ code }),
     })
       .then((next) => {
@@ -25,8 +24,8 @@ export default function StaffGo() {
         if (typeof sessionStorage !== 'undefined') sessionStorage.setItem('mainz.staffSession', next.session);
         router.replace(next.shopperPath);
       })
-      .catch(() => {
-        if (!cancel) setMessage(STAFF_LINK_EXPIRED);
+      .catch((err: unknown) => {
+        if (!cancel) setMessage(staffLinkMessage(err instanceof Error ? err.message : ''));
       });
     return () => {
       cancel = true;
