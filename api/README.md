@@ -105,6 +105,8 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0027_payout_connected.sql` adds a mock flag for the payout stand-in. No bank account is stored. A real Stripe account link would replace `api/src/payout.ts` only.
 
+`0029_listing_deny_note.sql` stores the optional note when a farm takes their page down and picks other. The one-tap reason stays in `deny_reason`.
+
 ## Sample data
 
 Four approved farms and one pending application are loaded. They are made up. Distances are sample miles from Spanish Fork, not a live map.

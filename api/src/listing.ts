@@ -66,7 +66,22 @@ export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 
 export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
 
-export const LISTING_REMOVED_LINE = "got it. we've removed your page. thank you for your time.";
+export const LISTING_REMOVED_LINE = "all done. your page is down. thanks for letting us know 💛";
+export const REMOVE_REASONS = [
+  "i don't want this service",
+  "not selling right now",
+  "something's wrong on my page",
+  "other",
+] as const;
+export type RemoveReason = (typeof REMOVE_REASONS)[number];
+
+/** A farm's one-tap reason, plus an optional note only when they pick other. */
+export function cleanPageRemoval(reason: string, note: string): { denyReason: RemoveReason; denyNote: string } {
+  const denyReason = reason.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!(REMOVE_REASONS as readonly string[]).includes(denyReason)) throw new Error('pick a reason.');
+  const extra = denyReason === 'other' ? note.trim().replace(/\s+/g, ' ') : '';
+  return { denyReason: denyReason as RemoveReason, denyNote: extra.slice(0, 280) };
+}
 export const LISTING_CONFIRM_LINE = "once you confirm, our team gives your page a final look. thank you for growing such good food.";
 export const LISTING_THANKS_LINE = "thank you. we're so happy to have you. our team is giving your page a final look.";
 

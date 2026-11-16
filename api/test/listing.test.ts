@@ -31,6 +31,7 @@ import {
   storyLines,
   LISTING_REMOVED_LINE,
   LISTING_THANKS_LINE,
+  cleanPageRemoval,
   denyListing,
   listingCanBePublished,
   listingInvite,
@@ -162,7 +163,11 @@ test('denying a listing records the reason, hides the page, and cannot publish i
   assert.notEqual(resent.token, SAMPLE_LISTING_TOKEN);
   assert.equal(listingCanBePublished(resent.status), false);
   assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
-  assert.equal(LISTING_REMOVED_LINE, "got it. we've removed your page. thank you for your time.");
+  assert.equal(LISTING_REMOVED_LINE, "all done. your page is down. thanks for letting us know 💛");
+  assert.deepEqual(cleanPageRemoval("  other  ", "  the prices  "), { denyReason: 'other', denyNote: 'the prices' });
+  assert.deepEqual(cleanPageRemoval("i don't want this service", 'skip this'), { denyReason: "i don't want this service", denyNote: '' });
+  assert.equal(cleanPageRemoval('other', 'x'.repeat(300)).denyNote.length, 280);
+  assert.throws(() => cleanPageRemoval('nope', ''), /reason/);
   assert.equal(LISTING_CONFIRM_LINE, "once you confirm, our team gives your page a final look. thank you for growing such good food.");
   assert.equal(LISTING_THANKS_LINE, "thank you. we're so happy to have you. our team is giving your page a final look.");
   assert.equal(/launch|goes live|approved to receive orders|coming soon|not taking orders|orders open at launch|pre-launch/i.test(`${LISTING_CONFIRM_LINE} ${LISTING_THANKS_LINE} ${LISTING_REMOVED_LINE}`), false);

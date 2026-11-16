@@ -7,7 +7,7 @@ import { FarmBelow } from '../../../src/components/farmBelow';
 import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
-import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, draftDisplayPrice, onboardingStep, type OnboardingStep, type PayPref } from '../../../../api/src/listing';
+import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, REMOVE_REASONS, draftDisplayPrice, onboardingStep, type OnboardingStep, type PayPref, type RemoveReason } from '../../../../api/src/listing';
 import { FarmOnboarding, TextUsLine, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
@@ -46,11 +46,12 @@ export default function ListingApproval() {
   const [data, setData] = useState<Listing | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
-  const [denyNote, setDenyNote] = useState('');
   const [sheet, setSheet] = useState(false);
   const [ask, setAsk] = useState("what's off?");
   const [off, setOff] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [down, setDown] = useState(false);
+  const [downReason, setDownReason] = useState<RemoveReason | ''>('');
+  const [downNote, setDownNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [filling, setFilling] = useState(false);
@@ -104,6 +105,7 @@ export default function ListingApproval() {
       take(next, false);
       setNote('');
       setSheet(false);
+      setDown(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'try again.');
     } finally {
@@ -172,16 +174,18 @@ export default function ListingApproval() {
   function openChange(prompt: string) {
     setAsk(prompt);
     setOff(true);
-    setRemoving(false);
+    setDown(false);
     setFormError('');
     setSheet(true);
   }
 
-  function openRemove() {
-    setRemoving(true);
+  function openDown() {
+    setSheet(false);
     setOff(false);
+    setDownReason('');
+    setDownNote('');
     setFormError('');
-    setSheet(true);
+    setDown(true);
   }
 
   async function startOnboarding() {
@@ -308,15 +312,26 @@ export default function ListingApproval() {
         {!step && preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
-              <View style={{ alignSelf: 'flex-end', marginBottom: 10, opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+              <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="this is my farm"
-                  onPress={() => { setOff(false); setRemoving(false); setFormError(''); setSheet(true); }}
-                  style={confirmPill}
+                  accessibilityLabel="take my page down"
+                  onPress={openDown}
+                  style={[quietClose, sheet || down ? { opacity: 0 } : null]}
+                  pointerEvents={sheet || down ? 'none' : 'auto'}
                 >
-                  <Text style={confirmText}>this is my farm</Text>
+                  <Text style={quietCloseMark}>x</Text>
                 </Pressable>
+                <View style={{ opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="this is my farm"
+                    onPress={() => { setOff(false); setDown(false); setFormError(''); setSheet(true); }}
+                    style={confirmPill}
+                  >
+                    <Text style={confirmText}>this is my farm</Text>
+                  </Pressable>
+                </View>
               </View>
               {sheet ? null : (
                 <View style={banner}>
@@ -329,9 +344,6 @@ export default function ListingApproval() {
                   <View style={bannerLinks}>
                     <Pressable onPress={() => openChange("what's off?")} accessibilityRole="button">
                       <Text style={bannerLink}>change something</Text>
-                    </Pressable>
-                    <Pressable onPress={openRemove} accessibilityRole="button">
-                      <Text style={bannerLink}>take it down</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -413,21 +425,27 @@ export default function ListingApproval() {
         ask={ask}
         off={off}
         setOff={setOff}
-        removing={removing}
-        setRemoving={setRemoving}
-        denyNote={denyNote}
-        setDenyNote={setDenyNote}
         onClose={() => setSheet(false)}
         onConfirm={() => startOnboarding()}
         onChanges={() => send(`/api/listings/${token}/changes`, { note })}
-        onDeny={() => send(`/api/listings/${token}/deny`, { note: denyNote })}
+      />
+      <DownSheet
+        open={down}
+        busy={busy}
+        error={formError}
+        reason={downReason}
+        setReason={setDownReason}
+        note={downNote}
+        setNote={setDownNote}
+        onClose={() => setDown(false)}
+        onRemove={() => send(`/api/listings/${token}/deny`, { reason: downReason, note: downReason === 'other' ? downNote : '' })}
       />
     </Shell>
   );
 }
 
 function ConfirmSheet({
-  open, busy, error, note, setNote, ask, off, setOff, removing, setRemoving, denyNote, setDenyNote, onClose, onConfirm, onChanges, onDeny,
+  open, busy, error, note, setNote, ask, off, setOff, onClose, onConfirm, onChanges,
 }: {
   open: boolean;
   busy: boolean;
@@ -437,14 +455,9 @@ function ConfirmSheet({
   ask: string;
   off: boolean;
   setOff: (value: boolean) => void;
-  removing: boolean;
-  setRemoving: (value: boolean) => void;
-  denyNote: string;
-  setDenyNote: (value: string) => void;
   onClose: () => void;
   onConfirm: () => void;
   onChanges: () => void;
-  onDeny: () => void;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -474,31 +487,69 @@ function ConfirmSheet({
               ) : null}
             </View>
           ) : null}
-          <Pressable onPress={() => setRemoving(true)} style={{ marginTop: 16, alignItems: 'center' }}>
-            <Text style={quiet}>take it down</Text>
-          </Pressable>
-          {removing ? (
-            <View style={{ width: '100%' }}>
-              <TextInput
-                value={denyNote}
-                onChangeText={setDenyNote}
-                placeholder="anything you'd like us to know?"
-                placeholderTextColor={colors.gray}
-                autoCapitalize="none"
-                accessibilityLabel="anything you'd like us to know?"
-                style={field}
-              />
-              <Pressable onPress={onDeny} disabled={busy} style={{ marginTop: 10, alignItems: 'center' }}>
-                <Text style={sheetLink}>{busy ? 'saving…' : 'take it down'}</Text>
-              </Pressable>
-            </View>
-          ) : null}
           <Text style={hint}>a few prices are our best guess. tap any price to fix it.</Text>
           <Text style={hint}>{LISTING_CONFIRM_LINE}</Text>
           {error ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{error}</Text> : null}
           <Pressable onPress={onClose} style={{ marginTop: 16, alignItems: 'center' }}>
             <Text style={quiet}>close</Text>
           </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+function DownSheet({
+  open, busy, error, reason, setReason, note, setNote, onClose, onRemove,
+}: {
+  open: boolean;
+  busy: boolean;
+  error: string;
+  reason: RemoveReason | '';
+  setReason: (value: RemoveReason) => void;
+  note: string;
+  setNote: (value: string) => void;
+  onClose: () => void;
+  onRemove: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable accessibilityLabel="keep my page" onPress={onClose} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(20,33,61,0.28)' }} />
+        <View style={{ backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 28 + insets.bottom }}>
+          <Text style={headline}>no worries 🌱 mind telling us why?</Text>
+          <View style={reasonRow}>
+            {REMOVE_REASONS.map((choice) => {
+              const on = reason === choice;
+              return (
+                <Pressable key={choice} accessibilityRole="button" onPress={() => setReason(choice)} style={[reasonPill, on ? reasonPillOn : null]}>
+                  <Text style={[reasonText, on ? reasonTextOn : null]}>{choice}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {reason === 'other' ? (
+            <TextInput
+              value={note}
+              onChangeText={(value) => setNote(value.slice(0, 280))}
+              placeholder="a few words, if you want"
+              placeholderTextColor={colors.gray}
+              autoCapitalize="none"
+              maxLength={280}
+              accessibilityLabel="a few words, if you want"
+              style={field}
+            />
+          ) : null}
+          {reason ? (
+            <View style={{ marginTop: 22, width: '100%' }}>
+              <PrimaryButton label={busy ? 'saving…' : 'take my page down'} disabled={busy} onPress={onRemove} />
+            </View>
+          ) : null}
+          <Pressable onPress={onClose} style={{ marginTop: 16, alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
+            <Text style={quiet}>keep my page</Text>
+          </Pressable>
+          {error ? <Text style={{ ...quiet, color: colors.red, marginTop: 12 }}>{error}</Text> : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -545,6 +596,13 @@ const confirmPill = {
   elevation: 4,
 };
 const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
+const quietClose = { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
+const quietCloseMark = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '500' as const, color: 'rgba(20,33,61,0.35)' };
+const reasonRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 22 };
+const reasonPill = { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center' as const, justifyContent: 'center' as const };
+const reasonPillOn = { backgroundColor: colors.navy };
+const reasonText = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 18, color: colors.navy, textAlign: 'center' as const };
+const reasonTextOn = { color: colors.white };
 const badge = { marginTop: 10, backgroundColor: colors.cream, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 };
 const badgeText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const banner = { width: '100%' as const, maxWidth: 520, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' as const, marginBottom: 28 };

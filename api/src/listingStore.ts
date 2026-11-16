@@ -8,6 +8,7 @@ import {
   cleanFarmProduct,
   cleanListingProduct,
   cleanPriceFix,
+  cleanPageRemoval,
   denyListing,
   draftDisplayPrice,
   listingAppearsInBrowse,
@@ -41,6 +42,7 @@ type DraftRow = {
   staff_approved_at: string;
   denied_at: string;
   deny_reason: string;
+  deny_note?: string;
   is_sample: number;
   farmer_names: string;
   profile_photo: string;
@@ -220,15 +222,23 @@ export async function denyPublicListing(env: Env, token: string, body: Record<st
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
   if (listing.status === 'farm_denied') return json(removedListingPayload());
-  let next;
+  const deniedAt = new Date().toISOString();
+  let denyReason = '';
+  let denyNote = '';
   try {
-    next = denyListing(new Date().toISOString(), String(body.note ?? ''));
+    if (body.reason != null && String(body.reason).trim()) {
+      const cleaned = cleanPageRemoval(String(body.reason), String(body.note ?? ''));
+      denyReason = cleaned.denyReason;
+      denyNote = cleaned.denyNote;
+    } else {
+      denyReason = denyListing(deniedAt, String(body.note ?? '')).denyReason;
+    }
   } catch (error) {
     throw new HttpError(error instanceof Error ? error.message : 'could not remove the page.');
   }
   await env.DB.prepare(
-    `UPDATE listing_drafts SET status = ?, denied_at = ?, deny_reason = ?, updated_at = datetime('now') WHERE id = ?`,
-  ).bind(next.status, next.deniedAt, next.denyReason, listing.id).run();
+    `UPDATE listing_drafts SET status = ?, denied_at = ?, deny_reason = ?, deny_note = ?, updated_at = datetime('now') WHERE id = ?`,
+  ).bind('farm_denied', deniedAt, denyReason, denyNote, listing.id).run();
   return json(removedListingPayload());
 }
 
@@ -323,7 +333,7 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
     const next = resendDeniedListing({ status: existing.status, nextToken: newListingToken() });
     await env.DB.prepare(`INSERT INTO listing_retired_tokens (token) VALUES (?)`).bind(existing.token).run();
     await env.DB.prepare(
-      `UPDATE listing_drafts SET token = ?, status = ?, denied_at = '', deny_reason = '', updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE listing_drafts SET token = ?, status = ?, denied_at = '', deny_reason = '', deny_note = '', updated_at = datetime('now') WHERE id = ?`,
     ).bind(next.token, next.status, id).run();
   } else {
     await env.DB.prepare(
@@ -358,6 +368,7 @@ async function present(env: Env, row: DraftRow) {
     staffApprovedAt: row.staff_approved_at || '',
     deniedAt: row.denied_at || '',
     denyReason: row.deny_reason || '',
+    denyNote: row.deny_note || '',
     farmerNames: row.farmer_names || '',
     profilePhoto: row.profile_photo || '',
     pickupLine: pickupTownLine(pickupOptions, row.pickup_line || ''),
