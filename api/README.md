@@ -93,7 +93,7 @@ npx wrangler d1 migrations apply mainz --remote
 
 `0021_pickup_line.sql` lets a farm replace the one pickup line on its page. Empty keeps the generated line.
 
-`0022_listing_onboarding.sql` stores how a farm wants to be reached, paid, and when pickup looks right. No card is charged and no text is sent. A stored phone is never sent back to the page. The payout step stores only a preference: `bank transfer`, `check`, or `set this up later`. It never collects bank, routing, or address fields.
+`0022_listing_onboarding.sql` stores how a farm wants to be reached, paid, and when pickup looks right. No card is charged and no text is sent. A stored phone is never sent back to the page. The payout step stores only `bank transfer` or `check` for a new answer. `set this up later` is no longer saved. It never collects bank, routing, or address fields.
 
 `0023_meet_line.sql` adds an optional meet-the-farm sentence. When a draft already has a full story, that story is copied in. It does not invent new facts.
 
@@ -102,6 +102,8 @@ npx wrangler d1 migrations apply mainz --remote
 `0025_pickup_and_stock_photos.sql` fills Gilgen and Lavender Hive pickup from their own sites, and points a few placeholder products at stock photos.
 
 `0026_meet_and_pickup_lines.sql` sets 87 Farms' pickup line from stops we already stored, and plain meet lines for McArthur and Papa Bear's. Those two sites belong to other farms, so the lines do not borrow their history.
+
+`0027_payout_connected.sql` adds a mock flag for the payout stand-in. No bank account is stored. A real Stripe account link would replace `api/src/payout.ts` only.
 
 ## Sample data
 

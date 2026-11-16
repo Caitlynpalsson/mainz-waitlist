@@ -44,7 +44,7 @@ type StaffListing = {
   isSample: boolean;
   products: { name: string; priceStatus: string; needsUdafCheck: boolean }[];
   priceFixes?: { id: number; productName: string; priceCents: number }[];
-  onboarding?: { reachVia?: string; reachEmail?: string; payPref?: string; pickupOk?: boolean; pickupNote?: string; done?: boolean };
+  onboarding?: { reachVia?: string; reachEmail?: string; payPref?: string; payoutConnected?: boolean; pickupOk?: boolean; pickupNote?: string; done?: boolean };
 };
 
 type CsvPreview = {
@@ -317,7 +317,7 @@ export default function AdminHome() {
                       <Text style={small}>
                         {[
                           listing.onboarding.reachVia ? `reach ${listing.onboarding.reachVia}${listing.onboarding.reachEmail ? ` ${listing.onboarding.reachEmail}` : ''}` : '',
-                          listing.onboarding.payPref ? `pay ${payPrefLabel(listing.onboarding.payPref)}` : '',
+                          listing.onboarding.payPref ? `pay ${payPrefLabel(listing.onboarding.payPref)}${listing.onboarding.payoutConnected ? ', bank connected' : ''}` : '',
                           listing.onboarding.pickupOk ? 'pickup looks right' : '',
                           listing.onboarding.pickupNote || '',
                           listing.onboarding.done ? 'onboarding done' : '',

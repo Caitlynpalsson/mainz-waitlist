@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { onPayoutReturn, startPayoutOnboarding } from '../src/payout.ts';
 import {
   SAMPLE_LISTING_TOKEN,
   approveListing,
@@ -22,6 +23,7 @@ import {
   PAY_STEP_TITLE,
   onboardingQuestions,
   onboardingStep,
+  payPrefForSave,
   payPrefFromChoice,
   payPrefLabel,
   publicOnboarding,
@@ -283,15 +285,17 @@ test('onboarding saves a preference and never shows a stored phone', () => {
   assert.equal(ONBOARDING_SMS, 'sms:+19725103326');
   assert.equal(ONBOARDING_TEXT_LINE.includes(ONBOARDING_TEXT_US), true);
   assert.equal(PAY_STEP_TITLE, 'how do you want to get paid?');
-  assert.equal(PAY_STEP_LINE, "we'll set this up right before your first order pays out. stripe keeps your bank info safe. we never see it.");
-  assert.equal(PAY_PREF_LABELS['bank transfer'], 'direct deposit through stripe (set up later)');
-  assert.equal(PAY_PREF_LABELS.check, 'mail me a check');
-  assert.equal(PAY_PREF_LABELS['set this up later'], "i'll decide later");
-  assert.equal(payPrefFromChoice('direct deposit through stripe (set up later)'), 'bank transfer');
-  assert.equal(payPrefFromChoice('mail me a check'), 'check');
-  assert.equal(payPrefFromChoice("i'll decide later"), 'set this up later');
-  assert.equal(payPrefFromChoice('bank transfer'), 'bank transfer');
-  assert.equal(payPrefFromChoice('021000021'), '');
-  assert.equal(payPrefLabel('check'), 'mail me a check');
-  assert.equal(/routing|account number|street address/i.test(`${PAY_STEP_TITLE} ${PAY_STEP_LINE}`), false);
+  assert.equal(PAY_STEP_LINE, 'takes about 2 minutes. stripe keeps your bank info safe. we never see it.');
+  assert.equal(payPrefForSave('set this up later'), '');
+  assert.equal(payPrefForSave("i'll decide later"), '');
+  assert.equal(payPrefForSave('bank transfer'), 'bank transfer');
+  assert.equal(payPrefForSave('rather get a check?'), 'check');
+  assert.equal(payPrefForSave('021000021'), '');
+  assert.equal(payPrefFromChoice('set this up later'), 'set this up later');
+  assert.equal(payPrefLabel('check'), 'check');
+  assert.equal(startPayoutOnboarding('/listing/return').mode, 'mock');
+  assert.deepEqual(onPayoutReturn(), { payPref: 'bank transfer', connected: true });
+  assert.equal(publicOnboarding({ pay_pref: 'bank transfer', payout_connected: 1 }).payoutConnected, true);
+  assert.equal(/routing|account number|goes live|launch/i.test(`${PAY_STEP_TITLE} ${PAY_STEP_LINE}`), false);
+  assert.equal(PAY_PREF_LABELS['bank transfer'].includes('set up later'), false);
 });

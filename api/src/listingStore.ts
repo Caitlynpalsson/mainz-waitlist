@@ -3,7 +3,7 @@ import { checkoutChoices, digitsZip, orderPickupOptions, parseFulfillment, picku
 import { HttpError, json } from './http';
 import { priceGroups } from './orderMath';
 import {
-  payPrefFromChoice,
+  payPrefForSave,
   approveListing,
   cleanFarmProduct,
   cleanListingProduct,
@@ -50,6 +50,7 @@ type DraftRow = {
   reach_email: string;
   reach_phone: string;
   pay_pref: string;
+  payout_connected?: number;
   pickup_ok: number;
   pickup_note: string;
   onboarding_done: number;
@@ -189,16 +190,16 @@ export async function saveOnboarding(env: Env, token: string, body: Record<strin
   if (via === 'email' && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('add an email we can use.');
   const typedPhone = body.reachPhone != null ? String(body.reachPhone).replace(/\D/g, '').slice(0, 15) : (listing.reach_phone || '');
   if (via === 'text' && body.reachPhone != null && typedPhone.length < 7) throw new HttpError('add a number we can text.');
-  const payRaw = body.payPref != null ? String(body.payPref) : (listing.pay_pref || '');
-  const pay = payPrefFromChoice(payRaw);
+  const pay = body.payPref == null ? (listing.pay_pref || '') : payPrefForSave(String(body.payPref));
+  const connected = body.payoutConnected === true ? 1 : body.payoutConnected === false ? 0 : (Number(listing.payout_connected) === 1 ? 1 : 0);
   const pickupOk = body.pickupOk === true ? 1 : body.pickupOk === false ? 0 : (Number(listing.pickup_ok) === 1 ? 1 : 0);
   const pickupNote = body.pickupNote != null ? String(body.pickupNote).trim().slice(0, 500) : (listing.pickup_note || '');
   const done = body.done === true ? 1 : (Number(listing.onboarding_done) === 1 ? 1 : 0);
   await env.DB.prepare(
     `UPDATE listing_drafts
-     SET reach_via = ?, reach_email = ?, reach_phone = ?, pay_pref = ?, pickup_ok = ?, pickup_note = ?, onboarding_done = ?, updated_at = datetime('now')
+     SET reach_via = ?, reach_email = ?, reach_phone = ?, pay_pref = ?, payout_connected = ?, pickup_ok = ?, pickup_note = ?, onboarding_done = ?, updated_at = datetime('now')
      WHERE id = ?`,
-  ).bind(via, email, typedPhone, pay, pickupOk, pickupNote, done, listing.id).run();
+  ).bind(via, email, typedPhone, pay, connected, pickupOk, pickupNote, done, listing.id).run();
   const saved = await byToken(env, token);
   return json(await present(env, saved!));
 }

@@ -96,20 +96,27 @@ export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch wi
 export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
 export type PayPref = (typeof PAY_PREFS)[number];
 export const PAY_STEP_TITLE = 'how do you want to get paid?';
-export const PAY_STEP_LINE = "we'll set this up right before your first order pays out. stripe keeps your bank info safe. we never see it.";
-/** Farmer-facing words. The database keeps the short pay_pref values. */
+export const PAY_STEP_LINE = 'takes about 2 minutes. stripe keeps your bank info safe. we never see it.';
+/** Farmer-facing words for a stored value. New answers are only bank transfer or check. */
 export const PAY_PREF_LABELS: Record<PayPref, string> = {
-  'bank transfer': 'direct deposit through stripe (set up later)',
-  check: 'mail me a check',
-  'set this up later': "i'll decide later",
+  'bank transfer': 'bank transfer',
+  check: 'check',
+  'set this up later': 'set this up later',
 };
 
-/** Map a stored value or a farmer-facing label back to pay_pref. Anything else is dropped. */
+/** Map a stored value or an older label back to pay_pref. Anything else is dropped. */
 export function payPrefFromChoice(raw: string): '' | PayPref {
   const value = String(raw || '').trim().toLowerCase();
   if ((PAY_PREFS as readonly string[]).includes(value)) return value as PayPref;
-  const found = (PAY_PREFS as readonly PayPref[]).find((pref) => PAY_PREF_LABELS[pref] === value);
-  return found || '';
+  if (value === "i'll decide later" || value === 'direct deposit through stripe (set up later)') return value === "i'll decide later" ? 'set this up later' : 'bank transfer';
+  if (value === 'mail me a check' || value === 'rather get a check?') return 'check';
+  return '';
+}
+
+/** What a new answer may store. Deferring is no longer accepted. */
+export function payPrefForSave(raw: string): '' | 'bank transfer' | 'check' {
+  const pref = payPrefFromChoice(raw);
+  return pref === 'bank transfer' || pref === 'check' ? pref : '';
 }
 
 export function payPrefLabel(raw: string): string {
@@ -132,16 +139,18 @@ export function publicOnboarding(row: {
   reach_email?: string;
   reach_phone?: string;
   pay_pref?: string;
+  payout_connected?: number;
   pickup_note?: string;
   pickup_ok?: number;
   onboarding_done?: number;
-}): { reachVia: '' | 'text' | 'email'; reachEmail: string; payPref: '' | PayPref; pickupNote: string; pickupOk: boolean; done: boolean } {
+}): { reachVia: '' | 'text' | 'email'; reachEmail: string; payPref: '' | PayPref; payoutConnected: boolean; pickupNote: string; pickupOk: boolean; done: boolean } {
   const via = row.reach_via === 'text' || row.reach_via === 'email' ? row.reach_via : '';
   const pay = payPrefFromChoice(String(row.pay_pref || ''));
   return {
     reachVia: via,
     reachEmail: String(row.reach_email || '').trim(),
     payPref: pay,
+    payoutConnected: Number(row.payout_connected) === 1,
     pickupNote: String(row.pickup_note || ''),
     pickupOk: Number(row.pickup_ok) === 1,
     done: Number(row.onboarding_done) === 1,

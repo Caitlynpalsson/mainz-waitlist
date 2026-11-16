@@ -7,13 +7,12 @@ import {
   ONBOARDING_TEXT_LINE,
   ONBOARDING_TEXT_US,
   ONBOARDING_WELCOME,
-  PAY_PREF_LABELS,
-  PAY_PREFS,
   PAY_STEP_LINE,
   PAY_STEP_TITLE,
   type OnboardingStep,
   type PayPref,
 } from '../../../api/src/listing';
+import { onPayoutReturn, startPayoutOnboarding } from '../../../api/src/payout';
 import { colors } from '../theme';
 import { FoodImage, Pill, PrimaryButton } from './ui';
 
@@ -21,6 +20,7 @@ export type OnboardingAnswers = {
   reachVia: '' | 'text' | 'email';
   reachEmail: string;
   payPref: '' | PayPref;
+  payoutConnected?: boolean;
   pickupNote: string;
   pickupOk: boolean;
 };
@@ -51,7 +51,7 @@ export function FarmOnboarding({
   const [via, setVia] = useState(answers.reachVia || 'email');
   const [email, setEmail] = useState(answers.reachEmail);
   const [phone, setPhone] = useState('');
-  const [pay, setPay] = useState<PayPref>(answers.payPref || 'set this up later');
+  const [payoutPhase, setPayoutPhase] = useState<'choose' | 'mock' | 'connected'>(answers.payoutConnected ? 'connected' : 'choose');
   const [editing, setEditing] = useState(false);
   const [pickupText, setPickupText] = useState(answers.pickupNote || pickupLines.join('\n'));
   const shown = answers.pickupNote || pickupLines.join('\n');
@@ -83,29 +83,40 @@ export function FarmOnboarding({
           </View>
         </>
       ) : null}
-      {step === 'pay' ? (
+      {step === 'pay' && payoutPhase === 'mock' ? (
+        <>
+          {preview ? <Text style={quiet}>preview, nothing is saved.</Text> : null}
+          <Text style={stripeMark}>stripe</Text>
+          <Text style={headline}>connect</Text>
+          <Text style={body}>an account link would open here. stripe would ask its own questions, then send you back.</Text>
+          <Text style={quiet}>no account or routing numbers on this step.</Text>
+          <View style={{ marginTop: 28, width: '100%' }}>
+            <PrimaryButton label="return to mainz" onPress={() => { onPayoutReturn(); setPayoutPhase('connected'); }} />
+          </View>
+        </>
+      ) : null}
+      {step === 'pay' && payoutPhase === 'connected' ? (
+        <>
+          <Text style={headline}>bank connected ✅</Text>
+          <View style={{ marginTop: 28, width: '100%' }}>
+            <PrimaryButton label={busy ? 'saving…' : 'next'} disabled={busy} onPress={() => onNext({ payPref: 'bank transfer', payoutConnected: true })} />
+          </View>
+        </>
+      ) : null}
+      {step === 'pay' && payoutPhase === 'choose' ? (
         <>
           <Text style={headline}>{PAY_STEP_TITLE}</Text>
           <Text style={quiet}>{PAY_STEP_LINE}</Text>
-          <View style={{ width: '100%', gap: 8, marginTop: 22 }}>
-            {PAY_PREFS.map((choice) => {
-              const on = pay === choice;
-              return (
-                <Pressable
-                  key={choice}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  onPress={() => setPay(choice)}
-                  style={{ minHeight: 44, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 999, backgroundColor: on ? colors.navy : colors.cream, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Text style={{ fontFamily: 'Inter', fontSize: 14, lineHeight: 20, fontWeight: on ? '600' : '500', color: on ? colors.white : colors.navy, textAlign: 'center' }}>{PAY_PREF_LABELS[choice]}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
           <View style={{ marginTop: 28, width: '100%' }}>
-            <PrimaryButton label={busy ? 'saving…' : 'next'} disabled={busy} onPress={() => onNext({ payPref: pay })} />
+            <PrimaryButton
+              label="connect my bank"
+              disabled={busy}
+              onPress={() => { startPayoutOnboarding('mainz-payout-return'); setPayoutPhase('mock'); }}
+            />
           </View>
+          <Pressable onPress={() => onNext({ payPref: 'check', payoutConnected: false })} style={{ marginTop: 16 }} disabled={busy}>
+            <Text style={link}>rather get a check?</Text>
+          </Pressable>
         </>
       ) : null}
       {step === 'pickup' ? (
@@ -184,6 +195,7 @@ export function prevOnboardingStep(step: OnboardingStep): OnboardingStep | null 
   return index > 0 ? ONBOARDING_STEPS[index - 1] : null;
 }
 
+const stripeMark = { fontFamily: 'Inter' as const, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.6, color: colors.gray, textAlign: 'center' as const };
 const headline = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600' as const, letterSpacing: -0.6, lineHeight: 34, color: colors.navy, textAlign: 'center' as const };
 const body = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 16 };
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };

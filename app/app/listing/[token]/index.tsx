@@ -205,7 +205,7 @@ export default function ListingApproval() {
   }
 
   async function move(next: OnboardingStep | null, patch: Partial<OnboardingAnswers> & { done?: boolean; reachPhone?: string }) {
-    const saving = !previewing && token && (patch.reachVia || patch.payPref || patch.pickupNote != null || patch.pickupOk != null || patch.done);
+    const saving = !previewing && token && (patch.reachVia || patch.payPref || patch.payoutConnected != null || patch.pickupNote != null || patch.pickupOk != null || patch.done);
     if (saving) {
       setBusy(true);
       setFormError('');
@@ -239,6 +239,7 @@ export default function ListingApproval() {
               reachVia: data?.onboarding?.reachVia || '',
               reachEmail: data?.onboarding?.reachEmail || '',
               payPref: (data?.onboarding?.payPref || '') as '' | PayPref,
+              payoutConnected: !!data?.onboarding?.payoutConnected,
               pickupNote: data?.onboarding?.pickupNote || '',
               pickupOk: !!data?.onboarding?.pickupOk,
             }}
