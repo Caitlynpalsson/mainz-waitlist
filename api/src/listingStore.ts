@@ -10,6 +10,7 @@ import {
   cleanPriceFix,
   cleanPageRemoval,
   denyListing,
+  staffShopperFromDraft,
   draftDisplayPrice,
   listingAppearsInBrowse,
   listingShowsForm,
@@ -179,8 +180,27 @@ export async function getPublicListing(env: Env, token: string): Promise<Respons
     if (await retiredToken(env, token)) return json(removedListingPayload());
     throw new HttpError('we cannot find that listing.', 404);
   }
-  if (listing.status === 'farm_denied') return json(removedListingPayload());
+  if (listing.status === 'farm_denied') return json(removedListingPayload(listing.profile_photo || ''));
   return json(await present(env, listing));
+}
+
+/** Staff-only read of a draft as a shopper page. It does not write, and it does not publish. */
+export async function getStaffShopperPreview(env: Env, token: string): Promise<Response> {
+  const listing = await byToken(env, token);
+  if (!listing) throw new HttpError('that farm is not on mainz.', 404);
+  const view = await present(env, listing);
+  return json(staffShopperFromDraft({
+    farmName: view.farmName,
+    location: view.location,
+    story: view.story,
+    status: view.status,
+    profilePhoto: view.profilePhoto,
+    meetLine: view.meetLine,
+    pickupLine: view.pickupLine,
+    pickupDays: view.pickupDays,
+    deliveryDay: view.deliveryDay,
+    products: view.products,
+  }));
 }
 
 export async function saveOnboarding(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
@@ -221,7 +241,7 @@ export async function approvePublicListing(env: Env, token: string): Promise<Res
 export async function denyPublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
-  if (listing.status === 'farm_denied') return json(removedListingPayload());
+  if (listing.status === 'farm_denied') return json(removedListingPayload(listing.profile_photo || ''));
   const deniedAt = new Date().toISOString();
   let denyReason = '';
   let denyNote = '';
@@ -239,7 +259,7 @@ export async function denyPublicListing(env: Env, token: string, body: Record<st
   await env.DB.prepare(
     `UPDATE listing_drafts SET status = ?, denied_at = ?, deny_reason = ?, deny_note = ?, updated_at = datetime('now') WHERE id = ?`,
   ).bind('farm_denied', deniedAt, denyReason, denyNote, listing.id).run();
-  return json(removedListingPayload());
+  return json(removedListingPayload(listing.profile_photo || ''));
 }
 
 export async function changePublicListing(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
@@ -496,7 +516,7 @@ function canEdit(status: string): boolean {
   return status !== 'farm_approved' && status !== 'farm_denied';
 }
 
-function removedListingPayload() {
+function removedListingPayload(profilePhoto = '') {
   return {
     status: 'farm_denied' as const,
     statusLabel: 'denied',
@@ -508,6 +528,7 @@ function removedListingPayload() {
     story: '',
     location: '',
     changeNote: '',
+    profilePhoto,
     needsForm: false,
   };
 }

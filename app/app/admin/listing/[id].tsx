@@ -114,6 +114,11 @@ export default function ListingEditor() {
             <>
               <Text style={headline}>{creating ? 'new listing' : farmName.toLowerCase() || 'listing'}</Text>
               {saved ? <Text style={quiet}>{saved.isSample ? 'sample. ' : ''}{saved.statusLabel}{saved.denyReason ? `. ${saved.denyReason}` : ''}{saved.denyNote ? `. ${saved.denyNote}` : ''}{saved.deniedAt ? `. ${saved.deniedAt.slice(0, 10)}` : ''}{saved.changeNote ? `. note: ${saved.changeNote}` : ''}{saved.approvedAt ? `. approved ${saved.approvedAt.slice(0, 10)}` : ''}</Text> : null}
+              {saved?.path ? (
+                <Pressable onPress={() => router.push(`${saved.path}/shopper`)} style={{ marginTop: 12, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.navy }}>see it like a shopper</Text>
+                </Pressable>
+              ) : null}
               <Field label="farm name" value={farmName} onChange={setFarmName} />
               <Field label="story line" value={story} onChange={setStory} />
               <Field label="location" value={location} onChange={setLocation} />

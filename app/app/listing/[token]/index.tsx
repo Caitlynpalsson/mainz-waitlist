@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shell } from '../../../src/components/chrome';
 import { FarmBelow } from '../../../src/components/farmBelow';
-import { Cap, FarmAvatar, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
+import { Cap, FarmAvatar, FoodImage, FulfillmentPills, Grid, PrimaryButton, ShopCard, Wrap, useBoxWidth } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { colors, useLayout } from '../../../src/theme';
-import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, REMOVE_REASONS, draftDisplayPrice, onboardingStep, type OnboardingStep, type PayPref, type RemoveReason } from '../../../../api/src/listing';
+import { LISTING_CONFIRM_LINE, LISTING_REMOVED_LINE, LISTING_THANKS_LINE, ONBOARDING_SMS, ONBOARDING_TEXT_US, REMOVE_REASONS, draftDisplayPrice, onboardingStep, portraitIsLogo, type OnboardingStep, type PayPref, type RemoveReason } from '../../../../api/src/listing';
 import { FarmOnboarding, TextUsLine, nextOnboardingStep, prevOnboardingStep, type OnboardingAnswers } from '../../../src/components/farmOnboarding';
+import { photoSource } from '../../../src/lib/photos';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -40,7 +41,7 @@ export default function ListingApproval() {
   const token = params.token;
   const previewing = onboardingStep(params.preview_step);
   const [step, setStep] = useState<OnboardingStep | null>(previewing);
-  const { desktop, shopCols } = useLayout();
+  const { desktop, shopCols, height } = useLayout();
   const gap = desktop ? 36 : 14;
   const cell = useBoxWidth(shopCols, gap);
   const [data, setData] = useState<Listing | null>(null);
@@ -262,7 +263,22 @@ export default function ListingApproval() {
         ) : null}
         {!step && error ? <Text style={quiet}>{error}</Text> : null}
         {!step && !data && !error ? <Text style={quiet}>loading.</Text> : null}
-        {!step && data && denied ? <Text style={storyStyle}>{LISTING_REMOVED_LINE}</Text> : null}
+        {!step && data && denied ? (
+          <View style={{ minHeight: Math.max(420, height - 140), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
+            <DownPortrait photo={data.profilePhoto} name={data.farmName} />
+            <Text style={doneLine}>
+              {(LISTING_REMOVED_LINE.split(ONBOARDING_TEXT_US)[0] || '').replace('letting us know 💛', 'letting\u00A0us\u00A0know\u00A0💛')}
+              <Text
+                accessibilityRole="link"
+                onPress={() => Linking.openURL(ONBOARDING_SMS).catch(() => undefined)}
+                style={{ color: colors.navy }}
+              >
+                {ONBOARDING_TEXT_US}
+              </Text>
+              {LISTING_REMOVED_LINE.split(ONBOARDING_TEXT_US)[1] || ''}
+            </Text>
+          </View>
+        ) : null}
         {!step && data && !denied && approved ? (
           <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%', alignItems: 'center' }}>
             <Text style={headline}>thank you.</Text>
@@ -312,17 +328,8 @@ export default function ListingApproval() {
         {!step && preview && data ? (
           <>
             <View style={{ marginTop: desktop ? 8 : 0, alignItems: 'center', paddingHorizontal: desktop ? 8 : 0 }}>
-              <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="take my page down"
-                  onPress={openDown}
-                  style={[quietClose, sheet || down ? { opacity: 0 } : null]}
-                  pointerEvents={sheet || down ? 'none' : 'auto'}
-                >
-                  <Text style={quietCloseMark}>x</Text>
-                </Pressable>
-                <View style={{ opacity: sheet ? 0 : 1 }} pointerEvents={sheet ? 'none' : 'auto'}>
+              <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 32, marginBottom: 10 }}>
+                <View style={{ opacity: sheet || down ? 0 : 1 }} pointerEvents={sheet || down ? 'none' : 'auto'}>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="this is my farm"
@@ -332,8 +339,17 @@ export default function ListingApproval() {
                     <Text style={confirmText}>this is my farm</Text>
                   </Pressable>
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="take my page down"
+                  onPress={openDown}
+                  style={[quietClose, sheet || down ? { opacity: 0 } : null]}
+                  pointerEvents={sheet || down ? 'none' : 'auto'}
+                >
+                  <Text style={quietCloseMark}>x</Text>
+                </Pressable>
               </View>
-              {sheet ? null : (
+              {sheet || down ? null : (
                 <View style={banner}>
                   <Text style={bannerTitle}>made with love for {data.farmName.toLowerCase()} 🌱</Text>
                   <Text style={bannerBody}>we built this page for you from your website. it's yours. tap to make it official, change anything, or take it down anytime.</Text>
@@ -556,6 +572,24 @@ function DownSheet({
   );
 }
 
+function DownPortrait({ photo, name }: { photo?: string; name: string }) {
+  const size = 96;
+  const known = !!photo && photo !== 'placeholder' && !!photoSource(photo);
+  if (!known) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: 16, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 28 }}>🌱</Text>
+      </View>
+    );
+  }
+  const logo = portraitIsLogo(photo);
+  return (
+    <View style={{ width: size, height: size, borderRadius: logo ? 16 : size / 2, overflow: 'hidden', backgroundColor: colors.cream }}>
+      <FoodImage photo={photo || ''} name={name} width={size} height={size} />
+    </View>
+  );
+}
+
 function Field({ label, value, onChange, onBlur }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void }) {
   return (
     <TextInput
@@ -597,9 +631,10 @@ const confirmPill = {
 };
 const confirmText = { fontFamily: 'Inter' as const, fontSize: 12, fontWeight: '600' as const, color: colors.navy };
 const quietClose = { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
-const quietCloseMark = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '500' as const, color: 'rgba(20,33,61,0.35)' };
-const reasonRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 22 };
-const reasonPill = { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center' as const, justifyContent: 'center' as const };
+const quietCloseMark = { fontFamily: 'Inter' as const, fontSize: 18, fontWeight: '500' as const, color: colors.gray };
+const reasonRow = { width: '100%' as const, gap: 8, marginTop: 22 };
+const reasonPill = { width: '100%' as const, minHeight: 48, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.cream, alignItems: 'center' as const, justifyContent: 'center' as const };
+const doneLine = { fontFamily: 'Inter' as const, fontSize: 16, lineHeight: 24, color: colors.ink, textAlign: 'center' as const, marginTop: 22, maxWidth: 340 };
 const reasonPillOn = { backgroundColor: colors.navy };
 const reasonText = { fontFamily: 'Inter' as const, fontSize: 14, lineHeight: 18, color: colors.navy, textAlign: 'center' as const };
 const reasonTextOn = { color: colors.white };

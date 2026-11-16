@@ -600,6 +600,14 @@ async function mustFarm(env: Env, id: number): Promise<FarmRow> {
   return farm;
 }
 
+export function isAdminRequest(request: Request, env: { ADMIN_TOKEN?: string }): boolean {
+  if (!env.ADMIN_TOKEN) return false;
+  const header = request.headers.get('authorization') || '';
+  const token = header.replace(/^Bearer\s+/i, '').trim();
+  if (!token || token.length !== env.ADMIN_TOKEN.length) return false;
+  return safeEqual(token, env.ADMIN_TOKEN);
+}
+
 function requireAdmin(request: Request, env: Env) {
   if (!env.ADMIN_TOKEN) throw new HttpError('admin token is not set on the worker.', 503);
   const header = request.headers.get('authorization') || '';

@@ -30,6 +30,9 @@ import {
   meetTheFarmLines,
   storyLines,
   LISTING_REMOVED_LINE,
+  STAFF_PREVIEW_TAG,
+  shopperPreviewPath,
+  staffShopperFromDraft,
   LISTING_THANKS_LINE,
   cleanPageRemoval,
   denyListing,
@@ -163,7 +166,24 @@ test('denying a listing records the reason, hides the page, and cannot publish i
   assert.notEqual(resent.token, SAMPLE_LISTING_TOKEN);
   assert.equal(listingCanBePublished(resent.status), false);
   assert.throws(() => resendDeniedListing({ status: 'sent', nextToken: newListingToken() }), /denied page/);
-  assert.equal(LISTING_REMOVED_LINE, "all done. your page is down. thanks for letting us know 💛");
+  assert.equal(LISTING_REMOVED_LINE, "thanks for letting us know 💛 if you ever change your mind, text us at 972-510-3326.");
+  assert.equal(LISTING_REMOVED_LINE.includes('972-510-3326'), true);
+  const shopper = staffShopperFromDraft({
+    farmName: '87 Farms',
+    location: 'Huntington, UT',
+    story: 'a family dairy',
+    status: 'sent',
+    profilePhoto: 'profile-87-farms',
+    pickupLine: 'pickup in huntington',
+    products: [{ id: 2, name: 'eggs', priceCents: 700, unit: 'dozen', photoKey: '87-eggs' }],
+  });
+  assert.equal(shopper.shopVisible, false);
+  assert.equal(shopper.tag, STAFF_PREVIEW_TAG);
+  assert.equal(shopper.status, 'sent');
+  assert.equal(shopper.farm.city, 'Huntington');
+  assert.equal(listingAppearsInBrowse(shopper.status, false), false);
+  assert.equal(JSON.stringify(shopper).includes('phone'), false);
+  assert.equal(shopperPreviewPath('lk_b3f152461550767e5f9c0f5dbf2f6d97'), '/listing/lk_b3f152461550767e5f9c0f5dbf2f6d97/shopper');
   assert.deepEqual(cleanPageRemoval("  other  ", "  the prices  "), { denyReason: 'other', denyNote: 'the prices' });
   assert.deepEqual(cleanPageRemoval("i don't want this service", 'skip this'), { denyReason: "i don't want this service", denyNote: '' });
   assert.equal(cleanPageRemoval('other', 'x'.repeat(300)).denyNote.length, 280);

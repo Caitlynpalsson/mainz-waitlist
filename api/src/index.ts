@@ -1,7 +1,7 @@
-import { handleAdmin } from './admin';
+import { handleAdmin, isAdminRequest } from './admin';
 import { NEAR_MILES, haversineMiles, roundMiles, type LatLng } from './geo';
 import { HttpError, json } from './http';
-import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, previewListingQuote, saveOnboarding, savePublicListing } from './listingStore';
+import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, saveOnboarding, savePublicListing } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
 import { shopFlagsForUdafCheck } from './listing';
@@ -161,6 +161,11 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (method === 'POST' && listingPreview) return previewListingQuote(env, listingPreview[1], await readJson(request));
   const listingChanges = path.match(/^\/api\/listings\/([a-z0-9_]+)\/changes$/);
   if (method === 'POST' && listingChanges) return changePublicListing(env, listingChanges[1], await readJson(request));
+  const listingShopper = path.match(/^\/api\/listings\/([a-z0-9_]+)\/shopper$/);
+  if (method === 'GET' && listingShopper) {
+    if (!isAdminRequest(request, env)) throw new HttpError('that farm is not on mainz.', 404);
+    return getStaffShopperPreview(env, listingShopper[1]);
+  }
   const listingPage = path.match(/^\/api\/listings\/([a-z0-9_]+)$/);
   if (method === 'GET' && listingPage) return getPublicListing(env, listingPage[1]);
   if (method === 'PATCH' && listingPage) return savePublicListing(env, listingPage[1], await readJson(request));

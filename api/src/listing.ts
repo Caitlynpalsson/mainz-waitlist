@@ -66,7 +66,95 @@ export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 
 export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
 
-export const LISTING_REMOVED_LINE = "all done. your page is down. thanks for letting us know 💛";
+export const LISTING_REMOVED_LINE = "thanks for letting us know 💛 if you ever change your mind, text us at 972-510-3326.";
+export const STAFF_PREVIEW_TAG = 'staff preview, not public';
+
+export function shopperPreviewPath(token: string): string {
+  return `/listing/${token}/shopper`;
+}
+
+/** A read-only shopper shape. It does not change status or shop visibility. */
+export function staffShopperFromDraft(input: {
+  farmName: string;
+  location: string;
+  story: string;
+  status: string;
+  profilePhoto?: string;
+  meetLine?: string;
+  pickupLine?: string;
+  pickupDays?: string;
+  deliveryDay?: string;
+  products: { id?: number; name: string; priceCents: number; unit: string; photoKey: string }[];
+}): {
+  staffPreview: true;
+  tag: string;
+  shopVisible: false;
+  status: string;
+  farm: {
+    name: string;
+    city: string;
+    state: string;
+    bio: string;
+    about: string;
+    profilePhoto: string;
+    heroPhoto: string;
+    meetLine: string;
+    pickupLine: string;
+    pickupDays: string;
+    deliveryDay: string;
+    offersPickup: boolean;
+    offersDelivery: boolean;
+    pickupSummary: string;
+    deliverySummary: string;
+    sinceYear: null;
+    statValue: string;
+    statLabel: string;
+    productCount: number;
+    milesAway: null;
+    slug: string;
+  };
+  products: { id: number; name: string; priceCents: number; unit: string; photo: string }[];
+} {
+  const parts = input.location.split(',').map((part) => part.trim()).filter(Boolean);
+  const city = parts[0] || input.location;
+  const state = parts.slice(1).join(', ');
+  return {
+    staffPreview: true,
+    tag: STAFF_PREVIEW_TAG,
+    shopVisible: false,
+    status: input.status,
+    farm: {
+      name: input.farmName,
+      city,
+      state,
+      bio: input.story,
+      about: input.story,
+      profilePhoto: input.profilePhoto || '',
+      heroPhoto: '',
+      meetLine: input.meetLine || '',
+      pickupLine: input.pickupLine || '',
+      pickupDays: input.pickupDays || '',
+      deliveryDay: input.deliveryDay || '',
+      offersPickup: !!(input.pickupDays || input.pickupLine),
+      offersDelivery: !!input.deliveryDay,
+      pickupSummary: input.pickupLine || '',
+      deliverySummary: '',
+      sinceYear: null,
+      statValue: '',
+      statLabel: '',
+      productCount: input.products.length,
+      milesAway: null,
+      slug: '',
+    },
+    products: input.products.map((product, index) => ({
+      id: product.id || index + 1,
+      name: product.name,
+      priceCents: product.priceCents,
+      unit: product.unit,
+      photo: product.photoKey,
+    })),
+  };
+}
 export const REMOVE_REASONS = [
   "i don't want this service",
   "not selling right now",

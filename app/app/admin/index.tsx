@@ -326,6 +326,9 @@ export default function AdminHome() {
                       </Text>
                     ) : null}
                   </Pressable>
+                  <Pressable onPress={() => router.push(`${listing.path}/shopper`)} style={{ marginTop: 8 }}>
+                    <Text style={small}>see it like a shopper</Text>
+                  </Pressable>
                   {listing.products?.length ? (
                     <Pressable onPress={() => setOpenProducts(openProducts === listing.id ? null : listing.id)} style={{ marginTop: 8 }}>
                       <Text style={small}>{openProducts === listing.id ? 'hide products' : 'show products'}</Text>
