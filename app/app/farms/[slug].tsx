@@ -61,7 +61,7 @@ export default function FarmPage() {
       sticky={searchOpen && farm ? (
         <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {desktop ? null : <CircleBack />}
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <ProductSearchField
               farmName={farm.name}
               value={productQuery}
