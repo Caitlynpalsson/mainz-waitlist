@@ -63,7 +63,7 @@ export default function StaffShopperPreview() {
   const farm = data?.farm;
   const followKey = token ? `draft-${token}` : '';
   const followed = followKey ? follows.includes(followKey) : false;
-  const archW = desktop ? 380 : Math.min(320, cell * shopCols);
+  const archW = desktop ? 380 : Math.min(240, cell * shopCols);
   const archH = Math.round(archW * 1.21);
   const searching = productQuery.trim().length > 0;
   const closeSearch = () => { setSearchOpen(false); setProductQuery(''); };

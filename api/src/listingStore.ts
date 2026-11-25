@@ -16,6 +16,7 @@ import {
   listingAppearsInBrowse,
   listingShowsForm,
   listingStatusLabel,
+  isListingToken,
   newListingToken,
   parseAvailability,
   parsePriceStatus,
@@ -233,7 +234,7 @@ export async function revokeStaffSessions(env: Env): Promise<Response> {
 
 export async function createStaffPreviewLink(env: Env, listingToken: string): Promise<Response> {
   const token = listingToken.trim();
-  if (!/^lk_[0-9a-f]{32}$/.test(token)) throw new HttpError('that listing link is not right.');
+  if (!isListingToken(token)) throw new HttpError('that listing link is not right.');
   const listing = await byToken(env, token);
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
   const made = await makeStaffPreviewCode(Date.now());

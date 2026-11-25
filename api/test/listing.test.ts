@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { bankConnected } from '../src/payout.ts';
 import {
   SAMPLE_LISTING_TOKEN,
+  isListingToken,
   approveListing,
   cleanListingProduct,
   cleanPriceFix,
@@ -89,7 +90,10 @@ test('a listing product uses a catalog photo and a real price', () => {
   assert.throws(() => cleanListingProduct({ name: 'milk', priceCents: 10, unit: 'jug', photoKey: 'cow' }), /price/);
   assert.throws(() => cleanListingProduct({ name: 'milk', priceCents: 400, unit: 'jug', photoKey: 'not-a-photo' }), /catalog/);
   assert.equal(SAMPLE_LISTING_TOKEN.startsWith('lk_'), true);
-  assert.equal(SAMPLE_LISTING_TOKEN.length > 16, true);
+  assert.equal(isListingToken(SAMPLE_LISTING_TOKEN), true);
+  assert.equal(isListingToken('lk_' + 'a'.repeat(32)), true);
+  assert.equal(isListingToken('lk_' + 'a'.repeat(23)), false);
+  assert.equal(isListingToken('lk_' + 'a'.repeat(33)), false);
 });
 
 const foods = [

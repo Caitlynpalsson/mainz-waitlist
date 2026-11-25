@@ -28,10 +28,10 @@ export function FarmAvatar({ photo, name, size = 72 }: { photo?: string | null; 
 export function FoodImage({ photo, name, width, height }: { photo: string; name: string; width: number; height: number }) {
   const source = photoSource(photo);
   if (!source) {
+    const showMark = width >= 96 && height >= 72;
     return (
-      <View style={{ width, height, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 18 }}>
-        <Text style={{ fontFamily: 'Inter', fontSize: 11, letterSpacing: -0.2, color: colors.peri, fontWeight: '600', textAlign: 'center' }}>the main course</Text>
-        <Text style={{ fontFamily: 'Inter', marginTop: 10, fontSize: 16, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>{name}</Text>
+      <View accessibilityLabel={name} style={{ width, height, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        {showMark ? <Text style={{ fontFamily: 'Inter', fontSize: 12, letterSpacing: -0.2, color: colors.peri, fontWeight: '600', textAlign: 'center' }}>the main course</Text> : null}
       </View>
     );
   }
@@ -220,7 +220,7 @@ export function PrimaryButton({ label, onPress, disabled = false }: { label: str
 const nameStyle: TextStyle = { fontFamily: 'Inter', fontSize: 13.5, fontWeight: '600', letterSpacing: -0.2, color: colors.navy };
 const noteStyle: TextStyle = { fontFamily: 'Inter', fontSize: 12, color: colors.gray, marginTop: 4 };
 
-export function SeasonCard({ product, width, saved, onSave }: { product: ProductCard; width: number; saved?: boolean; onSave?: () => void }) {
+export function SeasonCard({ product, width, saved, onSave, textInset = 0 }: { product: ProductCard; width: number; saved?: boolean; onSave?: () => void; textInset?: number }) {
   const height = Math.round(width / 0.8);
   return (
     <Pressable accessibilityRole="link" onPress={() => router.push(`/product/${product.id}`)} style={{ width }}>
@@ -236,8 +236,8 @@ export function SeasonCard({ product, width, saved, onSave }: { product: Product
           </Pressable>
         ) : null}
       </View>
-      <Text style={[nameStyle, { marginTop: 14 }]}>{product.headline}</Text>
-      <Text style={noteStyle}>
+      <Text style={[nameStyle, { marginTop: 14, paddingHorizontal: textInset }]}>{product.headline}</Text>
+      <Text style={[noteStyle, { paddingHorizontal: textInset }]}>
         {product.farmName.toLowerCase()}
         {' · '}
         <Text style={{ color: colors.navy, fontWeight: '600' }}>{dollars(product.priceCents, 'auto')} / {product.unit}</Text>

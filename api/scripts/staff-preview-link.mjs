@@ -8,6 +8,10 @@ if (!token || !api || !admin) {
   console.error('usage: ADMIN_TOKEN=... MAINZ_API_URL=... node scripts/staff-preview-link.mjs <listing token>');
   process.exit(1);
 }
+if (!/^lk_[0-9a-f]{24,32}$/.test(token)) {
+  console.error('that listing link is not right.');
+  process.exit(1);
+}
 const response = await fetch(`${api}/api/admin/listings/shopper-link`, {
   method: 'POST',
   headers: { authorization: `Bearer ${admin}`, 'content-type': 'application/json' },

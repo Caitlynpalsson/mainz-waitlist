@@ -147,12 +147,23 @@ export default function Browse() {
 
 function MobileSeason({ products, saved, onSave }: { products: ProductCard[]; saved: number[]; onSave: (id: number) => void }) {
   const { width } = useLayout();
-  const card = Math.min(340, width - 72);
+  const gap = 14;
+  const peek = 36;
+  const view = width - 40;
+  const card = Math.max(220, view - peek - gap);
   return (
     <View>
-      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToInterval={card + 16} contentContainerStyle={{ gap: 16 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={card + gap}
+        snapToAlignment="start"
+        disableIntervalMomentum
+        contentContainerStyle={{ gap, paddingRight: peek + gap }}
+      >
         {products.map((product) => (
-          <SeasonCard key={product.id} product={product} width={card} saved={saved.includes(product.id)} onSave={() => onSave(product.id)} />
+          <SeasonCard key={product.id} product={product} width={card} textInset={peek + 4} saved={saved.includes(product.id)} onSave={() => onSave(product.id)} />
         ))}
       </ScrollView>
     </View>

@@ -19,6 +19,8 @@ export function Shell({
   title,
   right,
   sticky,
+  dock,
+  mark = false,
   onScroll,
   hideOverlay,
   children,
@@ -30,12 +32,18 @@ export function Shell({
   title?: string;
   right?: ReactNode;
   sticky?: ReactNode;
+  dock?: ReactNode;
+  mark?: boolean;
   onScroll?: (y: number) => void;
   hideOverlay?: boolean;
   children: ReactNode;
 }) {
   const { desktop } = useLayout();
   const insets = useSafeAreaInsets();
+  const tabs = !desktop && showTabs && !!tab;
+  const tabSpace = tabs ? 8 + 56 + Math.max(insets.bottom, 12) : Math.max(insets.bottom, 0);
+  const dockSpace = !desktop && dock ? 92 : 0;
+  const bottomPad = tabs || dock ? tabSpace + dockSpace + 48 : 32 + insets.bottom;
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -44,7 +52,7 @@ export function Shell({
     <View style={{ flex: 1, backgroundColor: colors.white }}>
       {desktop ? <DesktopNav current={nav} /> : null}
       {!desktop && top === 'browse' ? <MobileBrowseHeader /> : null}
-      {!desktop && top === 'bar' ? <BarHeader title={title || ''} /> : null}
+      {!desktop && top === 'bar' ? <BarHeader title={title || ''} mark={mark} /> : null}
       {sticky ? (
         <View style={{
           paddingTop: desktop ? 8 : insets.top + 8,
@@ -65,7 +73,7 @@ export function Shell({
       ) : null}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: !desktop && showTabs ? 96 + insets.bottom : 24 }}
+        contentContainerStyle={{ paddingBottom: bottomPad }}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={16}
         onScroll={onScroll ? (event) => onScroll(event.nativeEvent.contentOffset.y) : undefined}
@@ -73,7 +81,23 @@ export function Shell({
         {children}
         {desktop ? <Footer /> : null}
       </ScrollView>
-      {!desktop && showTabs && tab ? <TabBar current={tab} /> : null}
+      {!desktop && dock ? (
+        <View style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: tabSpace,
+          paddingTop: 12,
+          paddingHorizontal: 20,
+          paddingBottom: tabs ? 12 : Math.max(insets.bottom, 12),
+          backgroundColor: colors.white,
+          borderTopWidth: 1,
+          borderTopColor: colors.hair,
+        }}>
+          {dock}
+        </View>
+      ) : null}
+      {tabs ? <TabBar current={tab!} /> : null}
       {!desktop && top === 'overlay' && !hideOverlay ? (
         <View pointerEvents="box-none" style={{ position: 'absolute', top: Math.max(insets.top, 10), left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <CircleBack />
@@ -164,13 +188,20 @@ function MobileBrowseHeader() {
   );
 }
 
-function BarHeader({ title }: { title: string }) {
+function BarHeader({ title, mark = false }: { title: string; mark?: boolean }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ height: 58 + insets.top, paddingTop: insets.top, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.white }}>
+    <View style={{ minHeight: (mark ? 74 : 58) + insets.top, paddingTop: insets.top, paddingBottom: mark ? 8 : 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.white }}>
       <CircleBack />
-      <Text style={{ flex: 1, textAlign: 'center', fontFamily: 'Inter', fontSize: title.length > 14 ? 13 : 11, fontWeight: '600', letterSpacing: title.length > 14 ? -0.2 : 2, textTransform: title.length > 14 ? 'none' : 'uppercase', color: colors.navy }}>{title}</Text>
-      <View style={{ width: 36 }} />
+      {mark ? (
+        <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+          <Logo size={15} />
+          <Text style={{ fontFamily: 'Inter', fontSize: 13, color: colors.navy }}>{title}</Text>
+        </View>
+      ) : (
+        <Text style={{ flex: 1, textAlign: 'center', fontFamily: 'Inter', fontSize: title.length > 14 ? 13 : 11, fontWeight: '600', letterSpacing: title.length > 14 ? -0.2 : 2, textTransform: title.length > 14 ? 'none' : 'uppercase', color: colors.navy }}>{title}</Text>
+      )}
+      <View style={{ width: 44 }} />
     </View>
   );
 }
@@ -198,9 +229,9 @@ function TabBar({ current }: { current: TabKey }) {
     { key: 'you', label: 'you', icon: <IconPerson color={current === 'you' ? colors.navy : colors.gray} />, href: '/you' },
   ];
   return (
-    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 10), paddingTop: 8, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.hair, flexDirection: 'row', justifyContent: 'space-around' }}>
+    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 12), paddingTop: 8, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.hair, flexDirection: 'row', justifyContent: 'space-around' }}>
       {items.map((item) => (
-        <Pressable key={item.key} onPress={() => router.push(item.href)} style={{ width: 72, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        <Pressable key={item.key} onPress={() => router.push(item.href)} style={{ width: 72, height: 56, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
           <View>
             {item.icon}
             {item.key === 'bag' && lines.length ? (

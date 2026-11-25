@@ -113,6 +113,7 @@ export default function Bag() {
   }, [routeKey]);
   const sameMode = groups.length > 0 && groups.every((group) => group.choice.fulfillment === groups[0].choice.fulfillment);
   const things = store.lines.length;
+  const placeInDock = !desktop && things > 0 && (!hasOwnPickup || step === 'review');
 
   async function place() {
     setFormError('');
@@ -198,13 +199,15 @@ export default function Bag() {
             <Money money={shown} delivering={delivering} />
             {formError ? <Text style={errText}>{formError}</Text> : null}
             {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
-            <View style={{ marginTop: 18 }}>
-              <PrimaryButton
-                label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
-                disabled={!things || placing}
-                onPress={place}
-              />
-            </View>
+            {placeInDock ? null : (
+              <View style={{ marginTop: 18 }}>
+                <PrimaryButton
+                  label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
+                  disabled={!things || placing}
+                  onPress={place}
+                />
+              </View>
+            )}
             <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
             <Pressable onPress={() => setStep('info')} style={{ marginTop: 8, alignItems: 'center' }}>
               <Text style={link}>back</Text>
@@ -266,13 +269,15 @@ export default function Bag() {
           <Field label="phone" value={store.customerPhone} keyboardType="phone-pad" onChange={(value) => store.setCustomer(store.customerName, store.customerEmail, value)} />
           {formError ? <Text style={errText}>{formError}</Text> : null}
           {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
-          <View style={{ marginTop: 18 }}>
-            <PrimaryButton
-              label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
-              disabled={!things || placing}
-              onPress={place}
-            />
-          </View>
+          {placeInDock ? null : (
+            <View style={{ marginTop: 18 }}>
+              <PrimaryButton
+                label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
+                disabled={!things || placing}
+                onPress={place}
+              />
+            </View>
+          )}
           <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
           <Text style={note}>farmers keep their price. we add a small fee. that's it.</Text>
         </>
@@ -281,7 +286,21 @@ export default function Bag() {
   );
 
   return (
-    <Shell nav={null} top={desktop ? 'none' : 'bar'} title="your bag">
+    <Shell
+      nav={null}
+      tab="bag"
+      showTabs={!desktop}
+      mark
+      top={desktop ? 'none' : 'bar'}
+      title="your bag"
+      dock={placeInDock ? (
+        <PrimaryButton
+          label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
+          disabled={!things || placing}
+          onPress={place}
+        />
+      ) : null}
+    >
       <Wrap style={{ paddingTop: desktop ? 56 : 8 }}>
         <View style={{ alignItems: 'center' }}>
           {desktop ? <Cap>your bag</Cap> : null}

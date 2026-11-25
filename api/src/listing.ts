@@ -65,6 +65,11 @@ export const LISTING_PHOTO_KEYS = [
 
 export const SAMPLE_LISTING_TOKEN = 'lk_4c8e91ab7d2f60e3a15b84c0';
 
+/** Older links are 24 hex. Newer ones are 32. Leave both as they are. */
+export function isListingToken(token: string): boolean {
+  return /^lk_[0-9a-f]{24,32}$/.test(token.trim());
+}
+
 export type ListingStatus = 'draft' | 'sent' | 'farm_approved' | 'changes_requested' | 'farm_denied';
 
 export const LISTING_REMOVED_LINE = "thanks for letting us know 💛 if you ever change your mind, text us at 972-510-3326.";
