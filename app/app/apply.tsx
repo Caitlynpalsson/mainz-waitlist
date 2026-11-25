@@ -58,7 +58,7 @@ export default function Apply() {
             </View>
           ) : (
             <>
-              <Text style={headline}>apply to sell on mainz.</Text>
+              <Text style={headline}>apply to sell on the main course.</Text>
               <Text style={[quiet, { marginTop: 14 }]}>we read every one.{'\n'}you'll hear from a real person.</Text>
               <Field label="farm name" value={farmName} onChange={setFarmName} />
               <Field label="your name" value={contactName} onChange={setContactName} />
@@ -76,7 +76,7 @@ export default function Apply() {
               <TextInput value={company} onChangeText={setCompany} style={{ position: 'absolute', left: -9999, height: 0 }} accessibilityElementsHidden importantForAccessibility="no" />
               {error ? <Text style={[quiet, { color: colors.red, marginTop: 18 }]}>{error}</Text> : null}
               <View style={{ marginTop: 36 }}>
-                <PrimaryButton label={sending ? 'sending…' : 'apply to sell on mainz'} disabled={sending} onPress={submit} />
+                <PrimaryButton label={sending ? 'sending…' : 'apply to sell on the main course'} disabled={sending} onPress={submit} />
               </View>
             </>
           )}

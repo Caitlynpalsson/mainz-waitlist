@@ -1,4 +1,4 @@
-# Mainz shop
+# The Main Course shop
 
 This is the marketplace app. The website at the root of the repo is the live waitlist and is separate. Do not change those files from here.
 
@@ -108,4 +108,4 @@ Do not point the live waitlist (caitlynpalsson.github.io/mainz-waitlist) at this
 - Admin at `/admin` (asks for the admin token)
 - Farm dashboard at `/dashboard` (asks for a farm token)
 
-Payments are not real. The bag says the order is a test.
+Checkout is Stripe test mode. The bag says the card is charged in test mode only.

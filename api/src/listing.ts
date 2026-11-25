@@ -209,12 +209,12 @@ export const PREVIEW_PAY_LINE = 'this is a preview of what shoppers see';
 export const ONBOARDING_STEPS = ['welcome', 'reach', 'pay', 'pickup', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
-export const ONBOARDING_WELCOME = 'yay, welcome to mainz! 🌱';
+export const ONBOARDING_WELCOME = 'yay, welcome to the main course! 🌱';
 export const ONBOARDING_DONE = "our team gives your page a final look. we'll text you when your first order comes in.";
 /** Shown only to the farm. Nothing sends a text today. */
 export const ONBOARDING_TEXT_US = '972-510-3326';
 export const ONBOARDING_SMS = 'sms:+19725103326';
-export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch with the mainz team 💬';
+export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch with the main course team 💬';
 export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
 export type PayPref = (typeof PAY_PREFS)[number];
 export const PAY_STEP_TITLE = 'how do you want to get paid?';
@@ -674,7 +674,7 @@ export function canFarmEditListing(status: string): boolean {
 
 export function listingInvite(input: { farmerNames: string; farmName: string; link: string }): string {
   const first = input.farmerNames.trim().split(/\s+/)[0] || input.farmName.trim() || 'there';
-  return `hi ${first}, it's caty from mainz. we love what you grow and made your farm its own page. take a peek and tap approve if it feels right. if anything's off, just tell us and we'll fix it: ${input.link}`;
+  return `hi ${first}, it's caty from the main course. we love what you grow and made your farm its own page. take a peek and tap approve if it feels right. if anything's off, just tell us and we'll fix it: ${input.link}`;
 }
 
 export function cleanFarmProduct(raw: {

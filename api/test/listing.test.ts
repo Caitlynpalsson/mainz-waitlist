@@ -236,7 +236,7 @@ test('the invite uses the first farmer name and the private link', () => {
     farmName: 'Sample Meadow Farm',
     link: 'https://mainz.example/listing/lk_abc',
   });
-  assert.equal(text, "hi ada, it's caty from mainz. we love what you grow and made your farm its own page. take a peek and tap approve if it feels right. if anything's off, just tell us and we'll fix it: https://mainz.example/listing/lk_abc");
+  assert.equal(text, "hi ada, it's caty from the main course. we love what you grow and made your farm its own page. take a peek and tap approve if it feels right. if anything's off, just tell us and we'll fix it: https://mainz.example/listing/lk_abc");
   const farmOnly = listingInvite({ farmerNames: '', farmName: 'Sample Orchard Stand', link: '/listing/lk_abc' });
   assert.ok(farmOnly.startsWith('hi Sample'));
 });
@@ -288,7 +288,7 @@ test('farm pages keep a short story and never promise a launch', () => {
 test('onboarding saves a preference and never shows a stored phone', () => {
   assert.equal(onboardingStep('pay'), 'pay');
   assert.equal(onboardingStep('nope'), null);
-  assert.equal(ONBOARDING_WELCOME, 'yay, welcome to mainz! 🌱');
+  assert.equal(ONBOARDING_WELCOME, 'yay, welcome to the main course! 🌱');
   const shown = publicOnboarding({
     reach_via: 'text',
     reach_email: 'ada@farm.test',
@@ -306,7 +306,7 @@ test('onboarding saves a preference and never shows a stored phone', () => {
   const copy = `${ONBOARDING_WELCOME} ${ONBOARDING_DONE} ${onboardingQuestions()}`;
   assert.equal(/launch|approved to receive orders/i.test(copy), false);
   assert.equal(onboardingQuestions(), ONBOARDING_TEXT_LINE);
-  assert.equal(ONBOARDING_TEXT_LINE, 'text us at 972-510-3326 to stay in touch with the mainz team 💬');
+  assert.equal(ONBOARDING_TEXT_LINE, 'text us at 972-510-3326 to stay in touch with the main course team 💬');
   assert.equal(ONBOARDING_SMS, 'sms:+19725103326');
   assert.equal(ONBOARDING_TEXT_LINE.includes(ONBOARDING_TEXT_US), true);
   assert.equal(PAY_STEP_TITLE, 'how do you want to get paid?');

@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 
 export default function NotFound() {
   return (
-    <Shell top="bar" title="mainz">
+    <Shell top="bar" title="the main course">
       <Wrap style={{ paddingTop: 80, alignItems: 'center' }}>
         <View style={{ alignItems: 'center', gap: 16 }}>
           <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: colors.navy }}>that page is not here.</Text>

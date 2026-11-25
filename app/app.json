@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Mainz",
+    "name": "The Main Course",
     "slug": "mainz",
     "scheme": "mainz",
     "version": "1.0.0",
@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#FFFFFF",
     "primaryColor": "#14213D",
-    "description": "Mainz. Farms near you, with the price the farmer set.",
+    "description": "The Main Course. Farms near you, with the price the farmer set.",
     "extra": {
       "bundleIdStatus": "placeholder",
       "bundleIdNote": "co.themainz.app is a placeholder for both Apple and Google. Confirm it before any store listing. Expo Go does not use it."
@@ -18,7 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "co.themainz.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Mainz uses your location to sort farms near you.",
+        "NSLocationWhenInUseUsageDescription": "The Main Course uses your location to sort farms near you.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -65,14 +65,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Mainz uses a photo only when a farm replaces the stock picture.",
+          "photosPermission": "The Main Course uses a photo only when a farm replaces the stock picture.",
           "microphonePermission": false
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Mainz uses your location to sort farms near you.",
+          "locationWhenInUsePermission": "The Main Course uses your location to sort farms near you.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false,

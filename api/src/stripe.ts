@@ -155,7 +155,7 @@ export function checkoutSessionFields(input: {
     'line_items[0][quantity]': '1',
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(input.amountCents),
-    'line_items[0][price_data][product_data][name]': 'mainz order',
+    'line_items[0][price_data][product_data][name]': 'the main course order',
     'payment_intent_data[transfer_group]': input.orderPublicId,
     'payment_intent_data[metadata][order_id]': input.orderPublicId,
     'metadata[order_id]': input.orderPublicId,

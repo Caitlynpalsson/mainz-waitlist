@@ -6,7 +6,7 @@ import { colors, useLayout } from '../theme';
 import { usePlace } from '../lib/place';
 import { useStore } from '../lib/store';
 import { Logo } from './logo';
-import { IconBag, IconBarn, IconBell, IconChevron, IconHome, IconPerson, IconPin, IconSearch } from './icons';
+import { IconBag, IconBarn, IconChevron, IconHome, IconPerson, IconPin, IconSearch } from './icons';
 
 type NavKey = 'browse' | 'farms' | 'standard' | 'farmers' | null;
 type TabKey = 'browse' | 'farms' | 'bag' | 'you';
@@ -92,16 +92,16 @@ function DesktopNav({ current }: { current: NavKey }) {
   useEffect(() => setText(initial), [initial]);
   const { width } = useLayout();
   return (
-    <View style={{ height: 78, borderBottomWidth: 1, borderBottomColor: colors.hair, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: width > 1200 ? 56 : 28, gap: 18, backgroundColor: colors.white }}>
-      {current !== 'browse' ? <View style={{ width: 150 }}><Logo size={12} /></View> : null}
-      <View style={{ flexDirection: 'row', gap: width > 1100 ? 32 : 18, flex: current === 'browse' ? 1 : undefined }}>
+    <View style={{ minHeight: 78, borderBottomWidth: 1, borderBottomColor: colors.hair, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', paddingVertical: 12, paddingHorizontal: width > 1200 ? 56 : 28, gap: 14, backgroundColor: colors.white }}>
+      {current !== 'browse' ? <View style={{ minWidth: 160 }}><Logo size={16} /></View> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: width > 1100 ? 28 : 16, flexShrink: 1, flex: current === 'browse' ? 1 : undefined }}>
         <NavLink label="browse" on={current === 'browse'} href="/" />
         <NavLink label="farms" on={current === 'farms'} href="/farms" />
-        <NavLink label="the mainz standard" on={current === 'standard'} href="/standard" />
+        <NavLink label="the main course standard" on={current === 'standard'} href="/standard" />
         <NavLink label="for farmers" on={current === 'farmers'} href="/for-farmers" />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-        <View style={{ width: width > 1100 ? 250 : 180, height: 38, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 }}>
+        <View style={{ width: width > 1100 ? 250 : 160, minWidth: 140, maxWidth: 250, flexShrink: 1, height: 44, borderRadius: 999, backgroundColor: colors.cream, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 }}>
           <IconSearch size={15} />
           <TextInput
             value={text}
@@ -125,7 +125,7 @@ function DesktopNav({ current }: { current: NavKey }) {
 
 function NavLink({ label, on, href }: { label: string; on: boolean; href: string }) {
   return (
-    <Pressable onPress={() => router.push(href)}>
+    <Pressable onPress={() => router.push(href)} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
       <Text style={{ fontFamily: 'Inter', fontSize: 12.5, fontWeight: on ? '600' : '500', color: on ? colors.navy : colors.ink }}>{label}</Text>
     </Pressable>
   );
@@ -151,21 +151,15 @@ function Badge({ n }: { n: number }) {
 }
 
 function MobileBrowseHeader() {
-  const [note, setNote] = useState(false);
   const { openPicker } = usePlace();
   const insets = useSafeAreaInsets();
   return (
     <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: 6, backgroundColor: colors.white }}>
-      <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="location pin" onPress={openPicker} hitSlop={10}>
+      <View style={{ height: 48, flexDirection: 'row', alignItems: 'center' }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="location pin" onPress={openPicker} hitSlop={12} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
           <IconPin size={18} />
         </Pressable>
-        <Pressable onPress={() => setNote(true)} accessibilityLabel="notes">
-          <IconBell />
-          <View style={{ position: 'absolute', top: -1, right: -1, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.red }} />
-        </Pressable>
       </View>
-      {note ? <Text style={{ fontFamily: 'Inter', fontSize: 12, color: colors.gray, textAlign: 'center', marginBottom: 6 }}>no notes yet.</Text> : null}
     </View>
   );
 }
@@ -175,7 +169,7 @@ function BarHeader({ title }: { title: string }) {
   return (
     <View style={{ height: 58 + insets.top, paddingTop: insets.top, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.white }}>
       <CircleBack />
-      <Text style={{ flex: 1, textAlign: 'center', fontFamily: 'Inter', fontSize: 11, fontWeight: '600', letterSpacing: 2, textTransform: 'uppercase', color: colors.navy }}>{title}</Text>
+      <Text style={{ flex: 1, textAlign: 'center', fontFamily: 'Inter', fontSize: title.length > 14 ? 13 : 11, fontWeight: '600', letterSpacing: title.length > 14 ? -0.2 : 2, textTransform: title.length > 14 ? 'none' : 'uppercase', color: colors.navy }}>{title}</Text>
       <View style={{ width: 36 }} />
     </View>
   );
@@ -186,7 +180,8 @@ export function CircleBack() {
     <Pressable
       accessibilityLabel="back"
       onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: colors.hair, alignItems: 'center', justifyContent: 'center' }}
+      hitSlop={6}
+      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: colors.hair, alignItems: 'center', justifyContent: 'center' }}
     >
       <IconChevron left />
     </Pressable>
@@ -205,7 +200,7 @@ function TabBar({ current }: { current: TabKey }) {
   return (
     <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 10), paddingTop: 8, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.hair, flexDirection: 'row', justifyContent: 'space-around' }}>
       {items.map((item) => (
-        <Pressable key={item.key} onPress={() => router.push(item.href)} style={{ width: 64, alignItems: 'center', gap: 4 }}>
+        <Pressable key={item.key} onPress={() => router.push(item.href)} style={{ width: 72, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
           <View>
             {item.icon}
             {item.key === 'bag' && lines.length ? (
@@ -224,16 +219,16 @@ function Footer() {
   return (
     <View style={{ marginTop: 100, borderTopWidth: 1, borderTopColor: colors.hair, paddingTop: 48, paddingBottom: 42, alignItems: 'center' }}>
       <Logo size={14} />
-      <Text style={{ fontFamily: 'Inter', fontSize: 12, color: '#6d7180', marginTop: 16 }}>we make the luxury of eating clean accessible.</Text>
-      <View style={{ flexDirection: 'row', gap: 26, marginTop: 22, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <FooterLink label="the mainz standard" href="/standard" />
+      <Text style={{ fontFamily: 'Inter', fontSize: 12, color: '#6d7180', marginTop: 16, textAlign: 'center', paddingHorizontal: 24 }}>we make the luxury of eating clean accessible.</Text>
+      <View style={{ flexDirection: 'row', gap: 26, marginTop: 22, flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 24 }}>
+        <FooterLink label="the main course standard" href="/standard" />
         <FooterLink label="for farmers" href="/for-farmers" />
-        <Pressable onPress={() => Linking.openURL('https://instagram.com/themainzco')}>
+        <Pressable onPress={() => Linking.openURL('https://instagram.com/themainzco')} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
           <Text style={foot}>instagram @themainzco</Text>
         </Pressable>
         <FooterLink label="help" href="/help" />
       </View>
-      <Text style={{ fontFamily: 'Inter', fontSize: 10, color: '#a3a7b2', marginTop: 22 }}>sample farms, made up for the mockup.</Text>
+      <Text style={{ fontFamily: 'Inter', fontSize: 10, color: '#a3a7b2', marginTop: 22, textAlign: 'center', paddingHorizontal: 24 }}>sample farms, so you can look around.</Text>
     </View>
   );
 }
@@ -242,7 +237,7 @@ const foot = { fontFamily: 'Inter' as const, fontSize: 11, color: colors.gray };
 
 function FooterLink({ label, href }: { label: string; href: string }) {
   return (
-    <Pressable onPress={() => router.push(href)}>
+    <Pressable onPress={() => router.push(href)} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
       <Text style={foot}>{label}</Text>
     </Pressable>
   );

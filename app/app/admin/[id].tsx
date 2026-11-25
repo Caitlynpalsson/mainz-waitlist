@@ -186,7 +186,7 @@ export default function AdminFarm() {
               {(farm.stage === 'onboarding' || farm.stage === 'ongoing') ? (
                 <View style={block}>
                   <Text style={rowTitle}>onboarding</Text>
-                  <Text style={meta}>goal: live within 2 weeks of approval. payouts are later.</Text>
+                  <Text style={meta}>goal: shoppers can see the farm within 2 weeks of approval. payouts are set up in onboarding.</Text>
                   {ONBOARDING_ITEMS.map((item) => (
                     <View key={item.key} style={{ marginTop: 8 }}>
                       <Pill label={item.label} on={!!farm.onboarding[item.key]} onPress={() => post(`/api/admin/farms/${farm.id}/onboarding`, { key: item.key, done: !farm.onboarding[item.key] })} />
@@ -214,7 +214,7 @@ export default function AdminFarm() {
                 <View style={block}>
                   <Text style={rowTitle}>{farm.active ? 'on the site' : 'hidden'}</Text>
                   {!farm.active && !farm.removeReason ? (
-                    <View style={{ marginTop: 8, maxWidth: 220 }}><PrimaryButton label="go live" onPress={() => post(`/api/admin/farms/${farm.id}/live`, {})} /></View>
+                    <View style={{ marginTop: 8, maxWidth: 280 }}><PrimaryButton label="show to shoppers" onPress={() => post(`/api/admin/farms/${farm.id}/live`, {})} /></View>
                   ) : null}
                   <TextInput value={decisionNote} onChangeText={setDecisionNote} placeholder="reason to pause or remove" placeholderTextColor={colors.gray} style={input} />
                   <View style={pills}>
@@ -341,7 +341,7 @@ export default function AdminFarm() {
               {data.activity.length === 0 ? <Text style={meta}>nothing logged yet.</Text> : null}
               {data.activity.map((row) => (
                 <View key={row.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.hair }}>
-                  <Text style={meta}>{row.createdAt} · {row.kind} · {row.from || '—'} → {row.to || '—'}</Text>
+                  <Text style={meta}>{row.createdAt} · {row.kind} · {row.from || 'none'} to {row.to || 'none'}</Text>
                   {row.note ? <Text style={body}>{row.note}</Text> : null}
                 </View>
               ))}

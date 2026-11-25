@@ -44,7 +44,7 @@ export type PricedOrder = {
   totalCents: number;
 };
 
-/** A farm is on the public site only when Mainz has approved it and it is switched on. */
+/** A farm is on the public site only when it is approved and switched on. */
 export function isShopVisible(status: string, active: number | boolean): boolean {
   return status === 'approved' && Number(active) === 1;
 }

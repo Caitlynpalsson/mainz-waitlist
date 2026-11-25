@@ -17,7 +17,7 @@ export default function Standard() {
     <Shell nav="standard" top="bar" title="the standard">
       <Wrap style={{ paddingTop: desktop ? 72 : 20 }}>
         <View style={{ alignItems: 'center' }}>
-          <Cap>the mainz standard</Cap>
+          <Cap>the main course standard</Cap>
           <Text style={lede}>five things we check. our team gives each farm a final look.</Text>
         </View>
         <View style={{ marginTop: 36, borderTopWidth: 1, borderTopColor: colors.navy }}>
@@ -30,7 +30,7 @@ export default function Standard() {
           ))}
         </View>
         <Text style={[lede, { fontSize: 13, color: colors.gray, marginTop: 28 }]}>
-          how we check: documentation, conversations, samples and customer feedback. we keep checking after a farm is live.
+          how we check: paperwork, a conversation, a sample, and what shoppers say. we keep checking after a farm is approved.
         </Text>
       </Wrap>
     </Shell>

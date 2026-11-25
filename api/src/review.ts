@@ -8,7 +8,7 @@ export const PIPELINE_STAGES = [
   { key: 'intro_call', label: 'intro call or dm', goal: 'within 5 days', clock: 'received', amount: 5, unit: 'days' },
   { key: 'documents', label: 'documents', goal: 'farm sends within 7 days', clock: 'stage', amount: 7, unit: 'days' },
   { key: 'sample_review', label: 'sample or photo review', goal: 'within 3 days of receiving', clock: 'sample', amount: 3, unit: 'days' },
-  { key: 'score', label: 'score the mainz standard', goal: 'same day as the review', clock: 'review', amount: 0, unit: 'days' },
+  { key: 'score', label: 'score the main course standard', goal: 'same day as the review', clock: 'review', amount: 0, unit: 'days' },
   { key: 'decision', label: 'decision', goal: 'within 10 days of applying', clock: 'received', amount: 10, unit: 'days' },
   { key: 'onboarding', label: 'onboarding', goal: 'live within 2 weeks of approval', clock: 'approved', amount: 14, unit: 'days' },
   { key: 'ongoing', label: 'ongoing checks', goal: 'every week and every quarter', clock: 'ongoing', amount: 7, unit: 'days' },
@@ -82,13 +82,13 @@ export const DOCUMENT_HINTS: { key: (typeof DOCUMENTS)[number]['key']; words: st
   { key: 'meat_inspection', words: ['beef', 'pork', 'lamb', 'bison', 'meat', 'chicken', 'turkey', 'poultry'] },
 ];
 
-/** Raw milk and Homemade Food Act / cottage food stay off until Mainz verifies the matching document. */
+/** Raw milk and Homemade Food Act / cottage food stay off until the main course verifies the matching document. */
 export const UDAF_TYPES = [
   { key: 'raw_milk', label: 'needs UDAF check', detail: 'raw milk', document: 'raw_milk_permit', words: ['raw milk', 'unpasteurized'] },
   { key: 'homemade', label: 'needs UDAF check', detail: 'homemade food act / cottage food', document: 'cottage_food', words: ['bread', 'jam', 'jelly', 'cookie', 'cake', 'granola', 'pickle', 'salsa', 'cottage', 'honey', 'loaf', 'muffin', 'pie', 'dried herb', 'homemade'] },
 ] as const;
 
-export const UDAF_NOTE = 'Rules change. Utah updated its raw milk law in 2026. When in doubt, call UDAF Regulatory Services at (801) 982-2200. Confirm raw milk with UDAF Dairy (UDAF-Dairy@utah.gov) before listing it. Cottage food registration is the simpler path. The Homemade Food Act requires in-person sales, so ask UDAF before listing those items on Mainz.';
+export const UDAF_NOTE = 'Rules change. Utah updated its raw milk law in 2026. When in doubt, call UDAF Regulatory Services at (801) 982-2200. Confirm raw milk with UDAF Dairy (UDAF-Dairy@utah.gov) before listing it. Cottage food registration is the simpler path. The Homemade Food Act requires in-person sales, so ask UDAF before listing those items on the main course.';
 
 export const QUICK_SCREEN = [
   { key: 'local', title: 'is it local?', lines: ['utah county first, especially spanish fork.', 'nearby counties can wait for later.'] },
@@ -96,7 +96,7 @@ export const QUICK_SCREEN = [
   { key: 'fit', title: 'does it fit?', lines: ['they grow, raise, or make food that fits eating clean.', 'it is something customers want.', 'if we already have plenty of this, the waitlist is the right spot.'] },
 ];
 
-export const CALL_OPENING = "hi [first name], it's caty from mainz! thanks for making time. i'd love to hear about your farm and what you grow. then i'll share how mainz works. sound good?";
+export const CALL_OPENING = "hi [first name], it's caty from the main course! thanks for making time. i'd love to hear about your farm and what you grow. then i'll share how the main course works. sound good?";
 
 export const CALL_QUESTIONS = [
   'tell me the story of your farm. how did you get started?',
@@ -108,13 +108,13 @@ export const CALL_QUESTIONS = [
   'pickup, delivery, or both? where would pickup happen?',
   'how do you price your products? everyday items as well as specialties?',
   'what licenses or permits do you have for what you sell?',
-  'what would make mainz a win for you?',
+  'what would make the main course a win for you?',
 ];
 
 export const CALL_SHARE = [
   'you set your own products and prices.',
   'you choose pickup, delivery, or both.',
-  'mainz keeps a small transaction fee. delivery orders also have a delivery fee.',
+  'the main course keeps a small transaction fee. delivery orders also have a delivery fee.',
   'we take your product photos and set up your storefront for you.',
 ];
 
@@ -126,9 +126,9 @@ export const ONBOARDING_ITEMS = [
   { key: 'delivery', label: 'delivery set up, if they offer it' },
   { key: 'stock', label: 'stock update routine agreed' },
   { key: 'test_order', label: 'test order completed' },
-  { key: 'payout', label: 'payout method agreed (stripe later)' },
+  { key: 'payout', label: 'payout method agreed' },
   { key: 'documents', label: 'documents saved, with expiration dates' },
-  { key: 'live', label: 'storefront live and announced' },
+  { key: 'live', label: 'storefront approved and shared' },
 ] as const;
 
 export const WEEKLY_CHECKS = [
@@ -147,16 +147,16 @@ export const QUARTERLY_STEPS = [
 ];
 
 export const TEMPLATES = [
-  { key: 'thanks', label: 'thanks for applying', text: "hi [first name]! thank you so much for applying to mainz. we got your application for [farm name] and we're excited to learn more. here's what happens next: we'll take a quick look, then reach out to set up a short chat. you'll hear from us within a few days. talk soon! caty, mainz" },
+  { key: 'thanks', label: 'thanks for applying', text: "hi [first name]! thank you so much for applying to the main course. we got your application for [farm name] and we're excited to learn more. here's what happens next: we'll take a quick look, then reach out to set up a short chat. you'll hear from us within a few days. talk soon! caty, the main course" },
   { key: 'documents', label: 'document request', text: "hi [first name]! loved chatting with you. here's the short list we need for [farm name]: [list items]. a photo or pdf of each is perfect. if anything is in progress, just let us know where you're at. we're happy to help point you to the right place. thank you!" },
   { key: 'sample', label: 'sample or photos', text: "hi [first name]! next up is the fun part. could you drop off a sample of [product] or send a few photos? we'd love to see it the way a customer would get it, plus the label up close. thank you!" },
-  { key: 'approve', label: 'approve', text: "hi [first name]! great news. [farm name] is approved for mainz! we loved learning about your farm and we think our customers will too. next step is onboarding. we'll set up a time to shoot photos and build your storefront together. welcome to mainz!" },
-  { key: 'approve_conditions', label: 'approve with conditions', text: "hi [first name]! we're excited to bring [farm name] onto mainz. before your storefront goes live, we'd love to get [condition]. once we have that, we'll jump right into onboarding. let us know if we can help with anything!" },
-  { key: 'waitlist', label: 'waitlist', text: "hi [first name]! thank you for applying to mainz. we really enjoyed getting to know [farm name]. right now we're [reason]. we'd love to keep you on our list and reach out as we grow. we'll check back in by [month]." },
-  { key: 'decline', label: 'decline', text: "hi [first name]! thank you so much for applying to mainz and for sharing your farm with us. right now we're not able to offer a storefront for [farm name]. [reason]. we'd love to hear from you again if things change. wishing you a great season!" },
-  { key: 'check_in', label: 'weekly check-in', text: "hi [first name]! quick check-in from mainz. we noticed [what we saw]. we know things get busy! could we hop on a quick call to figure out a plan together?" },
+  { key: 'approve', label: 'approve', text: "hi [first name]! great news. [farm name] is approved for the main course! we loved learning about your farm and we think our customers will too. next step is onboarding. we'll set up a time to shoot photos and build your storefront together. welcome to the main course!" },
+  { key: 'approve_conditions', label: 'approve with conditions', text: "hi [first name]! we're excited to bring [farm name] onto the main course. before we approve the storefront, we'd love to get [condition]. once we have that, we'll jump right into onboarding. let us know if we can help with anything!" },
+  { key: 'waitlist', label: 'waitlist', text: "hi [first name]! thank you for applying to the main course. we really enjoyed getting to know [farm name]. right now we're [reason]. we'd love to keep you on our list and reach out as we grow. we'll check back in by [month]." },
+  { key: 'decline', label: 'decline', text: "hi [first name]! thank you so much for applying to the main course and for sharing your farm with us. right now we're not able to offer a storefront for [farm name]. [reason]. we'd love to hear from you again if things change. wishing you a great season!" },
+  { key: 'check_in', label: 'weekly check-in', text: "hi [first name]! quick check-in from the main course. we noticed [what we saw]. we know things get busy! could we hop on a quick call to figure out a plan together?" },
   { key: 'pause', label: 'pause', text: "hi [first name], we're pausing [farm name]'s storefront for now while we sort out [reason]. this just hides your shop until things are ready again. here's what we need to turn it back on: [steps]. we're here to help!" },
-  { key: 'remove', label: 'remove', text: "hi [first name], thank you for being part of mainz. after [reason], we've decided to close [farm name]'s storefront. we're grateful for the time we worked together. any open orders will be [plan]. wishing you all the best." },
+  { key: 'remove', label: 'remove', text: "hi [first name], thank you for being part of the main course. after [reason], we've decided to close [farm name]'s storefront. we're grateful for the time we worked together. any open orders will be [plan]. wishing you all the best." },
 ] as const;
 
 export type StageKey = (typeof PIPELINE_STAGES)[number]['key'];
@@ -273,7 +273,7 @@ export function udafType(text: string): UdafType | null {
   return null;
 }
 
-/** Hidden from shoppers until Mainz has verified the document and turned the item on. */
+/** Hidden from shoppers until the main course has verified the document and turned the item on. */
 export function shopperCanSeeProduct(product: { active: boolean | number; needsUdaf: boolean | number; udafOn: boolean | number }): boolean {
   if (!Number(product.active)) return false;
   if (Number(product.needsUdaf) && !Number(product.udafOn)) return false;
@@ -515,7 +515,7 @@ export function stageDue(clock: FarmClock, now = new Date()): DueState {
   if (spec.clock === 'ongoing') {
     const weeklyBase = clock.lastWeeklyAt || clock.liveAt;
     const quarterBase = clock.lastRecheckAt || clock.liveAt;
-    if (!weeklyBase && !quarterBase) waiting = 'starts when the storefront goes live.';
+    if (!weeklyBase && !quarterBase) waiting = 'starts after the farm is approved and switched on.';
     dueAt = weeklyBase ? plus(weeklyBase, 7 * DAY) : null;
     quarterlyDueAt = quarterBase ? plus(quarterBase, 90 * DAY) : null;
   }

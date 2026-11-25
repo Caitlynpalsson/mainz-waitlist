@@ -203,7 +203,7 @@ export default function Dashboard() {
               {foods.slice(0, 6).map((food) => (
                 <Pressable key={food.id} onPress={() => { setPicked(food); setVarieties([]); }} style={{ paddingVertical: 8 }}>
                   <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: picked?.id === food.id ? '600' : '400', textAlign: 'center' }}>{food.name}</Text>
-                  {udafType(`${food.name} ${food.category}`) ? <Text style={quiet}>needs UDAF check · stays off until mainz verifies it</Text> : null}
+                  {udafType(`${food.name} ${food.category}`) ? <Text style={quiet}>needs UDAF check · stays off until the main course verifies it</Text> : null}
                 </Pressable>
               ))}
               {picked ? (
@@ -226,7 +226,7 @@ export default function Dashboard() {
             </>
           ) : (
             <>
-              <Text style={quiet}>a token from mainz opens this.</Text>
+              <Text style={quiet}>a token from the main course opens this.</Text>
               <TextInput value={draft} onChangeText={setDraft} placeholder="farm token" placeholderTextColor={colors.gray} autoCapitalize="none" autoCorrect={false} style={input} />
               <View style={{ marginTop: 18, width: '100%', maxWidth: 220 }}>
                 <PrimaryButton label="open" onPress={async () => {
@@ -267,7 +267,7 @@ function ProductEditor({
       </Text>
       {product.needsUdaf ? (
         <Text style={[quiet, { color: colors.red }]}>
-          {product.udafLabel || 'needs UDAF check'}{product.udafOn ? ' · on the shop' : ' · hidden until mainz verifies the document'}
+          {product.udafLabel || 'needs UDAF check'}{product.udafOn ? ' · on the shop' : ' · hidden until the main course verifies the document'}
         </Text>
       ) : null}
       <TextInput value={price} onChangeText={setPrice} placeholder="price" placeholderTextColor={colors.gray} style={input} keyboardType="decimal-pad" />

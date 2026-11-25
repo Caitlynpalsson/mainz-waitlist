@@ -14,7 +14,15 @@ export default function Root({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <title>mainz. real food from people with names.</title>
+        <title>the main course. real food from people with names.</title>
+        <meta name="description" content="the main course. farms near you, with the price the farmer set." />
+        <meta property="og:title" content="the main course" />
+        <meta property="og:description" content="real food from people with names." />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="the main course" />
+        <meta name="twitter:description" content="real food from people with names." />
+        <meta name="apple-mobile-web-app-title" content="the main course" />
         <ScrollViewStyleReset />
         <style id="mainz" dangerouslySetInnerHTML={{ __html: css }} />
       </head>

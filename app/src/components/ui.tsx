@@ -30,9 +30,8 @@ export function FoodImage({ photo, name, width, height }: { photo: string; name:
   if (!source) {
     return (
       <View style={{ width, height, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 18 }}>
-        <Text style={{ fontFamily: 'Inter', fontSize: 10, letterSpacing: 2, color: colors.peri, fontWeight: '700' }}>MAINZ</Text>
+        <Text style={{ fontFamily: 'Inter', fontSize: 11, letterSpacing: -0.2, color: colors.peri, fontWeight: '600', textAlign: 'center' }}>the main course</Text>
         <Text style={{ fontFamily: 'Inter', marginTop: 10, fontSize: 16, fontWeight: '600', color: colors.navy, textAlign: 'center' }}>{name}</Text>
-        <Text style={{ fontFamily: 'Inter', marginTop: 8, fontSize: 11, color: colors.gray, textAlign: 'center' }}>stock photo coming</Text>
       </View>
     );
   }
@@ -122,7 +121,7 @@ export function Pill({
   );
   if (!onPress) return <View style={style}>{icon}{text}</View>;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [style, { opacity: pressed ? 0.75 : 1 }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 2, right: 2 }} style={({ pressed }) => [style, { opacity: pressed ? 0.75 : 1 }]}>
       {icon}{text}
     </Pressable>
   );
@@ -188,7 +187,8 @@ export function CircleButton({ children, onPress, label }: { children: ReactNode
     <Pressable
       accessibilityLabel={label}
       onPress={onPress}
-      style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: colors.hair, alignItems: 'center', justifyContent: 'center' }}
+      hitSlop={6}
+      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: colors.hair, alignItems: 'center', justifyContent: 'center' }}
     >
       {children}
     </Pressable>
@@ -202,16 +202,17 @@ export function PrimaryButton({ label, onPress, disabled = false }: { label: str
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => ({
-        height: 52,
+        minHeight: 52,
         borderRadius: 999,
         backgroundColor: colors.navy,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
         paddingHorizontal: 18,
+        paddingVertical: 12,
       })}
     >
-      <Text style={{ fontFamily: 'Inter', color: colors.white, fontSize: 13.5, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ fontFamily: 'Inter', color: colors.white, fontSize: 13.5, fontWeight: '600', textAlign: 'center' }}>{label}</Text>
     </Pressable>
   );
 }

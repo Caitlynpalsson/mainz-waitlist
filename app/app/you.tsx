@@ -7,7 +7,7 @@ import { colors, useLayout } from '../src/theme';
 const links = [
   ['apply as a farm', '/apply'],
   ['farm dashboard', '/dashboard'],
-  ['the mainz standard', '/standard'],
+  ['the main course standard', '/standard'],
   ['for farmers', '/for-farmers'],
   ['help', '/help'],
   ['admin', '/admin'],
@@ -21,7 +21,7 @@ export default function You() {
         <View style={{ maxWidth: 460, alignSelf: 'center', width: '100%' }}>
           <Cap>you</Cap>
           <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: colors.navy, marginTop: 12 }}>
-            accounts come later. these are the doors that work now.
+            no account yet. these doors work now.
           </Text>
           <View style={{ marginTop: 28 }}>
             {links.map(([label, href]) => (

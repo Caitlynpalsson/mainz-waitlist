@@ -436,7 +436,7 @@ async function setActive(env: Env, id: number, body: Record<string, unknown>): P
 
 async function goLive(env: Env, id: number): Promise<Response> {
   const farm = await mustFarm(env, id);
-  if (farm.status !== 'approved') throw new HttpError('approve the farm before it goes live.');
+  if (farm.status !== 'approved') throw new HttpError('approve the farm before shoppers can see it.');
   if (farm.remove_reason) throw new HttpError('this farm was removed. the reason is on the record.');
   await env.DB.prepare(
     `UPDATE farms

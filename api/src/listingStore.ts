@@ -191,7 +191,7 @@ export async function getPublicListing(env: Env, token: string): Promise<Respons
 /** Staff-only read of a draft as a shopper page. It does not write, and it does not publish. */
 export async function getStaffShopperPreview(env: Env, token: string): Promise<Response> {
   const listing = await byToken(env, token);
-  if (!listing) throw new HttpError('that farm is not on mainz.', 404);
+  if (!listing) throw new HttpError('that farm is not on the main course.', 404);
   const view = await present(env, listing);
   return json(staffShopperFromDraft({
     farmName: view.farmName,

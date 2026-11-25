@@ -29,7 +29,7 @@ export default function ForFarmers() {
           </View>
           <Text style={[quiet, { marginTop: desktop ? 28 : 16 }]}>every farm is reviewed. our team gives the page a final look.</Text>
           <View style={{ marginTop: 28, width: '100%', maxWidth: 320 }}>
-            <PrimaryButton label="apply to sell on mainz" onPress={() => router.push('/apply')} />
+            <PrimaryButton label="apply to sell on the main course" onPress={() => router.push('/apply')} />
           </View>
         </View>
       </Wrap>

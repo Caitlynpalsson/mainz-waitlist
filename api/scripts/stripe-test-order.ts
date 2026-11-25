@@ -123,7 +123,7 @@ const payment = await stripe('POST', 'payment_intents', {
   'payment_method_types[0]': 'card',
   transfer_group: orderId,
   'metadata[order_id]': orderId,
-  description: 'mainz sample test order',
+  description: 'the main course sample test order',
 });
 if (payment.status !== 'succeeded') fail(`sample payment did not succeed (${String(payment.status || 'unknown')})`);
 say(`payment: ${String(payment.id)} succeeded`);

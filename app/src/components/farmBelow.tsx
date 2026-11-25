@@ -52,7 +52,7 @@ export function FarmBelow({
         <Text style={body}>{howPickupWorks(pickupLine)}</Text>
       </View>
       <View style={{ alignItems: 'center', width: '100%', maxWidth: 420 }}>
-        <Text style={heading}>why mainz</Text>
+        <Text style={heading}>why the main course</Text>
         {WHY_MAINZ_LINES.map((line) => (
           <Text key={line} style={body}>{line}</Text>
         ))}

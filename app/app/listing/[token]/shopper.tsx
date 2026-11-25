@@ -73,7 +73,7 @@ export default function StaffShopperPreview() {
     const session = typeof localStorage === 'undefined' ? '' : (localStorage.getItem(STAFF_SESSION_KEY) || '');
     if ((!auth.token && !session) || !token) {
       setData(null);
-      setError('that farm is not on mainz.');
+      setError('that farm is not on the main course.');
       setLoading(false);
       return undefined;
     }
@@ -125,7 +125,7 @@ export default function StaffShopperPreview() {
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(followKey)}>
             <IconHeart filled={followed} />
           </CircleButton>
-          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on mainz` }).catch(() => undefined)}>
+          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on the main course` }).catch(() => undefined)}>
             <IconShare />
           </CircleButton>
         </>

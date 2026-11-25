@@ -53,7 +53,7 @@ export default function FarmPage() {
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(farm.slug)}>
             <IconHeart filled={followed} />
           </CircleButton>
-          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on mainz` }).catch(() => undefined)}>
+          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on the main course` }).catch(() => undefined)}>
             <IconShare />
           </CircleButton>
         </>

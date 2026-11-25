@@ -180,7 +180,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   const listingShopper = path.match(/^\/api\/listings\/([a-z0-9_]+)\/shopper$/);
   if (method === 'GET' && listingShopper) {
     const allowed = isAdminRequest(request, env) || await staffSessionAllows(env, request, listingShopper[1]);
-    if (!allowed) throw new HttpError('that farm is not on mainz.', 404);
+    if (!allowed) throw new HttpError('that farm is not on the main course.', 404);
     return getStaffShopperPreview(env, listingShopper[1]);
   }
   if (method === 'POST' && path === '/api/staff-preview/redeem') {
@@ -319,7 +319,7 @@ async function farmDetail(env: Env, slug: string, url: URL): Promise<Response> {
   const farm = await env.DB.prepare(
     `SELECT * FROM farms WHERE slug = ? AND status = 'approved' AND active = 1`,
   ).bind(slug).first<FarmRow>();
-  if (!farm) throw new HttpError('that farm is not on mainz.', 404);
+  if (!farm) throw new HttpError('that farm is not on the main course.', 404);
   const origin = readOrigin(url);
   const products = await env.DB.prepare(
     `SELECT ${PRODUCT_CARD}
@@ -682,7 +682,7 @@ async function addProduct(env: Env, farm: FarmRow, body: Record<string, unknown>
   const food = await env.DB.prepare(`SELECT * FROM catalog_foods WHERE id = ?`).bind(foodId).first<{
     id: number; name: string; unit: string; photo_key: string; category: string;
   }>();
-  if (!food) throw new HttpError('pick a food from the mainz catalog.');
+  if (!food) throw new HttpError('pick a food from the main course catalog.');
   const existing = await env.DB.prepare(
     `SELECT id FROM products WHERE farm_id = ? AND food_id = ?`,
   ).bind(farm.id, food.id).first();
@@ -746,7 +746,7 @@ async function editProduct(env: Env, farm: FarmRow, productId: number, body: Rec
   const price = body.priceCents === undefined ? product.price_cents : money(body.priceCents);
   const stock = body.stockQty === undefined ? product.stock_qty : clampInt(body.stockQty, 0, 9999, 0);
   if (body.active && product.needs_udaf && !product.udaf_on) {
-    throw new HttpError('this needs a udaf check. it stays off until mainz verifies the document and turns it on.');
+    throw new HttpError('this needs a udaf check. it stays off until the main course verifies the document and turns it on.');
   }
   const active = body.active === undefined ? product.active : (body.active ? 1 : 0);
   await env.DB.prepare(

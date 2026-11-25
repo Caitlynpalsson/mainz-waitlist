@@ -270,7 +270,7 @@ export function describePickupChoice(option: PickupOption): { label: string; lin
 
 /**
  * Address and the delivery fee belong to delivery.
- * Delivery itself is offered only after a Mainz route covers the zip.
+ * Delivery itself is offered only after a route covers the zip.
  */
 export function checkoutVisibility(input: { fulfillment: 'pickup' | 'delivery'; routeMatched: boolean; zipEntered: boolean }) {
   const delivering = showDeliveryFee(input.fulfillment, input.routeMatched);
@@ -300,7 +300,7 @@ export function renderPickupOption(option: PickupOption): string[] {
   return lines.map((line) => line.toLowerCase());
 }
 
-/** Mainz delivery is offered only when a route covers the shopper's zip. */
+/** Delivery is offered only when a route covers the shopper's zip. */
 export function deliveryOffered(routeMatched: boolean): boolean {
   return routeMatched === true;
 }

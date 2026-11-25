@@ -125,7 +125,7 @@ export default function Browse() {
 
         {!q ? (
           <View style={{ marginTop: desktop ? 88 : 48, backgroundColor: colors.cream, borderRadius: 28, paddingVertical: desktop ? 64 : 40, paddingHorizontal: 24, alignItems: 'center' }}>
-            <Cap muted>the mainz standard</Cap>
+            <Cap muted>the main course standard</Cap>
             <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', letterSpacing: -0.3, color: colors.navy, marginTop: 14, textAlign: 'center' }}>
               we pick the farms. so you don't have to research fifteen of them.
             </Text>
@@ -138,7 +138,7 @@ export default function Browse() {
           </View>
         ) : null}
         {!desktop ? (
-          <Text style={{ fontFamily: 'Inter', fontSize: 10, color: '#a3a7b2', textAlign: 'center', marginTop: 36 }}>sample farms, made up for the mockup.</Text>
+          <Text style={{ fontFamily: 'Inter', fontSize: 10, color: '#a3a7b2', textAlign: 'center', marginTop: 36 }}>sample farms, so you can look around.</Text>
         ) : null}
       </Wrap>
     </Shell>
