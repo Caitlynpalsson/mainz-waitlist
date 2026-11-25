@@ -8,6 +8,7 @@
     "migrate": "wrangler d1 migrations apply mainz --local",
     "test": "node --experimental-strip-types --test",
     "smoke": "node scripts/smoke.mjs",
+    "stripe-test": "node --experimental-strip-types scripts/stripe-test-order.ts",
     "seed": "node seed/build.mjs",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy"

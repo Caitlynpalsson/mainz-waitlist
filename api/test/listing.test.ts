@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { onPayoutReturn, startPayoutOnboarding } from '../src/payout.ts';
+import { bankConnected } from '../src/payout.ts';
 import {
   SAMPLE_LISTING_TOKEN,
   approveListing,
@@ -318,8 +318,9 @@ test('onboarding saves a preference and never shows a stored phone', () => {
   assert.equal(payPrefForSave('021000021'), '');
   assert.equal(payPrefFromChoice('set this up later'), 'set this up later');
   assert.equal(payPrefLabel('check'), 'check');
-  assert.equal(startPayoutOnboarding('/listing/return').mode, 'mock');
-  assert.deepEqual(onPayoutReturn(), { payPref: 'bank transfer', connected: true });
+  assert.equal(bankConnected(true, true), true);
+  assert.equal(bankConnected(true, false), false);
+  assert.equal(bankConnected(false, true), false);
   assert.equal(publicOnboarding({ pay_pref: 'bank transfer', payout_connected: 1 }).payoutConnected, true);
   assert.equal(/routing|account number|goes live|launch/i.test(`${PAY_STEP_TITLE} ${PAY_STEP_LINE}`), false);
   assert.equal(PAY_PREF_LABELS['bank transfer'].includes('set up later'), false);

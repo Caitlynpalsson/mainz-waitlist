@@ -9,12 +9,19 @@ import { deliveryFeeOnPlace, parseAddress } from './delivery';
 import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary, weekdayForFarmStops } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
+import { safeOrigin } from './stripe';
+import { handleStripeWebhook, listingConnectStatus, openCheckout, startListingConnect } from './stripeStore';
 
 export interface Env {
   DB: D1Database;
   ADMIN_TOKEN?: string;
   PLATFORM_FEE_BPS?: string;
   DELIVERY_FEE_CENTS?: string;
+  // Stripe transfer split only. The shopper-facing fee stays on PLATFORM_FEE_BPS.
+  PLATFORM_FEE_PERCENT?: string;
+  PLATFORM_FEE_FLAT_CENTS?: string;
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 const PLACE = 'spanish fork, ut';
@@ -147,8 +154,17 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (method === 'POST' && path === '/api/quote') return quote(env, await readJson(request));
   if (method === 'POST' && path === '/api/orders') return placeOrder(env, await readJson(request));
+  if (method === 'POST' && path === '/api/checkout') return checkout(env, await readJson(request));
+  if (method === 'POST' && path === '/api/stripe/webhook') {
+    const payload = await request.text();
+    return handleStripeWebhook(env, payload, request.headers.get('stripe-signature') || '');
+  }
   if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
 
+  const listingConnect = path.match(/^\/api\/listings\/([a-z0-9_]+)\/connect$/);
+  if (method === 'POST' && listingConnect) return startListingConnect(env, listingConnect[1], await readJson(request));
+  const listingConnectStatusPage = path.match(/^\/api\/listings\/([a-z0-9_]+)\/connect-status$/);
+  if (method === 'GET' && listingConnectStatusPage) return listingConnectStatus(env, listingConnectStatusPage[1]);
   const listingOnboarding = path.match(/^\/api\/listings\/([a-z0-9_]+)\/onboarding$/);
   if (method === 'POST' && listingOnboarding) return saveOnboarding(env, listingOnboarding[1], await readJson(request));
   const listingApprove = path.match(/^\/api\/listings\/([a-z0-9_]+)\/approve$/);
@@ -447,6 +463,7 @@ type CartBody = {
   groups?: { farmId?: number; fulfillment?: string; windowLabel?: string }[];
   customer?: { name?: string; email?: string; phone?: string };
   address?: { line1?: string; cityZip?: string };
+  returnOrigin?: string;
 };
 
 async function quote(env: Env, body: CartBody): Promise<Response> {
@@ -474,12 +491,12 @@ async function placeOrder(env: Env, body: CartBody): Promise<Response> {
   const inserted = await env.DB.prepare(
     `INSERT INTO orders (
       public_id, status, payment_status, customer_name, customer_email, customer_phone, delivery_address,
-      merchandise_cents, delivery_fee_cents, platform_fee_cents, total_cents, currency,
+      merchandise_cents, delivery_fee_cents, platform_fee_cents, total_cents, currency, stripe_transfer_group,
       route_id, run_date, route_status, delivery_fee_state, delivery_fee_quoted_cents
-    ) VALUES (?, 'placed_test', 'unpaid_test', ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, ?, ?, ?, ?)`,
+    ) VALUES (?, 'placed_test', 'unpaid_test', ?, ?, ?, ?, ?, ?, ?, ?, 'usd', ?, ?, ?, ?, ?, ?)`,
   ).bind(
     publicId, name.slice(0, 80), email.slice(0, 120), phone, deliveryAddress,
-    priced.merchandiseCents, priced.deliveryFeeCents, priced.platformFeeCents, priced.totalCents,
+    priced.merchandiseCents, priced.deliveryFeeCents, priced.platformFeeCents, priced.totalCents, publicId,
     route?.routeId || null, route?.runDate || '', needsAddress ? 'pending_route' : '', feeState, priced.deliveryFeeCents,
   ).run();
   if (route?.matched && route.routeId && route.runDate) await ensureRun(env, route.routeId, route.runDate);
@@ -517,6 +534,23 @@ async function placeOrder(env: Env, body: CartBody): Promise<Response> {
       deliveryAddress,
     },
   }, 201);
+}
+
+async function checkout(env: Env, body: CartBody): Promise<Response> {
+  let origin = '';
+  try {
+    origin = safeOrigin(body.returnOrigin);
+  } catch {
+    throw new HttpError('add a return address.');
+  }
+  const placed = await placeOrder(env, body);
+  const data = await placed.json() as { order: { publicId: string } };
+  const session = await openCheckout(env, {
+    orderPublicId: data.order.publicId,
+    successUrl: `${origin}/order/${data.order.publicId}?paid=1`,
+    cancelUrl: `${origin}/bag`,
+  });
+  return json({ ...data, checkoutUrl: session.url }, 201);
 }
 
 async function orderDetail(env: Env, publicId: string): Promise<Response> {

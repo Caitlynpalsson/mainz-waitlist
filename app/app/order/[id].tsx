@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Shell } from '../../src/components/chrome';
 import { Cap, Hair, PrimaryButton, Wrap } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { useApi } from '../../src/lib/useApi';
+import { useStore } from '../../src/lib/store';
 import { dollars } from '../../src/lib/money';
 import { colors, useLayout } from '../../src/theme';
 
@@ -38,8 +39,14 @@ type Order = {
 };
 
 export default function OrderPage() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; paid?: string }>();
+  const id = params.id;
+  const paidFlag = params.paid === '1';
+  const store = useStore();
   const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (paidFlag && store.ready) store.clearLines();
+  }, [paidFlag, store.ready]);
   const [choiceError, setChoiceError] = useState('');
   const { data, error } = useApi<Order>(id ? `/api/orders/${id}?t=${tick}` : null);
   const { desktop } = useLayout();
@@ -64,7 +71,7 @@ export default function OrderPage() {
             <>
               <Cap>order placed</Cap>
               <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: colors.navy, marginTop: 12 }}>
-                no payment taken. this is a test.
+                {paidFlag || order.paymentStatus === 'paid_test' ? 'test payment received.' : 'waiting on the test payment.'}
               </Text>
               <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 8 }}>{order.publicId}</Text>
               {order.deliveryAddress ? <Text style={{ fontFamily: 'Inter', marginTop: 8, color: colors.ink }}>{order.deliveryAddress}</Text> : null}

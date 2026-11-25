@@ -15,7 +15,11 @@ migrations_dir = "migrations"
 crons = ["*/15 * * * *"]
 
 [vars]
-# 500 basis points = 5%. A placeholder until Stripe Connect sets the real fee.
+# Shown at checkout. 500 basis points = 5% of each farm's food subtotal.
 PLATFORM_FEE_BPS = "500"
-# Charged once per farm sub-order that the shopper marks as delivery. Placeholder.
+# Shown at checkout. Charged once per farm sub-order the shopper marks as delivery.
 DELIVERY_FEE_CENTS = "500"
+# Stripe transfer split only. Not shown at checkout.
+# 0 and 0 means a farm's transfer is its full food subtotal. Change these two numbers only.
+PLATFORM_FEE_PERCENT = "0"
+PLATFORM_FEE_FLAT_CENTS = "0"

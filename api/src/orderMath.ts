@@ -1,7 +1,7 @@
 // Cart grouping and fee math. This file is the source of truth.
 // The Expo app imports it. Tests cover it. The worker uses it when a bag is quoted or saved.
-// Stripe is not wired up yet. The fields are shaped so a later PaymentIntent can
-// transfer `farmTransferCents` to each farm and keep the platform and delivery fees.
+// farmTransferCents stays the farm's food subtotal. The shopper-facing fee is platformFeeBps.
+// Stripe transfers use a separate helper and do not change these totals.
 
 export type Fulfillment = 'pickup' | 'delivery';
 

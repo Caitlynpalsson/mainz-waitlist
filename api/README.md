@@ -2,7 +2,7 @@
 
 A Cloudflare Worker and a D1 database. The shop in `../app` talks to this.
 
-No Stripe yet. Placing an order saves it and marks it unpaid. The amounts are ready for Stripe Connect later: each farm is its own sub-order, the farm keeps the food price (`farm_transfer_cents`), and Mainz keeps the transaction fee and the delivery fee.
+Checkout uses Stripe test mode only. One payment covers the whole bag. Each farm still has its own sub-order. `farm_transfer_cents` stays the food price. Mainz keeps the transaction fee shown at checkout and the delivery fee. The Stripe transfer can hold back a separate amount; see Stripe test checkout below. The Worker refuses a key that does not start with `sk_test_`.
 
 ## What you need
 
@@ -131,9 +131,19 @@ Wasatch Dairy is pending on purpose. It does not show in browse until an admin a
 - Transaction fee: 5% of each farm's food subtotal, rounded to the nearest cent, then added up. The setting is `PLATFORM_FEE_BPS` (`500` means 5%).
 - Delivery fee: $5.00 for each farm sub-order the shopper marks as delivery. Pickup is free. The setting is `DELIVERY_FEE_CENTS` (`500`).
 
-Both numbers are placeholders until Stripe.
+Those two settings are what the shopper sees. They are separate from the Stripe transfer split.
 
-Stock is checked (you cannot ask for more than the number listed) but it is not reduced, because no payment is taken yet.
+Stock is checked (you cannot ask for more than the number listed) but it is not reduced.
+
+## Stripe test checkout
+
+One bag can include food from many farms. The shopper pays once, in Stripe test mode. After `checkout.session.completed` or `payment_intent.succeeded`, the Worker creates one transfer per farm. The transfer group is the order id. The amount is that farm's food subtotal minus `PLATFORM_FEE_PERCENT` and `PLATFORM_FEE_FLAT_CENTS`. Both default to `0`, so the farm's transfer is the full food subtotal until you change them. Change only those two vars. They do not change the 5% or the $5 above. Delivery stays with the platform.
+
+If a farm's connected account cannot charge and pay out yet, that share is stored as a pending transfer and sent when the account is ready.
+
+The Worker reads `STRIPE_SECRET_KEY` and refuses to call Stripe unless the key starts with `sk_test_`. `STRIPE_WEBHOOK_SECRET` verifies `POST /api/stripe/webhook`. Point a test-mode webhook at that path for `checkout.session.completed`, `payment_intent.succeeded`, and `account.updated`.
+
+`npm run stripe-test` runs a sample order with Stripe's test card once `STRIPE_SECRET_KEY` is set. It does not call Stripe without an `sk_test_` key. Do not put either secret in the repo.
 
 ## Admin
 

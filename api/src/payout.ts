@@ -1,18 +1,8 @@
 /**
- * The only place a real Stripe Connect account link should be created.
- * Hosted onboarding is an account link, then Stripe sends the farm to returnUrl.
- * This preview adapter never leaves the app and never collects bank details.
+ * A farm's bank is connected only when Stripe has enabled charges and payouts.
+ * The Worker creates the Express account and the Account Link. This file does not.
  */
 
-export type PayoutLink = {
-  mode: 'mock';
-  returnUrl: string;
-};
-
-export function startPayoutOnboarding(returnUrl: string): PayoutLink {
-  return { mode: 'mock', returnUrl: returnUrl || '/listing/payout-return' };
-}
-
-export function onPayoutReturn(): { payPref: 'bank transfer'; connected: true } {
-  return { payPref: 'bank transfer', connected: true };
+export function bankConnected(chargesEnabled: boolean, payoutsEnabled: boolean): boolean {
+  return chargesEnabled === true && payoutsEnabled === true;
 }

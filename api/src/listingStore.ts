@@ -55,6 +55,8 @@ type DraftRow = {
   reach_phone: string;
   pay_pref: string;
   payout_connected?: number;
+  stripe_charges_enabled?: number;
+  stripe_payouts_enabled?: number;
   pickup_ok: number;
   pickup_note: string;
   onboarding_done: number;
@@ -287,7 +289,9 @@ export async function saveOnboarding(env: Env, token: string, body: Record<strin
   const typedPhone = body.reachPhone != null ? String(body.reachPhone).replace(/\D/g, '').slice(0, 15) : (listing.reach_phone || '');
   if (via === 'text' && body.reachPhone != null && typedPhone.length < 7) throw new HttpError('add a number we can text.');
   const pay = body.payPref == null ? (listing.pay_pref || '') : payPrefForSave(String(body.payPref));
-  const connected = body.payoutConnected === true ? 1 : body.payoutConnected === false ? 0 : (Number(listing.payout_connected) === 1 ? 1 : 0);
+  const stripeReady = Number(listing.stripe_charges_enabled) === 1 && Number(listing.stripe_payouts_enabled) === 1;
+  let connected = body.payoutConnected === true ? 1 : body.payoutConnected === false ? 0 : (Number(listing.payout_connected) === 1 ? 1 : 0);
+  if (body.payoutConnected === true && !stripeReady) connected = 0;
   const pickupOk = body.pickupOk === true ? 1 : body.pickupOk === false ? 0 : (Number(listing.pickup_ok) === 1 ? 1 : 0);
   const pickupNote = body.pickupNote != null ? String(body.pickupNote).trim().slice(0, 500) : (listing.pickup_note || '');
   const done = body.done === true ? 1 : (Number(listing.onboarding_done) === 1 ? 1 : 0);

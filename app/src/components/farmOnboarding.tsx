@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, TextInput, View, type TextStyle } from 'react-native';
 import {
   ONBOARDING_DONE,
@@ -12,7 +12,6 @@ import {
   type OnboardingStep,
   type PayPref,
 } from '../../../api/src/listing';
-import { onPayoutReturn, startPayoutOnboarding } from '../../../api/src/payout';
 import { colors } from '../theme';
 import { FoodImage, Pill, PrimaryButton } from './ui';
 
@@ -36,6 +35,8 @@ export function FarmOnboarding({
   onBack,
   onSeePage,
   onNext,
+  onConnectBank,
+  onCheckBank,
 }: {
   step: OnboardingStep;
   answers: OnboardingAnswers;
@@ -47,11 +48,16 @@ export function FarmOnboarding({
   onBack: () => void;
   onSeePage: () => void;
   onNext: (patch: Partial<OnboardingAnswers> & { done?: boolean; reachPhone?: string }) => void;
+  onConnectBank?: () => void;
+  onCheckBank?: () => void;
 }) {
   const [via, setVia] = useState(answers.reachVia || 'email');
   const [email, setEmail] = useState(answers.reachEmail);
   const [phone, setPhone] = useState('');
-  const [payoutPhase, setPayoutPhase] = useState<'choose' | 'mock' | 'connected'>(answers.payoutConnected ? 'connected' : 'choose');
+  const [payoutPhase, setPayoutPhase] = useState<'choose' | 'connected'>(answers.payoutConnected ? 'connected' : 'choose');
+  useEffect(() => {
+    if (answers.payoutConnected) setPayoutPhase('connected');
+  }, [answers.payoutConnected]);
   const [editing, setEditing] = useState(false);
   const [pickupText, setPickupText] = useState(answers.pickupNote || pickupLines.join('\n'));
   const shown = answers.pickupNote || pickupLines.join('\n');
@@ -83,18 +89,6 @@ export function FarmOnboarding({
           </View>
         </>
       ) : null}
-      {step === 'pay' && payoutPhase === 'mock' ? (
-        <>
-          {preview ? <Text style={quiet}>preview, nothing is saved.</Text> : null}
-          <Text style={stripeMark}>stripe</Text>
-          <Text style={headline}>connect</Text>
-          <Text style={body}>an account link would open here. stripe would ask its own questions, then send you back.</Text>
-          <Text style={quiet}>no account or routing numbers on this step.</Text>
-          <View style={{ marginTop: 28, width: '100%' }}>
-            <PrimaryButton label="return to mainz" onPress={() => { onPayoutReturn(); setPayoutPhase('connected'); }} />
-          </View>
-        </>
-      ) : null}
       {step === 'pay' && payoutPhase === 'connected' ? (
         <>
           <Text style={headline}>bank connected ✅</Text>
@@ -109,11 +103,16 @@ export function FarmOnboarding({
           <Text style={quiet}>{PAY_STEP_LINE}</Text>
           <View style={{ marginTop: 28, width: '100%' }}>
             <PrimaryButton
-              label="connect my bank"
+              label={busy ? 'opening…' : 'connect my bank'}
               disabled={busy}
-              onPress={() => { startPayoutOnboarding('mainz-payout-return'); setPayoutPhase('mock'); }}
+              onPress={() => onConnectBank?.()}
             />
           </View>
+          {!preview ? (
+            <Pressable onPress={() => onCheckBank?.()} style={{ marginTop: 16 }} disabled={busy}>
+              <Text style={link}>I've finished in stripe</Text>
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => onNext({ payPref: 'check', payoutConnected: false })} style={{ marginTop: 16 }} disabled={busy}>
             <Text style={link}>rather get a check?</Text>
           </Pressable>
@@ -195,7 +194,6 @@ export function prevOnboardingStep(step: OnboardingStep): OnboardingStep | null 
   return index > 0 ? ONBOARDING_STEPS[index - 1] : null;
 }
 
-const stripeMark = { fontFamily: 'Inter' as const, fontSize: 13, fontWeight: '600' as const, letterSpacing: 0.6, color: colors.gray, textAlign: 'center' as const };
 const headline = { fontFamily: 'Inter' as const, fontSize: 28, fontWeight: '600' as const, letterSpacing: -0.6, lineHeight: 34, color: colors.navy, textAlign: 'center' as const };
 const body = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 16 };
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 12 };

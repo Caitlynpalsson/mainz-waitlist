@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Shell } from '../src/components/chrome';
 import { InfoStep, WhereStep, asPickupOptions } from '../src/components/whereStep';
@@ -122,16 +122,25 @@ export default function Bag() {
     }
     setPlacing(true);
     try {
-      const saved = await api<{ order: { publicId: string } }>('/api/orders', {
+      const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
+      const saved = await api<{ checkoutUrl?: string; order: { publicId: string } }>('/api/checkout', {
         method: 'POST',
         body: JSON.stringify({
           ...payload(store),
           customer: { name: store.customerName, email: store.customerEmail, phone: store.customerPhone },
           address: { line1: store.address1, cityZip: store.cityZip },
+          returnOrigin: origin,
         }),
       });
-      store.clearLines();
-      router.replace(`/order/${saved.order.publicId}`);
+      if (!saved.checkoutUrl) {
+        setFormError('stripe did not open the test checkout.');
+        return;
+      }
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.assign(saved.checkoutUrl);
+        return;
+      }
+      await Linking.openURL(saved.checkoutUrl);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'could not place that.');
     } finally {
@@ -196,7 +205,7 @@ export default function Bag() {
                 onPress={place}
               />
             </View>
-            <Text style={[note, { marginTop: 12 }]}>place order (test, no payment).</Text>
+            <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
             <Pressable onPress={() => setStep('info')} style={{ marginTop: 8, alignItems: 'center' }}>
               <Text style={link}>back</Text>
             </Pressable>
@@ -264,7 +273,7 @@ export default function Bag() {
               onPress={place}
             />
           </View>
-          <Text style={[note, { marginTop: 12 }]}>place order (test, no payment).</Text>
+          <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
           <Text style={note}>farmers keep their price. we add a small fee. that's it.</Text>
         </>
       )}

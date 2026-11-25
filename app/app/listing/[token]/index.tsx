@@ -39,7 +39,7 @@ type Listing = {
 
 
 export default function ListingApproval() {
-  const params = useLocalSearchParams<{ token: string; preview_step?: string }>();
+  const params = useLocalSearchParams<{ token: string; preview_step?: string; payout?: string }>();
   const token = params.token;
   const previewing = onboardingStep(params.preview_step);
   const [step, setStep] = useState<OnboardingStep | null>(previewing);
@@ -71,6 +71,7 @@ export default function ListingApproval() {
   const [editPrice, setEditPrice] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [productQuery, setProductQuery] = useState('');
+  const [bankReady, setBankReady] = useState(false);
 
   function take(next: Listing, first: boolean) {
     setData(next);
@@ -231,6 +232,50 @@ export default function ListingApproval() {
     setStep(next);
   }
 
+  async function connectBank() {
+    if (previewing) {
+      setFormError('open the farm page to connect a test bank.');
+      return;
+    }
+    if (!token) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
+      const back = `${origin}/listing/${token}?payout=return`;
+      const result = await api<{ url: string }>(`/api/listings/${token}/connect`, {
+        method: 'POST',
+        body: JSON.stringify({ returnUrl: back, refreshUrl: back }),
+      });
+      if (result.url) await Linking.openURL(result.url);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'could not open stripe.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkBank() {
+    if (previewing || !token) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const status = await api<{ connected: boolean }>(`/api/listings/${token}/connect-status`);
+      if (status.connected) setBankReady(true);
+      else setFormError('stripe has not finished the bank step yet.');
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (params.payout !== 'return' || !token || previewing) return;
+    setStep('pay');
+    void checkBank();
+  }, [params.payout, token, previewing]);
+
   const approved = data?.status === 'farm_approved';
   const denied = data?.status === 'farm_denied' || data?.removed === true;
   const preview = !!data && !denied && !approved && !filling;
@@ -248,7 +293,7 @@ export default function ListingApproval() {
               reachVia: data?.onboarding?.reachVia || '',
               reachEmail: data?.onboarding?.reachEmail || '',
               payPref: (data?.onboarding?.payPref || '') as '' | PayPref,
-              payoutConnected: !!data?.onboarding?.payoutConnected,
+              payoutConnected: bankReady || !!data?.onboarding?.payoutConnected,
               pickupNote: data?.onboarding?.pickupNote || '',
               pickupOk: !!data?.onboarding?.pickupOk,
             }}
@@ -263,6 +308,8 @@ export default function ListingApproval() {
               const next = nextOnboardingStep(step);
               move(next, { ...patch, done: next === 'done' });
             }}
+            onConnectBank={() => { void connectBank(); }}
+            onCheckBank={() => { void checkBank(); }}
           />
         ) : null}
         {!step && error ? <Text style={quiet}>{error}</Text> : null}
