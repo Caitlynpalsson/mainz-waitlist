@@ -42,6 +42,11 @@ test-results/
 playwright-report/
 blob-report/
 
-# generated native folders
-/ios
-/android
+# native build output, not the Capacitor projects
+ios/App/Pods/
+ios/DerivedData/
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties

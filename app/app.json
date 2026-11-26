@@ -44,7 +44,11 @@
       "description": "the main course. farms near you, with the price the farmer set.",
       "themeColor": "#14213D",
       "favicon": "./assets/favicon.png",
-      "backgroundColor": "#F3F0E4"
+      "backgroundColor": "#F3F0E4",
+      "display": "standalone",
+      "startUrl": "/",
+      "lang": "en",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

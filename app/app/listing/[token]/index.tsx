@@ -14,6 +14,8 @@ import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../sr
 import { searchProducts } from '../../../../api/src/search';
 import { farmGuideFacts } from '../../../../api/src/guide';
 import { SetupGuide } from '../../../src/components/SetupGuide';
+import { openUrl } from '../../../src/lib/nativeShell';
+import { shopOrigin } from '../../../../api/src/nativeLinks';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -243,13 +245,13 @@ export default function ListingApproval() {
     setBusy(true);
     setFormError('');
     try {
-      const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
-      const back = `${origin}/listing/${token}?payout=return`;
+      const webOrigin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'https://themaincoursemarket.com';
+      const back = `${shopOrigin(webOrigin)}/listing/${token}?payout=return`;
       const result = await api<{ url: string }>(`/api/listings/${token}/connect`, {
         method: 'POST',
         body: JSON.stringify({ returnUrl: back, refreshUrl: back }),
       });
-      if (result.url) await Linking.openURL(result.url);
+      if (result.url) await openUrl(result.url);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'could not open stripe.');
     } finally {

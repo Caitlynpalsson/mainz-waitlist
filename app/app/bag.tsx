@@ -9,6 +9,8 @@ import { api } from '../src/lib/api';
 import { dollars } from '../src/lib/money';
 import { priceGroups, type Fulfillment } from '../src/lib/orderMath';
 import { digitsZip, pickupCardLine, pickupChoiceLabel, shownCheckoutTotals } from '../../api/src/fulfillment';
+import { isNativeShell, shopOrigin } from '../../api/src/nativeLinks';
+import { openUrl } from '../src/lib/nativeShell';
 import { useStore, type CartLine, type FarmChoice } from '../src/lib/store';
 import type { Quote } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
@@ -135,7 +137,8 @@ export default function Bag() {
     }
     setPlacing(true);
     try {
-      const origin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
+      const webOrigin = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'https://themaincoursemarket.com';
+      const origin = shopOrigin(webOrigin);
       const saved = await api<{ checkoutUrl?: string; order: { publicId: string } }>('/api/checkout', {
         method: 'POST',
         body: JSON.stringify({
@@ -149,11 +152,11 @@ export default function Bag() {
         setFormError('stripe did not open the test checkout.');
         return;
       }
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && !isNativeShell()) {
         window.location.assign(saved.checkoutUrl);
         return;
       }
-      await Linking.openURL(saved.checkoutUrl);
+      await openUrl(saved.checkoutUrl);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'could not place that.');
     } finally {
