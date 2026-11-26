@@ -25,6 +25,7 @@ export interface Env {
   PLATFORM_FEE_FLAT_CENTS?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_CONNECT_WEBHOOK_SECRET?: string;
   CHECKOUT_CLOSED_HOSTS?: string;
 }
 

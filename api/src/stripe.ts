@@ -292,8 +292,20 @@ export async function verifyStripeSignature(payload: string, header: string, sec
 }
 
 export async function readStripeEvent(payload: string, header: string, secret: string, nowSec?: number): Promise<StripeEvent> {
-  const ok = await verifyStripeSignature(payload, header, secret, nowSec);
-  if (!ok) throw new Error('bad stripe signature');
+  return readStripeEventAny(payload, header, [secret], nowSec);
+}
+
+/** Platform and Connect webhooks can use different signing secrets on the same path. */
+export async function readStripeEventAny(payload: string, header: string, secrets: string[], nowSec?: number): Promise<StripeEvent> {
+  const usable = secrets.map((secret) => secret.trim()).filter(Boolean);
+  if (!usable.length) throw new Error('missing webhook secret');
+  for (const secret of usable) {
+    if (await verifyStripeSignature(payload, header, secret, nowSec)) return parseStripeEvent(payload);
+  }
+  throw new Error('bad stripe signature');
+}
+
+function parseStripeEvent(payload: string): StripeEvent {
   const event = JSON.parse(payload) as StripeEvent;
   if (!event || typeof event !== 'object') throw new Error('that was not valid');
   return event;

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { allowedOrigin } from '../src/cors.ts';
+import { farmTransferAmountCents } from '../src/stripe.ts';
 import {
+  DEFAULT_REP_PERCENT,
   RATE_COMING,
   REP_PAGE_LINES,
   REP_PAGE_TITLE,
@@ -27,6 +29,13 @@ test('commission is unset until staff save a rate', () => {
   assert.equal(parseCommissionPercent('101'), null);
   assert.equal(commissionCents(2000, null), null);
   assert.equal(commissionCents(2000, 10), 200);
+  assert.equal(DEFAULT_REP_PERCENT, 3);
+  const sales = 1900;
+  const platformHold = sales - farmTransferAmountCents(sales, { percent: 10, flatCents: 0 });
+  const repShare = commissionCents(sales, DEFAULT_REP_PERCENT);
+  assert.equal(platformHold, 190);
+  assert.equal(repShare, 57);
+  assert.equal((repShare || 0) < platformHold, true);
   assert.equal(RATE_COMING, 'rate coming soon');
 });
 

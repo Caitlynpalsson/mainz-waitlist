@@ -137,11 +137,11 @@ Stock is checked (you cannot ask for more than the number listed) but it is not 
 
 ## Stripe test checkout
 
-One bag can include food from many farms. The shopper pays once, in Stripe test mode. After `checkout.session.completed` or `payment_intent.succeeded`, the Worker creates one transfer per farm. The transfer group is the order id. The amount is that farm's food subtotal minus `PLATFORM_FEE_PERCENT` and `PLATFORM_FEE_FLAT_CENTS`. Both default to `0`, so the farm's transfer is the full food subtotal until you change them. Change only those two vars. They do not change the 5% or the $5 above. Delivery stays with the platform.
+One bag can include food from many farms. The shopper pays once, in Stripe test mode. After `checkout.session.completed` or `payment_intent.succeeded`, the Worker creates one transfer per farm. The transfer group is the order id. The amount is that farm's food subtotal minus `PLATFORM_FEE_PERCENT` and `PLATFORM_FEE_FLAT_CENTS`. Those are `10` and `0`, so the farm is paid 90% of the food subtotal. They do not change the 5% or the $5 the shopper sees. Delivery stays with the platform. A rep's 3% (`REP_COMMISSION_PERCENT` in admin settings) comes out of that 10%, and it is recorded on each paid order with no end date.
 
 If a farm's connected account cannot charge and pay out yet, that share is stored as a pending transfer and sent when the account is ready.
 
-The Worker reads `STRIPE_SECRET_KEY` and refuses to call Stripe unless the key starts with `sk_test_`. `STRIPE_WEBHOOK_SECRET` verifies `POST /api/stripe/webhook`. Point a test-mode webhook at that path for `checkout.session.completed`, `payment_intent.succeeded`, and `account.updated`.
+The Worker reads `STRIPE_SECRET_KEY` and refuses to call Stripe unless the key starts with `sk_test_`. `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` both verify `POST /api/stripe/webhook` (the platform endpoint and the Connect endpoint). Point both test-mode webhooks at that path for `checkout.session.completed`, `payment_intent.succeeded`, and `account.updated`.
 
 `npm run stripe-test` runs a sample order with Stripe's test card once `STRIPE_SECRET_KEY` is set. It does not call Stripe without an `sk_test_` key. Do not put either secret in the repo.
 

@@ -37,7 +37,8 @@ if (!key.startsWith('sk_test_')) {
   say('');
   say('Set these Worker secrets (test mode only):');
   say('  STRIPE_SECRET_KEY      must start with sk_test_');
-  say('  STRIPE_WEBHOOK_SECRET  the whsec_ signing secret from the test webhook');
+  say('  STRIPE_WEBHOOK_SECRET          the whsec_ signing secret from the platform webhook');
+  say('  STRIPE_CONNECT_WEBHOOK_SECRET  the whsec_ signing secret from the Connect webhook');
   say('');
   say('Webhook endpoint:');
   say('  POST /api/stripe/webhook');
@@ -76,7 +77,7 @@ const account = await stripe('POST', 'accounts', {
   email: 'sample-farmer@example.com',
   business_type: 'individual',
   'business_profile[mcc]': '5499',
-  'business_profile[url]': 'https://example.com',
+  'business_profile[url]': 'https://www.themaincoursemarket.com',
   'business_profile[product_description]': 'sample produce',
   'individual[first_name]': 'Sample',
   'individual[last_name]': 'Lane',
@@ -120,7 +121,6 @@ const payment = await stripe('POST', 'payment_intents', {
   currency: 'usd',
   payment_method: 'pm_card_visa',
   confirm: 'true',
-  'payment_method_types[0]': 'card',
   transfer_group: orderId,
   'metadata[order_id]': orderId,
   description: 'the main course sample test order',

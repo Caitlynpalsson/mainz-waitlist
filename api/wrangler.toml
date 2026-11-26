@@ -19,9 +19,9 @@ crons = ["*/15 * * * *"]
 PLATFORM_FEE_BPS = "500"
 # Shown at checkout. Charged once per farm sub-order the shopper marks as delivery.
 DELIVERY_FEE_CENTS = "500"
-# Stripe transfer split only. Not shown at checkout.
-# 0 and 0 means a farm's transfer is its full food subtotal. Change these two numbers only.
-PLATFORM_FEE_PERCENT = "0"
+# Stripe transfer split only. Not the 5% the shopper sees.
+# 10 means the farm transfer is the food subtotal minus 10%. Flat stays 0.
+PLATFORM_FEE_PERCENT = "10"
 PLATFORM_FEE_FLAT_CENTS = "0"
 # Public shop hosts where checkout stays closed. Preview hosts are not listed.
 CHECKOUT_CLOSED_HOSTS = "themaincoursemarket.com,www.themaincoursemarket.com"

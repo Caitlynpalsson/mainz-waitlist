@@ -1,4 +1,5 @@
 import { HttpError, json } from './http';
+import { recordRepLedger } from './repStore';
 import { bankConnected } from './payout';
 import {
   accountFlagsFromEvent,
@@ -9,7 +10,7 @@ import {
   paymentIntentIdFromEvent,
   planFarmTransfers,
   readConnectFee,
-  readStripeEvent,
+  readStripeEventAny,
   safeReturnUrl,
   transferActions,
   type StripeClient,
@@ -21,6 +22,7 @@ export type StripeEnv = {
   DB: D1Database;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_CONNECT_WEBHOOK_SECRET?: string;
   PLATFORM_FEE_PERCENT?: string;
   PLATFORM_FEE_FLAT_CENTS?: string;
 };
@@ -54,17 +56,21 @@ export async function startListingConnect(env: StripeEnv, token: string, body: {
     throw new HttpError('add a return address.');
   }
   const stripe = stripeClient(env);
-  let accountId = listing.stripe_account_id || '';
-  if (!accountId) {
-    const account = await callStripe(stripe.createExpressAccount({
-      email: listing.reach_email || '',
-      listingToken: token,
-    }));
-    accountId = account.id;
-    await env.DB.prepare(`UPDATE listing_drafts SET stripe_account_id = ?, updated_at = datetime('now') WHERE id = ?`).bind(accountId, listing.id).run();
+  try {
+    let accountId = listing.stripe_account_id || '';
+    if (!accountId) {
+      const account = await callStripe(stripe.createExpressAccount({
+        email: listing.reach_email || '',
+        listingToken: token,
+      }));
+      accountId = account.id;
+      await env.DB.prepare(`UPDATE listing_drafts SET stripe_account_id = ?, updated_at = datetime('now') WHERE id = ?`).bind(accountId, listing.id).run();
+    }
+    const link = await callStripe(stripe.createAccountLink({ accountId, returnUrl, refreshUrl }));
+    return json({ url: link.url });
+  } catch (error) {
+    throw friendlyBankError(error);
   }
-  const link = await callStripe(stripe.createAccountLink({ accountId, returnUrl, refreshUrl }));
-  return json({ url: link.url });
 }
 
 export async function listingConnectStatus(env: StripeEnv, token: string): Promise<Response> {
@@ -73,7 +79,12 @@ export async function listingConnectStatus(env: StripeEnv, token: string): Promi
   ).bind(token).first<{ id: number; stripe_account_id?: string }>();
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
   if (!listing.stripe_account_id) return json({ connected: false });
-  const account = await callStripe(stripeClient(env).retrieveAccount(listing.stripe_account_id));
+  let account;
+  try {
+    account = await callStripe(stripeClient(env).retrieveAccount(listing.stripe_account_id));
+  } catch (error) {
+    throw friendlyBankError(error);
+  }
   await applyAccountUpdate(env, {
     id: account.id,
     chargesEnabled: account.charges_enabled,
@@ -101,11 +112,11 @@ export async function openCheckout(env: StripeEnv, input: { orderPublicId: strin
 
 export async function handleStripeWebhook(env: StripeEnv, payload: string, signature: string): Promise<Response> {
   if (payload.length > 200_000) throw new HttpError('that is too large.');
-  const secret = env.STRIPE_WEBHOOK_SECRET || '';
-  if (!secret) throw new HttpError('add the stripe webhook secret.', 500);
+  const secrets = [env.STRIPE_WEBHOOK_SECRET || '', env.STRIPE_CONNECT_WEBHOOK_SECRET || ''];
+  if (!secrets.some((secret) => secret.trim())) throw new HttpError('add the stripe webhook secret.', 500);
   let event: StripeEvent;
   try {
-    event = await readStripeEvent(payload, signature, secret);
+    event = await readStripeEventAny(payload, signature, secrets);
   } catch {
     throw new HttpError('bad stripe signature.', 400);
   }
@@ -170,6 +181,7 @@ export async function settlePaidOrder(env: StripeEnv, input: { orderPublicId: st
     })), readConnectFee(env)),
     order.public_id,
   );
+  await recordRepLedger(env, order.id);
   return applyTransferActions(env, order.id, actions);
 }
 
@@ -281,6 +293,13 @@ async function saveTransfer(env: StripeEnv, orderId: number, action: Extract<Tra
          transferred_at = CASE WHEN ? = 'transferred' THEN datetime('now') ELSE transferred_at END
      WHERE order_farm_id = ? AND status != 'transferred'`,
   ).bind(action.amountCents, status, action.accountId, transferId, action.transferGroup, status, action.orderFarmId).run();
+}
+
+const BANK_NOT_READY = "bank connect is almost ready. try again soon or tap 'rather get a check?'";
+
+function friendlyBankError(error: unknown): unknown {
+  if (error instanceof HttpError && /test key|locked to test mode|return address|cannot find/.test(error.message)) return error;
+  return new HttpError(BANK_NOT_READY);
 }
 
 function stripeClient(env: StripeEnv): StripeClient {

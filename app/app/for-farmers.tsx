@@ -9,7 +9,7 @@ const steps = [
   'you choose pickup, delivery or both.',
   'you pick a food. we add a photo.',
   'we help you find customers.',
-  'a small transaction fee, plus a delivery fee on delivery orders.',
+  'we keep 10% of each sale. you keep the rest. delivery has its own fee.',
 ];
 
 export default function ForFarmers() {

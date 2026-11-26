@@ -1,6 +1,7 @@
 import { HttpError, json } from './http';
 import { sha256Hex } from './staffPreview';
 import {
+  DEFAULT_REP_PERCENT,
   commissionCents,
   farmApprovalLine,
   isReferralCode,
@@ -15,6 +16,7 @@ type FarmCredit = {
   name: string;
   status: string;
   sold_cents: number;
+  commission_cents: number;
   sample: number;
 };
 
@@ -66,7 +68,7 @@ export async function repDesk(env: Env, token: string): Promise<Response> {
       name: farm.name,
       status: farm.status,
       soldCents: Number(farm.sold_cents) || 0,
-      commissionCents: commissionCents(Number(farm.sold_cents) || 0, percent),
+      commissionCents: percent == null && !Number(farm.commission_cents) ? null : Number(farm.commission_cents) || 0,
     })),
   });
 }
@@ -89,6 +91,7 @@ export async function adminRepList(env: Env): Promise<Response> {
         name: farm.name,
         status: farm.status,
         soldCents: Number(farm.sold_cents) || 0,
+        commissionCents: Number(farm.commission_cents) || 0,
         sample: Number(farm.sample) === 1,
       })),
     });
@@ -122,9 +125,10 @@ export async function reissueRepView(env: Env, body: Record<string, unknown>): P
 async function credits(env: Env, repId: number): Promise<FarmCredit[]> {
   const farms = await env.DB.prepare(
     `SELECT f.name, f.status, f.active, f.decision, f.pipeline_stage, f.remove_reason, f.is_demo,
-            COALESCE((SELECT SUM(ofm.merchandise_cents) FROM order_farms ofm WHERE ofm.farm_id = f.id), 0) AS sold_cents
+            COALESCE((SELECT SUM(l.sales_cents) FROM rep_ledger l WHERE l.farm_id = f.id AND l.rep_id = f.rep_id), 0) AS sold_cents,
+            COALESCE((SELECT SUM(l.commission_cents) FROM rep_ledger l WHERE l.farm_id = f.id AND l.rep_id = f.rep_id), 0) AS commission_cents
      FROM farms f WHERE f.rep_id = ? ORDER BY f.id`,
-  ).bind(repId).all<{ name: string; status: string; active: number; decision: string; pipeline_stage: string; remove_reason: string; is_demo: number; sold_cents: number }>();
+  ).bind(repId).all<{ name: string; status: string; active: number; decision: string; pipeline_stage: string; remove_reason: string; is_demo: number; sold_cents: number; commission_cents: number }>();
   const drafts = await env.DB.prepare(
     `SELECT farm_name, status, is_sample FROM listing_drafts WHERE rep_id = ? ORDER BY id`,
   ).bind(repId).all<{ farm_name: string; status: string; is_sample: number }>();
@@ -139,12 +143,14 @@ async function credits(env: Env, repId: number): Promise<FarmCredit[]> {
         removed: !!farm.remove_reason,
       }),
       sold_cents: Number(farm.sold_cents) || 0,
+      commission_cents: Number(farm.commission_cents) || 0,
       sample: Number(farm.is_demo) === 1 ? 1 : 0,
     })),
     ...drafts.results.map((draft) => ({
       name: draft.farm_name,
       status: listingApprovalLine(draft.status),
       sold_cents: 0,
+      commission_cents: 0,
       sample: Number(draft.is_sample) === 1 ? 1 : 0,
     })),
   ];
@@ -152,7 +158,27 @@ async function credits(env: Env, repId: number): Promise<FarmCredit[]> {
 
 async function readPercent(env: Env): Promise<number | null> {
   const row = await env.DB.prepare(`SELECT value FROM admin_settings WHERE key = 'REP_COMMISSION_PERCENT'`).first<{ value: string }>();
-  return parseCommissionPercent(row?.value ?? '');
+  if (!row) return DEFAULT_REP_PERCENT;
+  return parseCommissionPercent(row.value);
+}
+
+/** One row per farm on a paid order. The rate is stored on the row. Nothing expires. */
+export async function recordRepLedger(env: Env, orderId: number): Promise<void> {
+  const percent = (await readPercent(env)) ?? DEFAULT_REP_PERCENT;
+  const rows = await env.DB.prepare(
+    `SELECT ofm.id AS order_farm_id, ofm.farm_id, ofm.merchandise_cents, f.rep_id
+     FROM order_farms ofm JOIN farms f ON f.id = ofm.farm_id
+     WHERE ofm.order_id = ? AND f.rep_id IS NOT NULL`,
+  ).bind(orderId).all<{ order_farm_id: number; farm_id: number; merchandise_cents: number; rep_id: number }>();
+  for (const row of rows.results) {
+    const sales = Math.max(0, Number(row.merchandise_cents) || 0);
+    const commission = commissionCents(sales, percent) ?? 0;
+    await env.DB.prepare(
+      `INSERT INTO rep_ledger (rep_id, farm_id, order_id, order_farm_id, sales_cents, rate_percent, commission_cents)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(order_farm_id) DO NOTHING`,
+    ).bind(row.rep_id, row.farm_id, orderId, row.order_farm_id, sales, String(percent), commission).run();
+  }
 }
 
 async function uniqueCode(env: Env): Promise<string> {

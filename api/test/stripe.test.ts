@@ -16,6 +16,7 @@ import {
   planFarmTransfers,
   readConnectFee,
   readStripeEvent,
+  readStripeEventAny,
   safeReturnUrl,
   transferActions,
   transferFields,
@@ -154,6 +155,10 @@ test('webhook signature and paid events', async () => {
   assert.equal(await verifyStripeSignature(payload, header, 'whsec_other', now), false);
   assert.equal(await verifyStripeSignature(payload, header, secret, now + 301), false);
   const event = await readStripeEvent(payload, header, secret, now);
+  const connectHeader = await sign('whsec_connect', payload, now);
+  const fromConnect = await readStripeEventAny(payload, connectHeader, ['whsec_platform', 'whsec_connect'], now);
+  assert.equal(fromConnect.type, 'checkout.session.completed');
+  await assert.rejects(() => readStripeEventAny(payload, header, ['whsec_platform', 'whsec_connect'], now), /bad stripe signature/);
   assert.equal(isPaidEvent(event), true);
   assert.equal(orderIdFromEvent(event), 'mz_sample01');
   assert.equal(isPaidEvent({ type: 'checkout.session.completed', data: { object: { payment_status: 'unpaid' } } }), false);

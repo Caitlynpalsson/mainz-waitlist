@@ -6,6 +6,8 @@ export const REP_PAGE_LINES = [
 ] as const;
 
 export const RATE_COMING = 'rate coming soon';
+/** Caty's default. Paid from the platform's 10%, not taken again from the farm. */
+export const DEFAULT_REP_PERCENT = 3;
 export const REP_CODE_KEY = 'main.repCode';
 const CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 

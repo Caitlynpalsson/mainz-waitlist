@@ -114,7 +114,7 @@ export const CALL_QUESTIONS = [
 export const CALL_SHARE = [
   'you set your own products and prices.',
   'you choose pickup, delivery, or both.',
-  'the main course keeps a small transaction fee. delivery orders also have a delivery fee.',
+  'we keep 10% of what you sell. you keep the rest. delivery orders also have a delivery fee.',
   'we take your product photos and set up your storefront for you.',
 ];
 
