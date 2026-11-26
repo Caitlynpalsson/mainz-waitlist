@@ -72,6 +72,8 @@ test('one checkout, then one transfer per farm, holding a farm that is not ready
   assert.equal(fields.mode, 'payment');
   assert.equal(fields['payment_intent_data[transfer_group]'], 'mz_sample01');
   assert.equal(fields['metadata[order_id]'], 'mz_sample01');
+  assert.equal(fields['payment_method_types[0]'], 'card');
+  assert.equal(fields['payment_method_types[1]'], 'link');
   assert.equal(Object.keys(fields).filter((key) => key.startsWith('line_items[1]')).length, 0);
   const planned = planFarmTransfers([
     { orderFarmId: 11, farmId: 1, merchandiseCents: 1900, accountId: 'acct_ready', chargesEnabled: true, payoutsEnabled: true },

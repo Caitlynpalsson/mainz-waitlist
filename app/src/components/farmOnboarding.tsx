@@ -92,7 +92,8 @@ export function FarmOnboarding({
       ) : null}
       {step === 'pay' && payoutPhase === 'connected' ? (
         <>
-          <Text style={headline}>bank connected ✅</Text>
+          <Text style={headline}>you're connected</Text>
+          <Text style={quiet}>your first payday is monday. it usually lands in 1 to 3 days.</Text>
           <View style={{ marginTop: 28, width: '100%' }}>
             <PrimaryButton label={busy ? 'saving…' : 'next'} disabled={busy} onPress={() => onNext({ payPref: 'bank transfer', payoutConnected: true })} />
           </View>
@@ -101,6 +102,7 @@ export function FarmOnboarding({
       {step === 'pay' && payoutPhase === 'choose' ? (
         <>
           <Text style={headline}>{PAY_STEP_TITLE}</Text>
+          <Text style={quiet}>about 5 minutes. have your ID and bank login ready. we never see your details.</Text>
           <Text style={quiet}>{PAY_STEP_LINE}</Text>
           <Text style={quiet}>{PAYDAY_LINE}</Text>
           <View style={{ marginTop: 28, width: '100%' }}>
@@ -110,14 +112,10 @@ export function FarmOnboarding({
               onPress={() => onConnectBank?.()}
             />
           </View>
-          {!preview ? (
-            <Pressable onPress={() => onCheckBank?.()} style={{ marginTop: 16 }} disabled={busy}>
-              <Text style={link}>I've finished in stripe</Text>
-            </Pressable>
-          ) : null}
           <Pressable onPress={() => onNext({ payPref: 'check', payoutConnected: false })} style={{ marginTop: 16 }} disabled={busy}>
             <Text style={link}>rather get a check?</Text>
           </Pressable>
+          <TextUsLine style={quiet} />
         </>
       ) : null}
       {step === 'pickup' ? (
@@ -161,7 +159,7 @@ export function FarmOnboarding({
           </View>
         </>
       ) : null}
-      {error ? <Text style={{ ...quiet, color: colors.red }}>{error}</Text> : null}
+      {error ? <Text style={quiet}>{error}</Text> : null}
       <Pressable onPress={onBack} style={{ marginTop: 22 }}>
         <Text style={link}>back</Text>
       </Pressable>

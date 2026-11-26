@@ -196,6 +196,8 @@ export function checkoutSessionFields(input: {
     'payment_intent_data[transfer_group]': input.orderPublicId,
     'payment_intent_data[metadata][order_id]': input.orderPublicId,
     'metadata[order_id]': input.orderPublicId,
+    'payment_method_types[0]': 'card',
+    'payment_method_types[1]': 'link',
   };
 }
 

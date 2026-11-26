@@ -678,21 +678,23 @@ function nextMonday(from = new Date()): string {
 
 async function farmOrders(env: Env, farm: FarmRow): Promise<Response> {
   const rows = await env.DB.prepare(
-    `SELECT ofm.merchandise_cents, o.public_id, o.created_at AS order_created
+    `SELECT ofm.merchandise_cents, o.created_at AS order_created,
+            (SELECT group_concat(food_name, ', ') FROM order_items WHERE order_farm_id = ofm.id) AS foods
      FROM order_farms ofm JOIN orders o ON o.id = ofm.order_id
      WHERE ofm.farm_id = ? ORDER BY ofm.id DESC LIMIT 30`,
-  ).bind(farm.id).all<{ merchandise_cents: number; public_id: string; order_created: string }>();
+  ).bind(farm.id).all<{ merchandise_cents: number; order_created: string; foods: string | null }>();
   return json({
     orders: rows.results.map((row) => {
       const itemCents = Number(row.merchandise_cents) || 0;
       const feeCents = connectPlatformFeeCents(itemCents, readConnectFee(env));
       const when = row.order_created ? new Date(`${row.order_created.replace(' ', 'T')}Z`) : new Date();
+      const payoutDate = nextMonday(Number.isNaN(when.getTime()) ? new Date() : when);
+      const keepCents = Math.max(0, itemCents - feeCents);
+      const monday = new Date(`${payoutDate}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }).toLowerCase();
       return {
-        orderId: row.public_id,
-        itemCents,
-        feeCents,
-        keepCents: Math.max(0, itemCents - feeCents),
-        payoutDate: nextMonday(Number.isNaN(when.getTime()) ? new Date() : when),
+        foods: (row.foods || 'an order').toLowerCase(),
+        keepCents,
+        line: `you'll get $${(keepCents / 100).toFixed(2)} on monday, ${monday}`,
       };
     }),
     note: FARM_CUT_LINE,

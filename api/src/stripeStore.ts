@@ -356,7 +356,7 @@ async function reverseMatchedTransfers(env: StripeEnv, clawback: { amount: numbe
   }
 }
 
-const BANK_NOT_READY = "bank connect is almost ready. try again soon or tap 'rather get a check?'";
+const BANK_NOT_READY = "rather get a check? that works. or text us and we'll sit with you.";
 
 function friendlyBankError(error: unknown): unknown {
   if (error instanceof HttpError && /test key|locked to test mode|return address|cannot find/.test(error.message)) return error;

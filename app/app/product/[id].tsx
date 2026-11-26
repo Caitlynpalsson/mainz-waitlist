@@ -21,6 +21,7 @@ export default function ProductPage() {
   const [optionId, setOptionId] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState('');
   const selected = product?.options.find((option) => option.id === (optionId ?? product.options[0]?.id)) || null;
   const price = selected?.priceCents ?? product?.priceCents ?? 0;
   const unit = selected?.unit ?? product?.unit ?? '';
@@ -80,6 +81,7 @@ export default function ProductPage() {
                       label={product.stockQty < 1 ? 'sold out' : added ? 'added' : `add to bag · ${dollars(price * qty, 'auto')}`}
                       disabled={product.stockQty < 1}
                       onPress={() => {
+                        const day = product.farm.deliverySummary || product.farm.windows.delivery[0]?.day || product.farm.windows.pickup[0]?.day || 'this week';
                         store.add({
                           productId: product.id,
                           optionId: selected?.id ?? null,
@@ -102,10 +104,12 @@ export default function ProductPage() {
                           stockQty: product.stockQty,
                         });
                         setAdded(true);
+                        setToast(`${product.name.toLowerCase()} is in your bag. next up: ${day}.`);
                       }}
                     />
                   </View>
                 </View>
+                {toast ? <Text style={{ fontFamily: 'Inter', fontSize: 14, color: colors.navy, textAlign: 'center', marginTop: 12 }}>{toast}</Text> : null}
                 <View style={{ width: '100%', marginTop: 28 }}>
                   <Meta k="picked" v={product.pickedLabel || 'this week'} />
                   <Meta k="grown" v={product.grownNote || 'ask the farm'} />

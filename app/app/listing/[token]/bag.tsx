@@ -169,7 +169,7 @@ export default function PreviewBag() {
                 <View style={{ marginTop: 22, gap: 10 }}>
                   <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
                   {delivering ? <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} /> : null}
-                  <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
+                  <Fee label="service fee" value={dollars(money.platformFeeCents)} />
                   <Hair />
                   <Fee label="total" value={dollars(money.totalCents)} strong />
                 </View>

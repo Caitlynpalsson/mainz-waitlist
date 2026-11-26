@@ -63,7 +63,7 @@ export default function Dashboard() {
   const [stock, setStock] = useState('10');
   const [varieties, setVarieties] = useState<string[]>([]);
   const [message, setMessage] = useState('');
-  const [orders, setOrders] = useState<{ orderId: string; itemCents: number; feeCents: number; keepCents: number; payoutDate: string }[]>([]);
+  const [orders, setOrders] = useState<{ foods: string; keepCents: number; line: string }[]>([]);
   const [orderNote, setOrderNote] = useState('');
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
-    api<{ orders: { orderId: string; itemCents: number; feeCents: number; keepCents: number; payoutDate: string }[]; note: string }>('/api/farm/orders', { headers: { 'x-farm-token': token } })
+    api<{ orders: { foods: string; keepCents: number; line: string }[]; note: string }>('/api/farm/orders', { headers: { 'x-farm-token': token } })
       .then((next) => { setOrders(next.orders); setOrderNote(next.note); })
       .catch(() => setOrders([]));
     api<Me>('/api/farm/me', { headers: { 'x-farm-token': token } })
@@ -197,17 +197,22 @@ export default function Dashboard() {
           {me ? (
             <>
               <Text style={farmName}>{me.farm.name.toLowerCase()}</Text>
-              <Text style={statusLine}>{me.farm.status}{me.farm.active ? '' : ' · hidden'}</Text>
-              <Text nativeID="guide-bank" style={[kicker, { marginTop: 36 }]}>orders</Text>
+              <Text style={statusLine}>{me.farm.status === 'approved' ? (me.farm.active ? 'on the shop' : 'approved, still hidden') : 'in review'}</Text>
+              {(!me.products.length || !(me.farm.offersPickup || me.farm.offersDelivery) || !me.farm.bankConnected) ? (
+                <View style={{ width: '100%', marginTop: 22, padding: 16, borderRadius: 18, backgroundColor: colors.cream }}>
+                  <Text style={farmName}>let's finish your stand</Text>
+                  {!me.products.length ? <Text style={quiet}>add the foods and prices you sell.</Text> : null}
+                  {!(me.farm.offersPickup || me.farm.offersDelivery) ? <Text style={quiet}>pick pickup days, delivery days, or both.</Text> : null}
+                  {!me.farm.bankConnected ? <Text style={quiet}>connect your bank when you're ready. or ask for a check.</Text> : null}
+                </View>
+              ) : null}
+              <Text nativeID="guide-bank" style={[kicker, { marginTop: 36 }]}>payday</Text>
               {orderNote ? <Text style={quiet}>{orderNote}</Text> : null}
-              {orders.length === 0 ? <Text style={quiet}>no orders yet.</Text> : null}
+              {orders.length === 0 ? <Text style={quiet}>no orders yet. your first monday will show up here.</Text> : null}
               {orders.map((order) => (
-                <View key={order.orderId} style={{ width: '100%', marginTop: 16 }}>
-                  <Text style={quiet}>{order.orderId}</Text>
-                  <Text style={quiet}>item total {dollars(order.itemCents)}</Text>
-                  <Text style={quiet}>10% fee {dollars(order.feeCents)}</Text>
-                  <Text style={quiet}>you keep {dollars(order.keepCents)}</Text>
-                  <Text style={quiet}>payout date {order.payoutDate}</Text>
+                <View key={order.line} style={{ width: '100%', marginTop: 16 }}>
+                  <Text style={quiet}>{order.foods}</Text>
+                  <Text style={quiet}>{order.line}</Text>
                 </View>
               ))}
               <Pressable onPress={() => saveFarm({ offersPickup: !me.farm.offersPickup })}>

@@ -205,8 +205,8 @@ export default function Bag() {
         ) : (
           <View>
             <Text style={note}>
-              {delivering
-                ? `delivery ${ownFarm.choice.windowLabel}`
+              {ownFarm.farmName.toLowerCase()} · {delivering
+                ? `delivery ${ownFarm.choice.windowLabel || 'thursday'}`
                 : (ownOptions.find((option) => pickupChoiceLabel(option) === ownFarm.choice.windowLabel)
                   ? pickupCardLine(ownOptions.find((option) => pickupChoiceLabel(option) === ownFarm.choice.windowLabel)!)
                   : 'pickup')}
@@ -252,7 +252,7 @@ export default function Bag() {
             />
           ) : null}
           {delivering ? (
-            <Text style={note}>the delivery fee stays not charged until this route is confirmed.</Text>
+            <Text style={note}>delivery is $5 for thursday. if this route doesn't run, we'll refund the delivery fee.</Text>
           ) : null}
           {delivering ? (
             <View style={address}>
@@ -432,11 +432,15 @@ function payload(store: ReturnType<typeof useStore>) {
 }
 
 function Money({ money, delivering }: { money: { merchandiseCents: number; deliveryFeeCents: number; platformFeeCents: number; totalCents: number }; delivering: boolean }) {
+  const [why, setWhy] = useState(false);
   return (
     <View style={{ marginTop: 22, gap: 10 }}>
       <Fee label="to the farmers" value={dollars(money.merchandiseCents)} />
       {delivering ? <Fee label="delivery fee" value={dollars(money.deliveryFeeCents)} /> : null}
-      <Fee label="transaction fee" value={dollars(money.platformFeeCents)} />
+      <Pressable accessibilityRole="button" accessibilityLabel="what is the service fee" onPress={() => setWhy((open) => !open)}>
+        <Fee label="service fee" value={dollars(money.platformFeeCents)} />
+      </Pressable>
+      {why ? <Text style={{ fontFamily: 'Inter', fontSize: 13, lineHeight: 18, color: colors.gray }}>shoppers pay the 5% and delivery. your rep's 3% comes from our cut, not yours.</Text> : null}
       <Hair />
       <Fee label="total" value={dollars(money.totalCents)} strong />
     </View>
@@ -471,5 +475,5 @@ const note = { fontFamily: 'Inter' as const, fontSize: 11, color: colors.gray, t
 const address = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, backgroundColor: colors.white, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, marginTop: 16 };
 const addr1 = { fontFamily: 'Inter' as const, fontSize: 14, fontWeight: '500' as const, color: colors.navy, padding: 0 };
 const addr2 = { fontFamily: 'Inter' as const, fontSize: 12, color: colors.gray, padding: 0, marginTop: 2 };
-const errText = { fontFamily: 'Inter' as const, color: colors.red, fontSize: 12, marginTop: 10, textAlign: 'center' as const };
+const errText = { fontFamily: 'Inter' as const, color: colors.gray, fontSize: 13, marginTop: 10, textAlign: 'center' as const };
 const link = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.gray };

@@ -51,6 +51,10 @@ export default function OrderPage() {
   const { data, error } = useApi<Order>(id ? `/api/orders/${id}?t=${tick}` : null);
   const { desktop } = useLayout();
   const order = data?.order;
+  const foods = order?.groups.map((group) => group.lines.map((line) => line.name).join(', ')).filter(Boolean).join(', ') || 'your food';
+  const farm = order?.groups[0]?.farmName?.toLowerCase() || 'the farm';
+  const when = order?.groups[0]?.windowLabel ? `${order.groups[0].fulfillment} ${order.groups[0].windowLabel}` : 'on the way';
+  const readyLine = `you're all set. ${foods.toLowerCase()} from ${farm}, ${when}. questions? text 972-510-3326.`;
 
   async function choose(choice: 'pickup' | 'next') {
     if (!id) return;
@@ -66,14 +70,13 @@ export default function OrderPage() {
     <Shell top="bar" title="order">
       <Wrap style={{ paddingTop: desktop ? 64 : 16 }}>
         <View style={{ maxWidth: 560, alignSelf: 'center', width: '100%' }}>
-          {error ? <Text style={{ fontFamily: 'Inter', color: colors.red }}>{error}</Text> : null}
+          {error ? <Text style={{ fontFamily: 'Inter', color: colors.gray, textAlign: 'center' }}>{error}</Text> : null}
           {order ? (
             <>
               <Cap>order placed</Cap>
-              <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: colors.navy, marginTop: 12 }}>
-                {paidFlag || order.paymentStatus === 'paid_test' ? 'test payment received.' : 'waiting on the test payment.'}
+              <Text style={{ fontFamily: 'Inter', fontSize: 16, fontWeight: '600', color: colors.navy, marginTop: 12, textAlign: 'center' }}>
+                {paidFlag || order.paymentStatus === 'paid_test' ? readyLine : "waiting on the payment. we'll text if we need you."}
               </Text>
-              <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 8 }}>{order.publicId}</Text>
               {order.deliveryAddress ? <Text style={{ fontFamily: 'Inter', marginTop: 8, color: colors.ink }}>{order.deliveryAddress}</Text> : null}
               {order.route?.line ? <Text style={quiet}>{order.route.line}</Text> : null}
               {order.route?.status ? <Text style={quiet}>{order.route.status.replace(/_/g, ' ')}</Text> : null}
@@ -105,10 +108,13 @@ export default function OrderPage() {
               <View style={{ marginTop: 12 }}><Hair /></View>
               <Row k="to the farmers" v={dollars(order.merchandiseCents)} />
               <Row k={feeLabel(order.route?.feeState)} v={dollars(order.deliveryFeeCents)} />
-              <Row k="transaction fee" v={dollars(order.platformFeeCents)} />
+              <Row k="service fee" v={dollars(order.platformFeeCents)} />
               <Row k="total" v={dollars(order.totalCents)} />
               <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 18, textAlign: 'center' }}>
-                farmers keep their price. we add a small fee. that's it.
+                shoppers pay the 5% and delivery. your rep's 3% comes from our cut, not yours.
+              </Text>
+              <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 10, textAlign: 'center' }}>
+                if something's off, we'll make it right with you, then settle with that farm.
               </Text>
               <View style={{ marginTop: 24 }}>
                 <PrimaryButton label="back to browse" onPress={() => router.replace('/')} />
