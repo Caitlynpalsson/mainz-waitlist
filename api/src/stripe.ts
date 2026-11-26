@@ -126,16 +126,14 @@ export const STRIPE_V2_VERSION = '2025-11-17.preview';
  * Express on this sandbox requires fees_collector and losses_collector to both be
  * application, so the platform pays Stripe's fees and covers negative balances.
  * card_payments plus stripe_transfers is what a farm needs to be paid by transfer.
- * No `type`, no `on_behalf_of`, no phone.
+ * The site url is not accepted on identity.business_details. It is set with the v1
+ * business_profile[url] update. No `type`, no `on_behalf_of`, no phone.
  */
 export function v2AccountBody(input: { email?: string; name?: string; listingToken: string }): Record<string, unknown> {
   const body: Record<string, unknown> = {
     display_name: (input.name || 'the main course farm').replace(/\s+/g, ' ').trim().slice(0, 100),
     dashboard: 'express',
-    identity: {
-      country: 'us',
-      business_details: { url: CONNECT_SITE },
-    },
+    identity: { country: 'us' },
     defaults: {
       responsibilities: {
         fees_collector: 'application',
@@ -166,6 +164,7 @@ export function payoutScheduleFields(): Record<string, string> {
     'settings[payouts][schedule][weekly_anchor]': 'monday',
     'settings[payouts][statement_descriptor]': PAYOUT_DESCRIPTOR,
     'settings[payouts][debit_negative_balances]': 'true',
+    'business_profile[url]': CONNECT_SITE,
   };
 }
 

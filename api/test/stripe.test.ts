@@ -10,6 +10,7 @@ import {
   connectPlatformFeeCents,
   createStripeClient,
   STRIPE_V2_VERSION,
+  CONNECT_SITE,
   payoutScheduleFields,
   reversalTargets,
   transferDescription,
@@ -103,6 +104,8 @@ test('accounts v2 uses the preview version and the platform holds fees and losse
   assert.equal('type' in body, false);
   assert.equal(text.includes('phone'), false);
   assert.equal(text.includes('on_behalf_of'), false);
+  assert.equal(text.includes('business_details'), false);
+  assert.equal(text.includes(CONNECT_SITE), false);
   assert.equal(responsibilities.losses_collector, 'application');
   assert.equal(responsibilities.fees_collector, 'application');
   assert.equal(body.dashboard, 'express');
@@ -111,6 +114,7 @@ test('accounts v2 uses the preview version and the platform holds fees and losse
   assert.equal(payoutScheduleFields()['settings[payouts][schedule][weekly_anchor]'], 'monday');
   assert.equal(payoutScheduleFields()['settings[payouts][statement_descriptor]'], 'MAINCOURSE');
   assert.equal(payoutScheduleFields()['settings[payouts][debit_negative_balances]'], 'true');
+  assert.equal(payoutScheduleFields()['business_profile[url]'], CONNECT_SITE);
   assert.equal(transferDescription('Sample Lane', 'mz_abc'), 'Sample Lane, order mz_abc');
   const onlyOne = reversalTargets({
     amount: 800,
