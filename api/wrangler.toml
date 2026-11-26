@@ -1,0 +1,27 @@
+name = "mainz-api"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# Replace database_id after `npx wrangler d1 create mainz`.
+# The placeholder is enough for `wrangler dev` on this machine.
+[[d1_databases]]
+binding = "DB"
+database_name = "mainz"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
+
+# Close delivery runs every 15 minutes. A run confirms at its cutoff, or sooner from the admin button.
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# Shown at checkout. 500 basis points = 5% of each farm's food subtotal.
+PLATFORM_FEE_BPS = "500"
+# Shown at checkout. Charged once per farm sub-order the shopper marks as delivery.
+DELIVERY_FEE_CENTS = "500"
+# Stripe transfer split only. Not the 5% the shopper sees.
+# 10 means the farm transfer is the food subtotal minus 10%. Flat stays 0.
+PLATFORM_FEE_PERCENT = "10"
+PLATFORM_FEE_FLAT_CENTS = "0"
+# Public shop hosts where checkout stays closed. Preview hosts are not listed.
+CHECKOUT_CLOSED_HOSTS = "themaincoursemarket.com,www.themaincoursemarket.com"

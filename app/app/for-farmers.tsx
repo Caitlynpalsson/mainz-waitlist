@@ -1,0 +1,72 @@
+import { Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Shell } from '../src/components/chrome';
+import { PrimaryButton, Wrap } from '../src/components/ui';
+import { colors, useLayout } from '../src/theme';
+
+const steps = [
+  'you set your products and your prices.',
+  'you choose pickup, delivery or both.',
+  'you pick a food. we add a photo.',
+  'we help you find customers.',
+  'we keep 10% of each sale. you keep the rest. delivery has its own fee.',
+];
+
+export default function ForFarmers() {
+  const { desktop } = useLayout();
+  return (
+    <Shell nav="farmers" top="bar" title="for farmers">
+      <Wrap style={{ paddingTop: desktop ? 72 : 28 }}>
+        <View style={{ alignItems: 'center', maxWidth: 420, alignSelf: 'center', width: '100%' }}>
+          <Text style={headline}>you grow it.{'\n'}we bring you the customers.</Text>
+          <View style={{ marginTop: desktop ? 64 : 48, width: '100%' }}>
+            {steps.map((step, index) => (
+              <View key={step} style={{ alignItems: 'center', marginBottom: desktop ? 40 : 32 }}>
+                <Text style={num}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={stepText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={[quiet, { marginTop: desktop ? 28 : 16 }]}>every farm is reviewed. our team gives the page a final look.</Text>
+          <View style={{ marginTop: 28, width: '100%', maxWidth: 320 }}>
+            <PrimaryButton label="apply to sell on the main course" onPress={() => router.push('/apply')} />
+          </View>
+          <Pressable onPress={() => router.push('/reps')} style={{ marginTop: 18, minHeight: 44, justifyContent: 'center' }}>
+            <Text style={quiet}>know a farm? sell with us.</Text>
+          </Pressable>
+        </View>
+      </Wrap>
+    </Shell>
+  );
+}
+
+const headline = {
+  fontFamily: 'Inter' as const,
+  fontSize: 28,
+  fontWeight: '600' as const,
+  letterSpacing: -0.6,
+  lineHeight: 34,
+  color: colors.navy,
+  textAlign: 'center' as const,
+};
+const num = {
+  fontFamily: 'Inter' as const,
+  fontSize: 12,
+  fontWeight: '500' as const,
+  color: colors.peri,
+  marginBottom: 8,
+};
+const stepText = {
+  fontFamily: 'Inter' as const,
+  fontSize: 16,
+  lineHeight: 22,
+  color: colors.navy,
+  textAlign: 'center' as const,
+};
+const quiet = {
+  fontFamily: 'Inter' as const,
+  fontSize: 13,
+  lineHeight: 18,
+  color: colors.gray,
+  textAlign: 'center' as const,
+};

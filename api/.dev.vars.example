@@ -1,0 +1,4 @@
+# Copy this file to .dev.vars for local `wrangler dev`.
+# .dev.vars is gitignored. Never commit a real token.
+# The same name is set in production with: npx wrangler secret put ADMIN_TOKEN
+ADMIN_TOKEN=local-dev-token
