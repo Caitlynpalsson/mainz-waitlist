@@ -3,6 +3,7 @@ import { recordRepLedger } from './repStore';
 import { bankConnected } from './payout';
 import {
   accountFlagsFromEvent,
+  connectContactEmail,
   checkoutSessionIdFromEvent,
   createStripeClient,
   isPaidEvent,
@@ -24,6 +25,7 @@ export type StripeEnv = {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_CONNECT_WEBHOOK_SECRET?: string;
+  STRIPE_PAYMENT_METHOD_CONFIGURATION?: string;
   PLATFORM_FEE_PERCENT?: string;
   PLATFORM_FEE_FLAT_CENTS?: string;
 };
@@ -43,7 +45,7 @@ type TransferRow = {
   stripe_transfer_id: string;
 };
 
-export async function startListingConnect(env: StripeEnv, token: string, body: { returnUrl?: unknown; refreshUrl?: unknown }): Promise<Response> {
+export async function startListingConnect(env: StripeEnv, token: string, body: { returnUrl?: unknown; refreshUrl?: unknown; email?: unknown }): Promise<Response> {
   const listing = await env.DB.prepare(
     `SELECT id, stripe_account_id, reach_email, farm_name FROM listing_drafts WHERE token = ?`,
   ).bind(token).first<{ id: number; stripe_account_id?: string; reach_email?: string; farm_name?: string }>();
@@ -57,11 +59,23 @@ export async function startListingConnect(env: StripeEnv, token: string, body: {
     throw new HttpError('add a return address.');
   }
   const stripe = stripeClient(env);
+  const typed = String(body.email || '').trim();
+  let email = '';
+  if (!listing.stripe_account_id) {
+    try {
+      email = connectContactEmail(typed || listing.reach_email || '');
+    } catch (error) {
+      throw new HttpError(error instanceof Error ? error.message : 'add an email so stripe can reach you.');
+    }
+  }
   try {
     let accountId = listing.stripe_account_id || '';
     if (!accountId) {
+      if (typed && typed.toLowerCase() !== (listing.reach_email || '').trim().toLowerCase()) {
+        await env.DB.prepare(`UPDATE listing_drafts SET reach_email = ?, reach_via = 'email', updated_at = datetime('now') WHERE id = ?`).bind(email, listing.id).run();
+      }
       const account = await callStripe(stripe.createExpressAccount({
-        email: listing.reach_email || '',
+        email,
         name: listing.farm_name || '',
         listingToken: token,
       }));
@@ -105,6 +119,7 @@ export async function openCheckout(env: StripeEnv, input: { orderPublicId: strin
     amountCents: Number(order.total_cents),
     successUrl: input.successUrl,
     cancelUrl: input.cancelUrl,
+    paymentMethodConfiguration: env.STRIPE_PAYMENT_METHOD_CONFIGURATION,
   }));
   await env.DB.prepare(
     `UPDATE orders SET stripe_checkout_session_id = ?, stripe_transfer_group = ? WHERE public_id = ?`,
@@ -359,7 +374,7 @@ async function reverseMatchedTransfers(env: StripeEnv, clawback: { amount: numbe
 const BANK_NOT_READY = "rather get a check? that works. or text us and we'll sit with you.";
 
 function friendlyBankError(error: unknown): unknown {
-  if (error instanceof HttpError && /test key|locked to test mode|return address|cannot find/.test(error.message)) return error;
+  if (error instanceof HttpError && /test key|locked to test mode|return address|cannot find|add an email/.test(error.message)) return error;
   return new HttpError(BANK_NOT_READY);
 }
 

@@ -27,6 +27,7 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_CONNECT_WEBHOOK_SECRET?: string;
+  STRIPE_PAYMENT_METHOD_CONFIGURATION?: string;
   CHECKOUT_CLOSED_HOSTS?: string;
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;

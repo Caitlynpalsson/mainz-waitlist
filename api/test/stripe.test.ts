@@ -7,6 +7,7 @@ import {
   accountFlagsFromEvent,
   assertStripeTestKey,
   checkoutSessionFields,
+  connectContactEmail,
   connectPlatformFeeCents,
   createStripeClient,
   STRIPE_V2_VERSION,
@@ -72,8 +73,14 @@ test('one checkout, then one transfer per farm, holding a farm that is not ready
   assert.equal(fields.mode, 'payment');
   assert.equal(fields['payment_intent_data[transfer_group]'], 'mz_sample01');
   assert.equal(fields['metadata[order_id]'], 'mz_sample01');
-  assert.equal(fields['payment_method_types[0]'], 'card');
-  assert.equal(fields['payment_method_types[1]'], 'link');
+  assert.equal(JSON.stringify(fields).includes('payment_method_types'), false);
+  assert.equal(checkoutSessionFields({
+    orderPublicId: 'mz_sample01',
+    amountCents: 2500,
+    successUrl: 'https://preview.example/order/mz_sample01?paid=1',
+    cancelUrl: 'https://preview.example/bag',
+    paymentMethodConfiguration: 'pmc_sample',
+  }).payment_method_configuration, 'pmc_sample');
   assert.equal(Object.keys(fields).filter((key) => key.startsWith('line_items[1]')).length, 0);
   const planned = planFarmTransfers([
     { orderFarmId: 11, farmId: 1, merchandiseCents: 1900, accountId: 'acct_ready', chargesEnabled: true, payoutsEnabled: true },
@@ -107,6 +114,8 @@ test('accounts v2 uses the preview version and the platform holds fees and losse
   assert.equal(text.includes('phone'), false);
   assert.equal(text.includes('on_behalf_of'), false);
   assert.equal(text.includes('business_details'), false);
+  assert.equal(body.contact_email, 'sample-farmer@example.com');
+  assert.throws(() => connectContactEmail(''), /add an email/);
   assert.equal(text.includes(CONNECT_SITE), false);
   assert.equal(responsibilities.losses_collector, 'application');
   assert.equal(responsibilities.fees_collector, 'application');
@@ -148,7 +157,7 @@ test('accounts v2 uses the preview version and the platform holds fees and losse
     }
     return new Response(JSON.stringify({ id: 'acct_ready', charges_enabled: false, payouts_enabled: false, url: 'https://connect.stripe.com/setup/s/sample' }));
   });
-  const account = await client.createExpressAccount({ listingToken: 'lk_sample', name: 'Sample Lane', email: 'not-an-email' });
+  const account = await client.createExpressAccount({ listingToken: 'lk_sample', name: 'Sample Lane', email: 'sample-farmer@example.com' });
   assert.equal(sawV2, true);
   assert.equal(account.id, 'acct_ready');
   const link = await client.createAccountLink({
@@ -168,7 +177,7 @@ test('stripe errors never echo the secret', async () => {
   const client = createStripeClient('sk_test_sample', async () => new Response(JSON.stringify({
     error: { message: 'bad key sk_test_sample was used' },
   }), { status: 400 }));
-  await assert.rejects(() => client.createExpressAccount({ listingToken: 'lk_sample' }), (error: unknown) => {
+  await assert.rejects(() => client.createExpressAccount({ listingToken: 'lk_sample', email: 'sample@example.com' }), (error: unknown) => {
     assert.equal(error instanceof Error && error.message.includes('sk_test_'), false);
     return true;
   });

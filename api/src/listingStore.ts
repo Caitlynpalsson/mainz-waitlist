@@ -443,6 +443,13 @@ export async function adminMarkSent(env: Env, id: number): Promise<Response> {
   return json({ listing: await present(env, saved!) });
 }
 
+async function applicationEmail(env: Env, farmName: string): Promise<string> {
+  const row = await env.DB.prepare(
+    `SELECT email FROM farms WHERE lower(name) = lower(?) AND instr(email, '@') > 0 LIMIT 1`,
+  ).bind(farmName).first<{ email: string }>();
+  return String(row?.email || '').trim().slice(0, 120);
+}
+
 async function present(env: Env, row: DraftRow) {
   const products = await env.DB.prepare(
     `SELECT id, name, price_cents, unit, photo_key, source_url, price_status, needs_udaf_check, availability, sort_order FROM listing_products WHERE listing_id = ? ORDER BY sort_order, id`,
@@ -477,6 +484,7 @@ async function present(env: Env, row: DraftRow) {
     meetLine: row.meet_line || '',
     pickupPreview: pickupOptions.map((option) => pickupSpotPill(option)).filter(Boolean).slice(0, 6),
     onboarding: publicOnboarding(row),
+    applicationEmail: row.reach_email ? '' : await applicationEmail(env, row.farm_name),
     isSample: !!row.is_sample,
     needsForm: listingShowsForm(products.results.length),
     shopVisible: listingAppearsInBrowse(row.status, !!row.is_sample),

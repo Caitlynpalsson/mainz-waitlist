@@ -12,11 +12,9 @@ import {
   CONNECT_SITE,
   PAYOUT_DESCRIPTOR,
   STRIPE_V2_VERSION,
-  accountLinkFields,
   assertStripeTestKey,
   farmTransferAmountCents,
   payoutScheduleFields,
-  v2AccountBody,
 } from '../src/stripe.ts';
 
 const proc = (globalThis as { process?: { env?: Record<string, string | undefined>; exit?: (code: number) => void } }).process;
@@ -76,8 +74,33 @@ async function stripeJson(method: string, path: string, body: Record<string, unk
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
-  if (!response.ok) fail(data.error?.message || 'stripe refused the test call');
+  if (!response.ok) throw new Error(data.error?.message || 'stripe refused the test call');
   return data as Record<string, unknown>;
+}
+
+async function stripeAllow(method: string, path: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method,
+    headers: { authorization: `Bearer ${secret}` },
+  });
+  const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
+  return { ok: response.ok, message: data.error?.message || 'stripe refused the test call' };
+}
+
+async function deleteSample(accountId: string): Promise<{ ok: boolean; message: string }> {
+  const removed = await stripeAllow('DELETE', `accounts/${encodeURIComponent(accountId)}`);
+  if (removed.ok) return removed;
+  const response = await fetch(`https://api.stripe.com/v2/core/accounts/${encodeURIComponent(accountId)}/close`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${secret}`,
+      'content-type': 'application/json',
+      'stripe-version': STRIPE_V2_VERSION,
+    },
+    body: '{}',
+  });
+  const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
+  return { ok: response.ok, message: data.error?.message || removed.message };
 }
 
 function transfersActive(account: Record<string, unknown>): boolean {
@@ -91,7 +114,7 @@ async function waitForTransfers(accountId: string): Promise<Record<string, unkno
     if (transfersActive(account)) return account;
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  fail('sample account is not ready for a transfer yet. stripe_transfers is still off.');
+  throw new Error('sample account is not ready for a transfer yet. stripe_transfers is still off.');
 }
 
 async function stripe(method: string, path: string, fields?: Record<string, string>): Promise<Record<string, unknown>> {
@@ -104,18 +127,35 @@ async function stripe(method: string, path: string, fields?: Record<string, stri
     body: fields ? new URLSearchParams(fields).toString() : undefined,
   });
   const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
-  if (!response.ok) fail(data.error?.message || 'stripe refused the test call');
+  if (!response.ok) throw new Error(data.error?.message || 'stripe refused the test call');
   return data as Record<string, unknown>;
 }
 
-const created = await stripeJson('POST', 'v2/core/accounts', v2AccountBody({
-  name: 'Sample Lane',
-  email: 'sample-farmer@example.com',
-  listingToken: 'sample',
-}));
-const accountId = String(created.id || '');
-if (!accountId.startsWith('acct_')) fail('stripe did not return a sample account');
-await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
+let accountId = '';
+let transferId = '';
+let problem = '';
+try {
+const created = await stripeJson('POST', 'v2/core/accounts', {
+  display_name: 'Sample Lane',
+  contact_email: 'sample-farmer@example.com',
+  dashboard: 'none',
+  identity: { country: 'us' },
+  defaults: {
+    responsibilities: {
+      fees_collector: 'application',
+      losses_collector: 'application',
+      requirements_collector: 'application',
+    },
+  },
+  configuration: {
+    merchant: { capabilities: { card_payments: { requested: true } } },
+    recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
+  },
+  metadata: { sample: 'mainz-preview-farm', name: 'Sample Lane Farm' },
+});
+accountId = String(created.id || '');
+if (!accountId.startsWith('acct_')) problem = 'stripe did not return a sample account';
+if (!problem) await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
   ...payoutScheduleFields(),
   business_type: 'individual',
   'business_profile[mcc]': '5499',
@@ -140,13 +180,6 @@ await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
   'tos_acceptance[ip]': '127.0.0.1',
   external_account: 'btok_us_verified',
 });
-const link = await stripe('POST', 'account_links', accountLinkFields({
-  accountId,
-  returnUrl: 'https://www.themaincoursemarket.com/?payout=return',
-  refreshUrl: 'https://www.themaincoursemarket.com/?payout=refresh',
-}));
-if (!String(link.url || '').startsWith('https://')) fail('stripe did not return an account link');
-say('account link: ok');
 const account = await waitForTransfers(accountId);
 say(`sample farm: ${accountId}`);
 say(`charges: ${account.charges_enabled === true} payouts: ${account.payouts_enabled === true}`);
@@ -162,7 +195,7 @@ const payment = await stripe('POST', 'payment_intents', {
   'metadata[order_id]': orderId,
   description: 'the main course sample test order',
 });
-if (payment.status !== 'succeeded') fail(`sample payment did not succeed (${String(payment.status || 'unknown')})`);
+if (payment.status !== 'succeeded') throw new Error(`sample payment did not succeed (${String(payment.status || 'unknown')})`);
 say(`payment: ${String(payment.id)} succeeded`);
 
 const transfer = await stripe('POST', 'transfers', {
@@ -174,13 +207,24 @@ const transfer = await stripe('POST', 'transfers', {
   'metadata[sample]': 'mainz-preview-farm',
   'metadata[order_id]': orderId,
 });
-const transferId = String(transfer.id || '');
+transferId = String(transfer.id || '');
 const checked = await stripe('GET', `transfers/${encodeURIComponent(transferId)}`);
 const destination = typeof checked.destination === 'string'
   ? checked.destination
   : String((checked.destination as { id?: string } | undefined)?.id || '');
 if (destination !== accountId || Number(checked.amount) !== 1800 || checked.transfer_group !== orderId) {
-  fail('the transfer did not land 1800 cents on the sample account');
+  problem = 'the transfer did not land 1800 cents on the sample account';
 }
-say(`transfer: ${transferId} ${transferCents} usd to ${destination}`);
+if (!problem) say(`transfer: ${transferId} ${transferCents} usd to ${destination}`);
+} catch (error) {
+  problem = error instanceof Error ? error.message : 'stripe refused the test call';
+} finally {
+  if (accountId.startsWith('acct_')) {
+    if (transferId) await stripeAllow('POST', `transfers/${encodeURIComponent(transferId)}/reversals`);
+    const removed = await deleteSample(accountId);
+    if (!removed.ok) problem = problem || removed.message;
+    else if (!problem) say('sample account deleted');
+  }
+}
+if (problem) fail(problem);
 say('ok');

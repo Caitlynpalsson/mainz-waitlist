@@ -36,6 +36,7 @@ export function FarmOnboarding({
   onBack,
   onSeePage,
   onNext,
+  suggestedEmail,
   onConnectBank,
   onCheckBank,
 }: {
@@ -49,11 +50,16 @@ export function FarmOnboarding({
   onBack: () => void;
   onSeePage: () => void;
   onNext: (patch: Partial<OnboardingAnswers> & { done?: boolean; reachPhone?: string }) => void;
-  onConnectBank?: () => void;
+  suggestedEmail?: string;
+  onConnectBank?: (email: string) => void;
   onCheckBank?: () => void;
 }) {
   const [via, setVia] = useState(answers.reachVia || 'email');
   const [email, setEmail] = useState(answers.reachEmail);
+  const [bankEmail, setBankEmail] = useState(answers.reachEmail || suggestedEmail || '');
+  useEffect(() => {
+    if (!bankEmail && (answers.reachEmail || suggestedEmail)) setBankEmail(answers.reachEmail || suggestedEmail || '');
+  }, [answers.reachEmail, suggestedEmail, bankEmail]);
   const [phone, setPhone] = useState('');
   const [payoutPhase, setPayoutPhase] = useState<'choose' | 'connected'>(answers.payoutConnected ? 'connected' : 'choose');
   useEffect(() => {
@@ -105,11 +111,23 @@ export function FarmOnboarding({
           <Text style={quiet}>about 5 minutes. have your ID and bank login ready. we never see your details.</Text>
           <Text style={quiet}>{PAY_STEP_LINE}</Text>
           <Text style={quiet}>{PAYDAY_LINE}</Text>
+          {answers.reachEmail ? null : (
+            <TextInput
+              value={bankEmail}
+              onChangeText={setBankEmail}
+              placeholder="email for stripe"
+              placeholderTextColor={colors.gray}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              accessibilityLabel="email for stripe"
+              style={field}
+            />
+          )}
           <View style={{ marginTop: 28, width: '100%' }}>
             <PrimaryButton
               label={busy ? 'opening…' : 'connect my bank'}
-              disabled={busy}
-              onPress={() => onConnectBank?.()}
+              disabled={busy || (!answers.reachEmail && !bankEmail.includes('@'))}
+              onPress={() => onConnectBank?.(answers.reachEmail || bankEmail)}
             />
           </View>
           <Pressable onPress={() => onNext({ payPref: 'check', payoutConnected: false })} style={{ marginTop: 16 }} disabled={busy}>

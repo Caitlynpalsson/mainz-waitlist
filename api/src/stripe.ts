@@ -182,9 +182,10 @@ export function checkoutSessionFields(input: {
   amountCents: number;
   successUrl: string;
   cancelUrl: string;
+  paymentMethodConfiguration?: string;
 }): Record<string, string> {
   if (!Number.isInteger(input.amountCents) || input.amountCents < 50) throw new Error('amount too small');
-  return {
+  const fields: Record<string, string> = {
     mode: 'payment',
     success_url: safeReturnUrl(input.successUrl),
     cancel_url: safeReturnUrl(input.cancelUrl),
@@ -196,9 +197,16 @@ export function checkoutSessionFields(input: {
     'payment_intent_data[transfer_group]': input.orderPublicId,
     'payment_intent_data[metadata][order_id]': input.orderPublicId,
     'metadata[order_id]': input.orderPublicId,
-    'payment_method_types[0]': 'card',
-    'payment_method_types[1]': 'link',
   };
+  const configuration = (input.paymentMethodConfiguration || '').trim();
+  if (configuration) fields.payment_method_configuration = configuration;
+  return fields;
+}
+
+export function connectContactEmail(value: string): string {
+  const email = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('add an email so stripe can reach you.');
+  return email.slice(0, 120);
 }
 
 export function transferDescription(farmName: string, orderId: string): string {
@@ -255,7 +263,7 @@ export type StripeClient = {
   createExpressAccount(input: { email?: string; name?: string; listingToken: string }): Promise<StripeAccount>;
   createAccountLink(input: { accountId: string; returnUrl: string; refreshUrl: string }): Promise<{ url: string }>;
   retrieveAccount(accountId: string): Promise<StripeAccount>;
-  createCheckoutSession(input: { orderPublicId: string; amountCents: number; successUrl: string; cancelUrl: string }): Promise<StripeCheckout>;
+  createCheckoutSession(input: { orderPublicId: string; amountCents: number; successUrl: string; cancelUrl: string; paymentMethodConfiguration?: string }): Promise<StripeCheckout>;
   createTransfer(input: { amountCents: number; destination: string; transferGroup: string; orderFarmId: number; farmName?: string }): Promise<StripeTransfer>;
   reverseTransfer(input: { transferId: string; amountCents: number; idempotencyKey: string }): Promise<{ id: string }>;
 };
@@ -266,7 +274,8 @@ export function createStripeClient(secret: string, fetchImpl: StripeFetch = fetc
   const key = assertStripeTestKey(secret);
   return {
     async createExpressAccount(input) {
-      const created = await stripeJson(key, fetchImpl, 'POST', 'v2/core/accounts', v2AccountBody(input));
+      const email = connectContactEmail(input.email || '');
+      const created = await stripeJson(key, fetchImpl, 'POST', 'v2/core/accounts', v2AccountBody({ ...input, email }));
       const id = String(created.id || '');
       if (!id.startsWith('acct_')) throw new Error('stripe refused the test call');
       try {

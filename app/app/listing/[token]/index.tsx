@@ -37,6 +37,7 @@ type Listing = {
   pickupLine?: string;
   meetLine?: string;
   onboarding?: OnboardingAnswers & { done?: boolean };
+  applicationEmail?: string;
   products: Product[];
   priceFixes?: { productId: number | null; productName: string; priceCents: number }[];
 };
@@ -236,7 +237,7 @@ export default function ListingApproval() {
     setStep(next);
   }
 
-  async function connectBank() {
+  async function connectBank(email?: string) {
     if (previewing) {
       setFormError('open the farm page to connect a test bank.');
       return;
@@ -249,7 +250,7 @@ export default function ListingApproval() {
       const back = `${shopOrigin(webOrigin)}/listing/${token}?payout=return`;
       const result = await api<{ url: string }>(`/api/listings/${token}/connect`, {
         method: 'POST',
-        body: JSON.stringify({ returnUrl: back, refreshUrl: back }),
+        body: JSON.stringify({ returnUrl: back, refreshUrl: back, email: email || data?.onboarding?.reachEmail || data?.applicationEmail || '' }),
       });
       if (result.url) await openUrl(result.url);
     } catch (err) {
@@ -325,7 +326,8 @@ export default function ListingApproval() {
               const next = nextOnboardingStep(step);
               move(next, { ...patch, done: next === 'done' });
             }}
-            onConnectBank={() => { void connectBank(); }}
+            suggestedEmail={data?.applicationEmail || data?.onboarding?.reachEmail || ''}
+            onConnectBank={(email) => { void connectBank(email); }}
             onCheckBank={() => { void checkBank(); }}
           />
         ) : null}

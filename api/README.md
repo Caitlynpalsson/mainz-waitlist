@@ -143,7 +143,7 @@ If a farm's connected account cannot charge and pay out yet, that share is store
 
 The Worker reads `STRIPE_SECRET_KEY` and refuses to call Stripe unless the key starts with `sk_test_`. `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET` both verify `POST /api/stripe/webhook` (the platform endpoint and the Connect endpoint). Point both test-mode webhooks at that path for `checkout.session.completed`, `payment_intent.succeeded`, and `account.updated`.
 
-`npm run stripe-test` runs a sample order with Stripe's test card once `STRIPE_SECRET_KEY` is set. It does not call Stripe without an `sk_test_` key. Do not put either secret in the repo.
+`npm run stripe-test` runs a sample order with Stripe's test card once `STRIPE_SECRET_KEY` is set. It does not call Stripe without an `sk_test_` key. Do not put either secret in the repo. Checkout uses the payment methods turned on in the Stripe dashboard. Set `STRIPE_PAYMENT_METHOD_CONFIGURATION` only if you want a specific `pmc_` configuration.
 
 ## Admin
 
