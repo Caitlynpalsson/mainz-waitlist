@@ -11,6 +11,7 @@ import {
   planFarmTransfers,
   readConnectFee,
   readStripeEventAny,
+  reversalTargets,
   safeReturnUrl,
   transferActions,
   type StripeClient,
@@ -44,8 +45,8 @@ type TransferRow = {
 
 export async function startListingConnect(env: StripeEnv, token: string, body: { returnUrl?: unknown; refreshUrl?: unknown }): Promise<Response> {
   const listing = await env.DB.prepare(
-    `SELECT id, stripe_account_id, reach_email FROM listing_drafts WHERE token = ?`,
-  ).bind(token).first<{ id: number; stripe_account_id?: string; reach_email?: string }>();
+    `SELECT id, stripe_account_id, reach_email, farm_name FROM listing_drafts WHERE token = ?`,
+  ).bind(token).first<{ id: number; stripe_account_id?: string; reach_email?: string; farm_name?: string }>();
   if (!listing) throw new HttpError('we cannot find that listing.', 404);
   let returnUrl = '';
   let refreshUrl = '';
@@ -61,6 +62,7 @@ export async function startListingConnect(env: StripeEnv, token: string, body: {
     if (!accountId) {
       const account = await callStripe(stripe.createExpressAccount({
         email: listing.reach_email || '',
+        name: listing.farm_name || '',
         listingToken: token,
       }));
       accountId = account.id;
@@ -124,6 +126,11 @@ export async function handleStripeWebhook(env: StripeEnv, payload: string, signa
   if (flags) {
     await applyAccountUpdate(env, flags);
     if (bankConnected(flags.chargesEnabled, flags.payoutsEnabled)) await releasePending(env, flags.id);
+    return json({ ok: true });
+  }
+  const clawback = clawbackFromEvent(event);
+  if (clawback) {
+    await reverseMatchedTransfers(env, clawback);
     return json({ ok: true });
   }
   if (!isPaidEvent(event)) return json({ ok: true });
@@ -261,11 +268,13 @@ async function applyTransferActions(env: StripeEnv, orderId: number, actions: Tr
       if (action.amountCents > 0) pending += 1;
       continue;
     }
+    const farm = await env.DB.prepare(`SELECT name FROM farms WHERE id = ?`).bind(action.farmId).first<{ name: string }>();
     const transfer = await callStripe(stripeClient(env).createTransfer({
       amountCents: action.amountCents,
       destination: action.accountId,
       transferGroup: action.transferGroup,
       orderFarmId: action.orderFarmId,
+      farmName: farm?.name || 'farm',
     }));
     if (!transfer.id) throw new HttpError('stripe refused the test call.');
     await saveTransfer(env, orderId, action, 'transferred', transfer.id);
@@ -293,6 +302,58 @@ async function saveTransfer(env: StripeEnv, orderId: number, action: Extract<Tra
          transferred_at = CASE WHEN ? = 'transferred' THEN datetime('now') ELSE transferred_at END
      WHERE order_farm_id = ? AND status != 'transferred'`,
   ).bind(action.amountCents, status, action.accountId, transferId, action.transferGroup, status, action.orderFarmId).run();
+}
+
+function clawbackFromEvent(event: StripeEvent): { amount: number; paymentIntent: string; orderId: string; orderFarmId: string; eventId: string } | null {
+  const type = event.type || '';
+  if (type !== 'charge.refunded' && type !== 'refund.created' && type !== 'charge.dispute.created') return null;
+  const obj = event.data?.object || {};
+  const meta = (obj.metadata && typeof obj.metadata === 'object' ? obj.metadata : {}) as Record<string, unknown>;
+  const amount = type === 'charge.refunded' ? Number(obj.amount_refunded || 0) : Number(obj.amount || 0);
+  return {
+    amount: Number.isFinite(amount) ? amount : 0,
+    paymentIntent: typeof obj.payment_intent === 'string' ? obj.payment_intent : '',
+    orderId: typeof meta.order_id === 'string' ? meta.order_id : '',
+    orderFarmId: typeof meta.order_farm_id === 'string' ? meta.order_farm_id : '',
+    eventId: String(event.id || type),
+  };
+}
+
+async function reverseMatchedTransfers(env: StripeEnv, clawback: { amount: number; paymentIntent: string; orderId: string; orderFarmId: string; eventId: string }): Promise<void> {
+  const order = await env.DB.prepare(
+    `SELECT id, public_id, total_cents FROM orders WHERE public_id = ? OR stripe_payment_intent_id = ?`,
+  ).bind(clawback.orderId, clawback.paymentIntent).first<{ id: number; public_id: string; total_cents: number }>();
+  if (!order) return;
+  const rows = await env.DB.prepare(
+    `SELECT ft.order_farm_id, ft.stripe_transfer_id, ft.amount_cents, ft.stripe_reversal_id,
+            ofm.merchandise_cents, ofm.platform_fee_cents, ofm.delivery_fee_cents
+     FROM farm_transfers ft JOIN order_farms ofm ON ofm.id = ft.order_farm_id
+     WHERE ft.order_id = ?`,
+  ).bind(order.id).all<{ order_farm_id: number; stripe_transfer_id: string; amount_cents: number; stripe_reversal_id: string; merchandise_cents: number; platform_fee_cents: number; delivery_fee_cents: number }>();
+  const targets = reversalTargets({
+    amount: clawback.amount,
+    orderTotal: Number(order.total_cents) || 0,
+    orderFarmId: clawback.orderFarmId,
+    farms: rows.results.map((row) => ({
+      orderFarmId: Number(row.order_farm_id),
+      transferId: row.stripe_transfer_id || '',
+      merchandiseCents: Number(row.merchandise_cents) || 0,
+      shopperCents: (Number(row.merchandise_cents) || 0) + (Number(row.platform_fee_cents) || 0) + (Number(row.delivery_fee_cents) || 0),
+      reversed: !!row.stripe_reversal_id,
+    })),
+  });
+  for (const target of targets) {
+    const row = rows.results.find((item) => Number(item.order_farm_id) === target.orderFarmId);
+    if (!row || row.stripe_reversal_id) continue;
+    const reversal = await callStripe(stripeClient(env).reverseTransfer({
+      transferId: target.transferId,
+      amountCents: Number(row.amount_cents) || 0,
+      idempotencyKey: `reversal-${target.transferId}-${clawback.eventId}`.slice(0, 255),
+    }));
+    await env.DB.prepare(
+      `UPDATE farm_transfers SET status = 'reversed', stripe_reversal_id = ? WHERE order_farm_id = ? AND stripe_reversal_id = ''`,
+    ).bind(reversal.id || 'reversed', target.orderFarmId).run();
+  }
 }
 
 const BANK_NOT_READY = "bank connect is almost ready. try again soon or tap 'rather get a check?'";

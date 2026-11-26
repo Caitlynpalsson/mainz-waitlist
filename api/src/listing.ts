@@ -223,7 +223,9 @@ export const ONBOARDING_TEXT_LINE = 'text us at 972-510-3326 to stay in touch wi
 export const PAY_PREFS = ['bank transfer', 'check', 'set this up later'] as const;
 export type PayPref = (typeof PAY_PREFS)[number];
 export const PAY_STEP_TITLE = 'how do you want to get paid?';
-export const PAY_STEP_LINE = 'takes about 2 minutes. stripe keeps your bank info safe. we never see it.';
+export const PAY_STEP_LINE = "you'll connect your bank on stripe's secure page. we never see your bank details. secured by stripe";
+export const PAYDAY_LINE = 'paid every monday, usually lands in 1 to 3 days';
+export const FARM_CUT_LINE = "shoppers pay the 5% and delivery. your rep's 3% comes from our cut, not yours.";
 /** Farmer-facing words for a stored value. New answers are only bank transfer or check. */
 export const PAY_PREF_LABELS: Record<PayPref, string> = {
   'bank transfer': 'bank transfer',

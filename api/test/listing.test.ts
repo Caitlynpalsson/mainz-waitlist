@@ -21,6 +21,7 @@ import {
   farmPortrait,
   PAY_PREF_LABELS,
   PAY_STEP_LINE,
+  PAYDAY_LINE,
   PAY_STEP_TITLE,
   onboardingQuestions,
   onboardingStep,
@@ -314,7 +315,8 @@ test('onboarding saves a preference and never shows a stored phone', () => {
   assert.equal(ONBOARDING_SMS, 'sms:+19725103326');
   assert.equal(ONBOARDING_TEXT_LINE.includes(ONBOARDING_TEXT_US), true);
   assert.equal(PAY_STEP_TITLE, 'how do you want to get paid?');
-  assert.equal(PAY_STEP_LINE, 'takes about 2 minutes. stripe keeps your bank info safe. we never see it.');
+  assert.equal(PAY_STEP_LINE, "you'll connect your bank on stripe's secure page. we never see your bank details. secured by stripe");
+  assert.equal(PAYDAY_LINE, 'paid every monday, usually lands in 1 to 3 days');
   assert.equal(payPrefForSave('set this up later'), '');
   assert.equal(payPrefForSave("i'll decide later"), '');
   assert.equal(payPrefForSave('bank transfer'), 'bank transfer');

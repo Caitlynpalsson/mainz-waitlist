@@ -4,15 +4,15 @@ import { HttpError, json } from './http';
 import { approvePublicListing, changePublicListing, denyPublicListing, fixPublicPrice, getPublicListing, getStaffShopperPreview, previewListingQuote, redeemStaffPreviewCode, saveOnboarding, savePublicListing, signOutStaffSession, staffSessionAllows } from './listingStore';
 import { groupLines, isShopVisible, priceGroups, type Fulfillment, type IncomingItem, type Rates } from './orderMath';
 import { shopperCanSeeProduct, udafType } from './review';
-import { shopFlagsForUdafCheck, shopperHero } from './listing';
+import { FARM_CUT_LINE, shopFlagsForUdafCheck, shopperHero } from './listing';
 import { deliveryFeeOnPlace, parseAddress } from './delivery';
 import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary, weekdayForFarmStops } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
 import { checkoutClosed, CHECKOUT_CLOSED_LINE } from './checkoutGate';
 import { allowedOrigin } from './cors';
-import { joinRep, repDesk, repIdForCode } from './repStore';
-import { safeOrigin } from './stripe';
+import { joinRep, joinShopper, repDesk, repIdForCode, saveRepSettings } from './repStore';
+import { connectPlatformFeeCents, readConnectFee, safeOrigin } from './stripe';
 import { handleStripeWebhook, listingConnectStatus, openCheckout, startListingConnect } from './stripeStore';
 
 export interface Env {
@@ -167,7 +167,9 @@ async function route(request: Request, env: Env): Promise<Response> {
     return handleStripeWebhook(env, payload, request.headers.get('stripe-signature') || '');
   }
   if (method === 'POST' && path === '/api/reps') return joinRep(env, await readJson(request));
+  if (method === 'POST' && path === '/api/shoppers') return joinShopper(env, await readJson(request));
   const repDeskPage = path.match(/^\/api\/reps\/desk\/([0-9a-f]{64})$/);
+  if (method === 'POST' && repDeskPage) return saveRepSettings(env, repDeskPage[1], await readJson(request));
   if (method === 'GET' && repDeskPage) return repDesk(env, repDeskPage[1]);
   if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
 
@@ -667,8 +669,39 @@ async function apply(env: Env, body: Record<string, unknown>): Promise<Response>
   return json({ ok: true, status: 'pending', slug: farmSlug }, 201);
 }
 
+function nextMonday(from = new Date()): string {
+  const day = from.getUTCDay();
+  const add = (8 - day) % 7;
+  const date = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + add));
+  return date.toISOString().slice(0, 10);
+}
+
+async function farmOrders(env: Env, farm: FarmRow): Promise<Response> {
+  const rows = await env.DB.prepare(
+    `SELECT ofm.merchandise_cents, o.public_id, o.created_at AS order_created
+     FROM order_farms ofm JOIN orders o ON o.id = ofm.order_id
+     WHERE ofm.farm_id = ? ORDER BY ofm.id DESC LIMIT 30`,
+  ).bind(farm.id).all<{ merchandise_cents: number; public_id: string; order_created: string }>();
+  return json({
+    orders: rows.results.map((row) => {
+      const itemCents = Number(row.merchandise_cents) || 0;
+      const feeCents = connectPlatformFeeCents(itemCents, readConnectFee(env));
+      const when = row.order_created ? new Date(`${row.order_created.replace(' ', 'T')}Z`) : new Date();
+      return {
+        orderId: row.public_id,
+        itemCents,
+        feeCents,
+        keepCents: Math.max(0, itemCents - feeCents),
+        payoutDate: nextMonday(Number.isNaN(when.getTime()) ? new Date() : when),
+      };
+    }),
+    note: FARM_CUT_LINE,
+  });
+}
+
 async function farmDesk(request: Request, env: Env, method: string, path: string): Promise<Response> {
   const farm = await requireFarm(request, env);
+  if (method === 'GET' && path === '/api/farm/orders') return farmOrders(env, farm);
   if (method === 'GET' && path === '/api/farm/me') {
     const products = await farmProducts(env, farm.id);
     return json({ farm: privateFarm(farm), products });

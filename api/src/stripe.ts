@@ -116,19 +116,55 @@ export function safeOrigin(value: unknown): string {
   return new URL(safeReturnUrl(value)).origin;
 }
 
-export function expressAccountFields(input: { email?: string; listingToken: string }): Record<string, string> {
-  const fields: Record<string, string> = {
-    type: 'express',
-    country: 'US',
-    'capabilities[card_payments][requested]': 'true',
-    'capabilities[transfers][requested]': 'true',
-    business_type: 'individual',
-    'metadata[listing_token]': input.listingToken.slice(0, 80),
-    'metadata[sample]': 'mainz-preview',
+export const CONNECT_SITE = 'https://www.themaincoursemarket.com';
+export const PAYOUT_DESCRIPTOR = 'MAINCOURSE';
+/** Accounts v2. The sandbox rejects the legacy `type` field. */
+export const STRIPE_V2_VERSION = '2025-11-17.clover';
+
+/**
+ * Express dashboard, Stripe-hosted onboarding, separate charges and transfers.
+ * Platform pays Stripe fees. This sandbox requires losses_collector stripe.
+ * No `type`, no `on_behalf_of`, no phone.
+ */
+export function v2AccountBody(input: { email?: string; name?: string; listingToken: string }): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    display_name: (input.name || 'the main course farm').replace(/\s+/g, ' ').trim().slice(0, 100),
+    dashboard: 'express',
+    identity: {
+      country: 'us',
+      business_details: { url: CONNECT_SITE },
+    },
+    defaults: {
+      responsibilities: {
+        fees_collector: 'application',
+        losses_collector: 'stripe',
+      },
+    },
+    configuration: {
+      merchant: { capabilities: { card_payments: { requested: true } } },
+      recipient: {
+        capabilities: {
+          stripe_balance: { stripe_transfers: { requested: true } },
+        },
+      },
+    },
+    metadata: {
+      listing_token: input.listingToken.slice(0, 80),
+      sample: 'mainz-preview',
+    },
   };
   const email = (input.email || '').trim();
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fields.email = email.slice(0, 120);
-  return fields;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) body.contact_email = email.slice(0, 120);
+  return body;
+}
+
+export function payoutScheduleFields(): Record<string, string> {
+  return {
+    'settings[payouts][schedule][interval]': 'weekly',
+    'settings[payouts][schedule][weekly_anchor]': 'monday',
+    'settings[payouts][statement_descriptor]': PAYOUT_DESCRIPTOR,
+    'settings[payouts][debit_negative_balances]': 'true',
+  };
 }
 
 export function accountLinkFields(input: { accountId: string; returnUrl: string; refreshUrl: string }): Record<string, string> {
@@ -162,19 +198,46 @@ export function checkoutSessionFields(input: {
   };
 }
 
+export function transferDescription(farmName: string, orderId: string): string {
+  const name = farmName.replace(/\s+/g, ' ').trim() || 'farm';
+  return `${name}, order ${orderId}`.slice(0, 350);
+}
+
 export function transferFields(input: {
   amountCents: number;
   destination: string;
   transferGroup: string;
   orderFarmId: number;
+  farmName?: string;
 }): Record<string, string> {
   return {
     amount: String(input.amountCents),
     currency: 'usd',
     destination: input.destination,
     transfer_group: input.transferGroup,
+    description: transferDescription(input.farmName || 'farm', input.transferGroup),
     'metadata[order_farm_id]': String(input.orderFarmId),
   };
+}
+
+/** A refund or dispute should touch only the farm it belongs to. A full order amount reverses each farm on that order, and no one else. */
+export function reversalTargets(input: {
+  amount: number;
+  orderTotal: number;
+  orderFarmId?: string;
+  farms: { orderFarmId: number; transferId: string; merchandiseCents: number; shopperCents: number; reversed: boolean }[];
+}): { orderFarmId: number; transferId: string }[] {
+  const open = input.farms.filter((farm) => farm.transferId && !farm.reversed);
+  const named = (input.orderFarmId || '').trim();
+  if (named) {
+    return open.filter((farm) => String(farm.orderFarmId) === named).map((farm) => ({ orderFarmId: farm.orderFarmId, transferId: farm.transferId }));
+  }
+  if (input.amount > 0 && input.amount === input.orderTotal) {
+    return open.map((farm) => ({ orderFarmId: farm.orderFarmId, transferId: farm.transferId }));
+  }
+  const matched = open.filter((farm) => farm.shopperCents === input.amount || farm.merchandiseCents === input.amount);
+  if (matched.length === 1) return [{ orderFarmId: matched[0].orderFarmId, transferId: matched[0].transferId }];
+  return [];
 }
 
 export function transferIdempotencyKey(transferGroup: string, orderFarmId: number): string {
@@ -183,14 +246,15 @@ export function transferIdempotencyKey(transferGroup: string, orderFarmId: numbe
 
 export type StripeAccount = { id: string; charges_enabled: boolean; payouts_enabled: boolean };
 export type StripeCheckout = { id: string; url: string };
-export type StripeTransfer = { id: string; amount: number; destination: string };
+export type StripeTransfer = { id: string; amount: number; destination: string; destinationPaymentId: string };
 
 export type StripeClient = {
-  createExpressAccount(input: { email?: string; listingToken: string }): Promise<StripeAccount>;
+  createExpressAccount(input: { email?: string; name?: string; listingToken: string }): Promise<StripeAccount>;
   createAccountLink(input: { accountId: string; returnUrl: string; refreshUrl: string }): Promise<{ url: string }>;
   retrieveAccount(accountId: string): Promise<StripeAccount>;
   createCheckoutSession(input: { orderPublicId: string; amountCents: number; successUrl: string; cancelUrl: string }): Promise<StripeCheckout>;
-  createTransfer(input: { amountCents: number; destination: string; transferGroup: string; orderFarmId: number }): Promise<StripeTransfer>;
+  createTransfer(input: { amountCents: number; destination: string; transferGroup: string; orderFarmId: number; farmName?: string }): Promise<StripeTransfer>;
+  reverseTransfer(input: { transferId: string; amountCents: number; idempotencyKey: string }): Promise<{ id: string }>;
 };
 
 type StripeFetch = (input: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<Response>;
@@ -199,8 +263,16 @@ export function createStripeClient(secret: string, fetchImpl: StripeFetch = fetc
   const key = assertStripeTestKey(secret);
   return {
     async createExpressAccount(input) {
-      const data = await stripeRequest(key, fetchImpl, 'POST', 'accounts', expressAccountFields(input));
-      return asAccount(data);
+      const created = await stripeJson(key, fetchImpl, 'POST', 'v2/core/accounts', v2AccountBody(input));
+      const id = String(created.id || '');
+      if (!id.startsWith('acct_')) throw new Error('stripe refused the test call');
+      try {
+        await stripeRequest(key, fetchImpl, 'POST', `accounts/${encodeURIComponent(id)}`, payoutScheduleFields());
+      } catch {
+        // The v2 account is the source of truth. A v1 settings write can be refused; onboarding still works.
+      }
+      const live = await stripeRequest(key, fetchImpl, 'GET', `accounts/${encodeURIComponent(id)}`);
+      return asAccount({ ...live, id });
     },
     async createAccountLink(input) {
       const data = await stripeRequest(key, fetchImpl, 'POST', 'account_links', accountLinkFields(input));
@@ -224,14 +296,41 @@ export function createStripeClient(secret: string, fetchImpl: StripeFetch = fetc
         fetchImpl,
         'POST',
         'transfers',
-        transferFields(input),
+        { ...transferFields(input), 'expand[0]': 'destination_payment' },
         transferIdempotencyKey(input.transferGroup, input.orderFarmId),
       );
+      const destination = typeof data.destination === 'string' ? data.destination : String((data.destination as { id?: string } | undefined)?.id || '');
+      const payment = data.destination_payment;
+      const destinationPaymentId = typeof payment === 'string' ? payment : String((payment as { id?: string } | undefined)?.id || '');
+      const description = transferDescription(input.farmName || 'farm', input.transferGroup);
+      if (destinationPaymentId && destination.startsWith('acct_')) {
+        await stripeRequest(
+          key,
+          fetchImpl,
+          'POST',
+          `charges/${encodeURIComponent(destinationPaymentId)}`,
+          { description },
+          undefined,
+          destination,
+        );
+      }
       return {
         id: String(data.id || ''),
         amount: Number(data.amount || 0),
-        destination: typeof data.destination === 'string' ? data.destination : String((data.destination as { id?: string } | undefined)?.id || ''),
+        destination,
+        destinationPaymentId,
       };
+    },
+    async reverseTransfer(input) {
+      const data = await stripeRequest(
+        key,
+        fetchImpl,
+        'POST',
+        `transfers/${encodeURIComponent(input.transferId)}/reversals`,
+        { amount: String(input.amountCents) },
+        input.idempotencyKey,
+      );
+      return { id: String(data.id || '') };
     },
   };
 }
@@ -246,6 +345,25 @@ function asAccount(data: Record<string, unknown>): StripeAccount {
   };
 }
 
+async function stripeJson(
+  key: string,
+  fetchImpl: StripeFetch,
+  method: string,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const response = await fetchImpl(`https://api.stripe.com/${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${key}`,
+      'content-type': 'application/json',
+      'stripe-version': STRIPE_V2_VERSION,
+    },
+    body: JSON.stringify(body),
+  });
+  return readStripeBody(key, response);
+}
+
 async function stripeRequest(
   key: string,
   fetchImpl: StripeFetch,
@@ -253,15 +371,21 @@ async function stripeRequest(
   path: string,
   fields?: Record<string, string>,
   idempotency?: string,
+  stripeAccount?: string,
 ): Promise<Record<string, unknown>> {
   const headers: Record<string, string> = { authorization: `Bearer ${key}` };
   if (fields) headers['content-type'] = 'application/x-www-form-urlencoded';
   if (idempotency) headers['idempotency-key'] = idempotency;
+  if (stripeAccount) headers['stripe-account'] = stripeAccount;
   const response = await fetchImpl(`https://api.stripe.com/v1/${path}`, {
     method,
     headers,
     body: fields ? new URLSearchParams(fields).toString() : undefined,
   });
+  return readStripeBody(key, response);
+}
+
+async function readStripeBody(key: string, response: Response): Promise<Record<string, unknown>> {
   const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
   if (!response.ok) {
     const message = String(data.error?.message || 'stripe refused the test call');

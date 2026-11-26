@@ -57,6 +57,21 @@ const foodCents = 2000;
 const transferCents = farmTransferAmountCents(foodCents, fee);
 if (transferCents < 1) fail('the stripe split held back the whole sample subtotal, so there is nothing to transfer.');
 
+async function stripeJson(method: string, path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch(`https://api.stripe.com/${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${secret}`,
+      'content-type': 'application/json',
+      'stripe-version': '2025-11-17.clover',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
+  if (!response.ok) fail(data.error?.message || 'stripe refused the test call');
+  return data as Record<string, unknown>;
+}
+
 async function stripe(method: string, path: string, fields?: Record<string, string>): Promise<Record<string, unknown>> {
   const response = await fetch(`https://api.stripe.com/v1/${path}`, {
     method,
@@ -71,44 +86,32 @@ async function stripe(method: string, path: string, fields?: Record<string, stri
   return data as Record<string, unknown>;
 }
 
-const account = await stripe('POST', 'accounts', {
-  type: 'custom',
-  country: 'US',
-  email: 'sample-farmer@example.com',
-  business_type: 'individual',
-  'business_profile[mcc]': '5499',
-  'business_profile[url]': 'https://www.themaincoursemarket.com',
-  'business_profile[product_description]': 'sample produce',
-  'individual[first_name]': 'Sample',
-  'individual[last_name]': 'Lane',
-  'individual[email]': 'sample-farmer@example.com',
-  'individual[phone]': '0000000000',
-  'individual[id_number]': '000000000',
-  'individual[ssn_last_4]': '0000',
-  'individual[dob][day]': '1',
-  'individual[dob][month]': '1',
-  'individual[dob][year]': '1901',
-  'individual[address][line1]': 'address_full_match',
-  'individual[address][city]': 'South San Francisco',
-  'individual[address][state]': 'CA',
-  'individual[address][postal_code]': '94080',
-  'individual[address][country]': 'US',
-  'capabilities[card_payments][requested]': 'true',
-  'capabilities[transfers][requested]': 'true',
-  'tos_acceptance[date]': String(Math.floor(Date.now() / 1000)),
-  'tos_acceptance[ip]': '127.0.0.1',
+const created = await stripeJson('POST', 'v2/core/accounts', {
+  display_name: 'Sample Lane',
+  contact_email: 'sample-farmer@example.com',
+  dashboard: 'express',
+  identity: { country: 'us', business_details: { url: 'https://www.themaincoursemarket.com' } },
+  defaults: { responsibilities: { fees_collector: 'application', losses_collector: 'stripe' } },
+  configuration: {
+    merchant: { capabilities: { card_payments: { requested: true } } },
+    recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
+  },
+  metadata: { sample: 'mainz-preview-farm', name: 'Sample Lane Farm' },
+});
+const accountId = String(created.id || '');
+if (!accountId.startsWith('acct_')) fail('stripe did not return a sample account');
+await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
+  'settings[payouts][schedule][interval]': 'weekly',
+  'settings[payouts][schedule][weekly_anchor]': 'monday',
+  'settings[payouts][statement_descriptor]': 'MAINCOURSE',
+  'settings[payouts][debit_negative_balances]': 'true',
   'external_account[object]': 'bank_account',
   'external_account[country]': 'US',
   'external_account[currency]': 'usd',
   'external_account[routing_number]': '110000000',
   'external_account[account_number]': '000123456789',
-  'metadata[sample]': 'mainz-preview-farm',
-  'metadata[name]': 'Sample Lane Farm',
-  'settings[payouts][schedule][interval]': 'manual',
 });
-
-const accountId = String(account.id || '');
-if (!accountId.startsWith('acct_')) fail('stripe did not return a sample account');
+const account = await stripe('GET', `accounts/${encodeURIComponent(accountId)}`);
 say(`sample farm: ${accountId}`);
 say(`charges: ${account.charges_enabled === true} payouts: ${account.payouts_enabled === true}`);
 if (account.charges_enabled !== true || account.payouts_enabled !== true) {
@@ -133,6 +136,7 @@ const transfer = await stripe('POST', 'transfers', {
   currency: 'usd',
   destination: accountId,
   transfer_group: orderId,
+  description: `Sample Lane, order ${orderId}`,
   'metadata[sample]': 'mainz-preview-farm',
   'metadata[order_id]': orderId,
 });

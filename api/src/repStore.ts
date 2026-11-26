@@ -2,12 +2,17 @@ import { HttpError, json } from './http';
 import { sha256Hex } from './staffPreview';
 import {
   DEFAULT_REP_PERCENT,
+  PAYOUT_PLACEHOLDER,
   commissionCents,
-  farmApprovalLine,
+  countSince,
   isReferralCode,
-  listingApprovalLine,
+  milestoneProgress,
+  monthStart,
   parseCommissionPercent,
+  portalStanding,
   referralCode,
+  repPublicName,
+  weekStart,
 } from './reps';
 
 type Env = { DB: D1Database };
@@ -18,6 +23,7 @@ type FarmCredit = {
   sold_cents: number;
   commission_cents: number;
   sample: number;
+  created_at: string;
 };
 
 export async function joinRep(env: Env, body: Record<string, unknown>): Promise<Response> {
@@ -56,21 +62,34 @@ export async function repDesk(env: Env, token: string): Promise<Response> {
     `SELECT id, name, code, is_sample FROM reps WHERE view_token_hash = ?`,
   ).bind(await sha256Hex(clean)).first<{ id: number; name: string; code: string; is_sample: number }>();
   if (!rep) throw new HttpError('that link is not right.', 404);
-  const percent = await readPercent(env);
-  const farms = await credits(env, Number(rep.id));
-  return json({
-    name: rep.name,
-    code: rep.code,
-    sample: Number(rep.is_sample) === 1,
-    applyPath: `/apply?rep=${rep.code}`,
-    rateSet: percent != null,
-    farms: farms.map((farm) => ({
-      name: farm.name,
-      status: farm.status,
-      soldCents: Number(farm.sold_cents) || 0,
-      commissionCents: percent == null && !Number(farm.commission_cents) ? null : Number(farm.commission_cents) || 0,
-    })),
-  });
+  return json(await portalPayload(env, rep));
+}
+
+export async function joinShopper(env: Env, body: Record<string, unknown>): Promise<Response> {
+  const name = String(body.name || '').trim().slice(0, 80);
+  const email = String(body.email || '').trim().toLowerCase().slice(0, 120);
+  if (name.length < 2) throw new HttpError('add your name.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError('add an email.');
+  const code = String(body.rep || '').trim().toLowerCase();
+  const repId = code ? await repIdForCode(env, code) : null;
+  if (code && !repId) throw new HttpError('that referral code is not one of ours.');
+  if (repId) {
+    const dupe = await env.DB.prepare(`SELECT id FROM rep_shoppers WHERE rep_id = ? AND lower(email) = ?`).bind(repId, email).first();
+    if (!dupe) {
+      await env.DB.prepare(`INSERT INTO rep_shoppers (rep_id, name, email, is_sample) VALUES (?, ?, ?, 0)`).bind(repId, name, email).run();
+    }
+  }
+  return json({ ok: true, counted: !!repId });
+}
+
+export async function saveRepSettings(env: Env, token: string, body: Record<string, unknown>): Promise<Response> {
+  const rep = await repByToken(env, token);
+  const goal = body.weeklyGoal == null ? null : Math.max(0, Math.min(500, Math.round(Number(body.weeklyGoal) || 0)));
+  const hide = body.leaderboardOptOut == null ? null : (body.leaderboardOptOut ? 1 : 0);
+  if (goal != null) await env.DB.prepare(`UPDATE reps SET weekly_goal = ? WHERE id = ?`).bind(goal, rep.id).run();
+  if (hide != null) await env.DB.prepare(`UPDATE reps SET leaderboard_opt_out = ? WHERE id = ?`).bind(hide, rep.id).run();
+  const next = await env.DB.prepare(`SELECT id, name, code, is_sample FROM reps WHERE id = ?`).bind(rep.id).first<{ id: number; name: string; code: string; is_sample: number }>();
+  return json(await portalPayload(env, next || rep));
 }
 
 export async function adminRepList(env: Env): Promise<Response> {
@@ -94,6 +113,7 @@ export async function adminRepList(env: Env): Promise<Response> {
         commissionCents: Number(farm.commission_cents) || 0,
         sample: Number(farm.sample) === 1,
       })),
+      shoppers: await shopperCount(env, Number(rep.id)),
     });
   }
   return json({ percent, reps: listed });
@@ -124,36 +144,148 @@ export async function reissueRepView(env: Env, body: Record<string, unknown>): P
 
 async function credits(env: Env, repId: number): Promise<FarmCredit[]> {
   const farms = await env.DB.prepare(
-    `SELECT f.name, f.status, f.active, f.decision, f.pipeline_stage, f.remove_reason, f.is_demo,
+    `SELECT f.name, f.status, f.active, f.decision, f.pipeline_stage, f.remove_reason, f.is_demo, f.created_at,
+            COALESCE(f.stripe_charges_enabled, 0) AS charges, COALESCE(f.stripe_payouts_enabled, 0) AS payouts,
             COALESCE((SELECT SUM(l.sales_cents) FROM rep_ledger l WHERE l.farm_id = f.id AND l.rep_id = f.rep_id), 0) AS sold_cents,
             COALESCE((SELECT SUM(l.commission_cents) FROM rep_ledger l WHERE l.farm_id = f.id AND l.rep_id = f.rep_id), 0) AS commission_cents
      FROM farms f WHERE f.rep_id = ? ORDER BY f.id`,
-  ).bind(repId).all<{ name: string; status: string; active: number; decision: string; pipeline_stage: string; remove_reason: string; is_demo: number; sold_cents: number; commission_cents: number }>();
+  ).bind(repId).all<{ name: string; status: string; active: number; decision: string; pipeline_stage: string; remove_reason: string; is_demo: number; created_at: string; charges: number; payouts: number; sold_cents: number; commission_cents: number }>();
   const drafts = await env.DB.prepare(
-    `SELECT farm_name, status, is_sample FROM listing_drafts WHERE rep_id = ? ORDER BY id`,
-  ).bind(repId).all<{ farm_name: string; status: string; is_sample: number }>();
+    `SELECT farm_name, status, is_sample, created_at, COALESCE(stripe_charges_enabled, 0) AS charges, COALESCE(stripe_payouts_enabled, 0) AS payouts
+     FROM listing_drafts WHERE rep_id = ? ORDER BY id`,
+  ).bind(repId).all<{ farm_name: string; status: string; is_sample: number; created_at: string; charges: number; payouts: number }>();
   return [
     ...farms.results.map((farm) => ({
       name: farm.name,
-      status: farmApprovalLine({
+      status: portalStanding({
+        kind: 'farm',
         status: farm.status,
         active: Number(farm.active) === 1,
-        decision: farm.decision || '',
         stage: farm.pipeline_stage || '',
+        decision: farm.decision || '',
         removed: !!farm.remove_reason,
+        bank: Number(farm.charges) === 1 && Number(farm.payouts) === 1,
       }),
       sold_cents: Number(farm.sold_cents) || 0,
       commission_cents: Number(farm.commission_cents) || 0,
       sample: Number(farm.is_demo) === 1 ? 1 : 0,
+      created_at: farm.created_at || '',
     })),
     ...drafts.results.map((draft) => ({
       name: draft.farm_name,
-      status: listingApprovalLine(draft.status),
+      status: portalStanding({
+        kind: 'listing',
+        status: draft.status,
+        bank: Number(draft.charges) === 1 && Number(draft.payouts) === 1,
+      }),
       sold_cents: 0,
       commission_cents: 0,
       sample: Number(draft.is_sample) === 1 ? 1 : 0,
+      created_at: draft.created_at || '',
     })),
   ];
+}
+
+async function portalPayload(env: Env, rep: { id: number; name: string; code: string; is_sample: number }) {
+  const percent = await readPercent(env);
+  const farms = await credits(env, Number(rep.id));
+  const settings = await env.DB.prepare(`SELECT leaderboard_opt_out, weekly_goal FROM reps WHERE id = ?`).bind(rep.id).first<{ leaderboard_opt_out: number; weekly_goal: number }>();
+  const money = await env.DB.prepare(
+    `SELECT
+       COALESCE(SUM(commission_cents), 0) AS all_time,
+       COALESCE(SUM(CASE WHEN created_at >= ? THEN commission_cents ELSE 0 END), 0) AS month,
+       COALESCE(SUM(CASE WHEN paid_at = '' THEN commission_cents ELSE 0 END), 0) AS pending,
+       COALESCE(SUM(CASE WHEN paid_at != '' THEN commission_cents ELSE 0 END), 0) AS paid
+     FROM rep_ledger WHERE rep_id = ?`,
+  ).bind(monthStart(), rep.id).first<{ all_time: number; month: number; pending: number; paid: number }>();
+  const history = await env.DB.prepare(
+    `SELECT l.created_at, l.sales_cents, l.commission_cents, l.paid_at, f.name AS farm_name
+     FROM rep_ledger l JOIN farms f ON f.id = l.farm_id
+     WHERE l.rep_id = ? ORDER BY l.id DESC`,
+  ).bind(rep.id).all<{ created_at: string; sales_cents: number; commission_cents: number; paid_at: string; farm_name: string }>();
+  const shoppers = await env.DB.prepare(`SELECT created_at FROM rep_shoppers WHERE rep_id = ?`).bind(rep.id).all<{ created_at: string }>();
+  const board = await leaderboardRows(env, Number(rep.id));
+  const week = weekStart();
+  const weekFarms = countSince(farms.map((farm) => farm.created_at), week);
+  const weekShoppers = countSince(shoppers.results.map((row) => row.created_at), week);
+  const progress = milestoneProgress(farms.length, shoppers.results.length);
+  return {
+    name: rep.name,
+    code: rep.code,
+    sample: Number(rep.is_sample) === 1,
+    applyPath: `/apply?rep=${rep.code}`,
+    shortPath: `/r/${rep.code}`,
+    shopperPath: `/you?rep=${rep.code}`,
+    ratePercent: percent,
+    payoutNote: PAYOUT_PLACEHOLDER,
+    earnings: {
+      monthCents: Number(money?.month) || 0,
+      allTimeCents: Number(money?.all_time) || 0,
+      pendingCents: Number(money?.pending) || 0,
+      paidCents: Number(money?.paid) || 0,
+    },
+    farms: farms.map((farm) => ({
+      name: farm.name,
+      status: farm.status,
+      soldCents: Number(farm.sold_cents) || 0,
+      commissionCents: percent == null && !Number(farm.commission_cents) ? null : Number(farm.commission_cents) || 0,
+      sample: Number(farm.sample) === 1,
+    })),
+    shoppersBrought: shoppers.results.length,
+    ledger: history.results.map((row) => ({
+      at: row.created_at,
+      farmName: row.farm_name,
+      salesCents: Number(row.sales_cents) || 0,
+      commissionCents: Number(row.commission_cents) || 0,
+      paid: !!row.paid_at,
+    })),
+    leaderboardOptOut: Number(settings?.leaderboard_opt_out) === 1,
+    weeklyGoal: Number(settings?.weekly_goal) || 0,
+    weekProgress: weekFarms + weekShoppers,
+    badges: progress,
+    leaderboard: board,
+  };
+}
+
+async function leaderboardRows(env: Env, viewerId: number) {
+  const reps = await env.DB.prepare(`SELECT id, name, leaderboard_opt_out FROM reps`).all<{ id: number; name: string; leaderboard_opt_out: number }>();
+  const farmDates = await env.DB.prepare(`SELECT rep_id, created_at FROM farms WHERE rep_id IS NOT NULL`).all<{ rep_id: number; created_at: string }>();
+  const listingDates = await env.DB.prepare(`SELECT rep_id, created_at FROM listing_drafts WHERE rep_id IS NOT NULL`).all<{ rep_id: number; created_at: string }>();
+  const shopperDates = await env.DB.prepare(`SELECT rep_id, created_at FROM rep_shoppers WHERE rep_id IS NOT NULL`).all<{ rep_id: number; created_at: string }>();
+  const month = monthStart();
+  const pack = (from: string | null) => reps.results
+    .filter((rep) => Number(rep.leaderboard_opt_out) !== 1 || Number(rep.id) === viewerId)
+    .map((rep) => {
+      const farms = countSince([
+        ...farmDates.results.filter((row) => Number(row.rep_id) === Number(rep.id)).map((row) => row.created_at),
+        ...listingDates.results.filter((row) => Number(row.rep_id) === Number(rep.id)).map((row) => row.created_at),
+      ], from);
+      const shoppers = countSince(shopperDates.results.filter((row) => Number(row.rep_id) === Number(rep.id)).map((row) => row.created_at), from);
+      return {
+        label: repPublicName(rep.name),
+        farms,
+        shoppers,
+        you: Number(rep.id) === viewerId,
+        hidden: Number(rep.leaderboard_opt_out) === 1,
+      };
+    })
+    .sort((a, b) => (b.farms + b.shoppers) - (a.farms + a.shoppers) || b.farms - a.farms || a.label.localeCompare(b.label));
+  return { month: pack(month), allTime: pack(null) };
+}
+
+async function shopperCount(env: Env, repId: number): Promise<number> {
+  const row = await env.DB.prepare(`SELECT COUNT(*) AS n FROM rep_shoppers WHERE rep_id = ?`).bind(repId).first<{ n: number }>();
+  return Number(row?.n) || 0;
+}
+
+async function repByToken(env: Env, token: string): Promise<{ id: number; name: string; code: string; is_sample: number }> {
+  const clean = token.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(clean)) throw new HttpError('that link is not right.', 404);
+  const rep = await env.DB.prepare(
+    `SELECT id, name, code, is_sample FROM reps WHERE view_token_hash = ?`,
+  ).bind(await sha256Hex(clean)).first<{ id: number; name: string; code: string; is_sample: number }>();
+  if (!rep) throw new HttpError('that link is not right.', 404);
+  return rep;
 }
 
 async function readPercent(env: Env): Promise<number | null> {

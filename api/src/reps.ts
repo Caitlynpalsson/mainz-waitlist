@@ -61,3 +61,68 @@ export function listingApprovalLine(status: string): string {
   if (status === 'sent') return 'waiting on the farm';
   return 'page in progress';
 }
+
+/** Shopper-facing standing for a credited farm. No phone, no extra fee. */
+export function portalStanding(input: {
+  kind: 'farm' | 'listing';
+  status: string;
+  active?: boolean;
+  stage?: string;
+  decision?: string;
+  removed?: boolean;
+  bank?: boolean;
+}): string {
+  if (input.removed || input.decision === 'decline') return 'not this time';
+  if (input.kind === 'farm' && input.active) return 'selling';
+  if (input.bank) return 'bank connected';
+  if (input.status === 'approved' || input.status === 'farm_approved') return 'approved';
+  if (input.kind === 'listing' && (input.status === 'sent' || input.status === 'changes_requested')) return 'in approval';
+  if (input.kind === 'farm' && input.stage && input.stage !== 'application_received') return 'in approval';
+  return 'applied';
+}
+
+export function repPublicName(name: string): string {
+  const parts = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'a rep';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1].slice(0, 1)}`;
+}
+
+export const MILESTONES = [
+  { id: 'farm-1', kind: 'farms' as const, n: 1, label: 'first farm' },
+  { id: 'farm-5', kind: 'farms' as const, n: 5, label: '5 farms' },
+  { id: 'shop-25', kind: 'shoppers' as const, n: 25, label: '25 shoppers' },
+  { id: 'farm-10', kind: 'farms' as const, n: 10, label: '10 farms' },
+  { id: 'shop-100', kind: 'shoppers' as const, n: 100, label: '100 shoppers' },
+  { id: 'shop-250', kind: 'shoppers' as const, n: 250, label: '250 shoppers' },
+];
+
+export function milestoneProgress(farms: number, shoppers: number): {
+  earned: { id: string; label: string }[];
+  next: { id: string; label: string; current: number; target: number } | null;
+} {
+  const earned = MILESTONES.filter((item) => (item.kind === 'farms' ? farms : shoppers) >= item.n).map((item) => ({ id: item.id, label: item.label }));
+  const next = MILESTONES.find((item) => (item.kind === 'farms' ? farms : shoppers) < item.n);
+  return {
+    earned,
+    next: next ? { id: next.id, label: next.label, current: next.kind === 'farms' ? farms : shoppers, target: next.n } : null,
+  };
+}
+
+export function countSince(dates: string[], from: string | null): number {
+  return dates.filter((date) => !from || date >= from).length;
+}
+
+export function monthStart(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01 00:00:00`;
+}
+
+export function weekStart(now = new Date()): string {
+  const day = now.getUTCDay();
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((day + 6) % 7)));
+  return `${monday.getUTCFullYear()}-${String(monday.getUTCMonth() + 1).padStart(2, '0')}-${String(monday.getUTCDate()).padStart(2, '0')} 00:00:00`;
+}
+
+export const FARM_PITCH = 'i would love your farm on the main course. you set the price. apply here:';
+export const SHOPPER_PITCH = 'real food from people with names. get a note when you can order:';
+export const PAYOUT_PLACEHOLDER = "we'll set this up with you";

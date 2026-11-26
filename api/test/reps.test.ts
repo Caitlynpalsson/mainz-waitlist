@@ -4,15 +4,21 @@ import { allowedOrigin } from '../src/cors.ts';
 import { farmTransferAmountCents } from '../src/stripe.ts';
 import {
   DEFAULT_REP_PERCENT,
+  FARM_PITCH,
   RATE_COMING,
+  SHOPPER_PITCH,
   REP_PAGE_LINES,
   REP_PAGE_TITLE,
   commissionCents,
   farmApprovalLine,
   isReferralCode,
   listingApprovalLine,
+  milestoneProgress,
   parseCommissionPercent,
+  portalStanding,
   referralCode,
+  repPublicName,
+  weekStart,
 } from '../src/reps.ts';
 
 test('the public rep page never names a percentage', () => {
@@ -44,6 +50,13 @@ test('referral codes stay short and sample lane wording stays in the approval pr
   assert.equal(isReferralCode('sample'), true);
   assert.equal(isReferralCode('no'), false);
   assert.equal(listingApprovalLine('sent'), 'waiting on the farm');
+  assert.equal(portalStanding({ kind: 'listing', status: 'sent' }), 'in approval');
+  assert.equal(portalStanding({ kind: 'farm', status: 'approved', active: true, bank: true }), 'selling');
+  assert.equal(repPublicName('sample rep'), 'sample r');
+  assert.equal(milestoneProgress(1, 0).earned[0]?.label, 'first farm');
+  assert.equal(milestoneProgress(1, 0).next?.label, '5 farms');
+  assert.equal(weekStart(new Date('2026-11-26T12:00:00Z')), '2026-11-23 00:00:00');
+  assert.equal(/—/.test(`${FARM_PITCH} ${SHOPPER_PITCH}`), false);
   assert.equal(farmApprovalLine({ status: 'pending', active: false, decision: '', stage: 'application_received', removed: false }), 'application received');
   assert.equal(/goes live/i.test(listingApprovalLine('farm_approved')), false);
 });

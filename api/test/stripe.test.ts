@@ -9,7 +9,10 @@ import {
   checkoutSessionFields,
   connectPlatformFeeCents,
   createStripeClient,
-  expressAccountFields,
+  payoutScheduleFields,
+  reversalTargets,
+  transferDescription,
+  v2AccountBody,
   farmTransferAmountCents,
   isPaidEvent,
   orderIdFromEvent,
@@ -90,44 +93,53 @@ test('one checkout, then one transfer per farm, holding a farm that is not ready
   assert.equal(transferIdempotencyKey('mz_sample01', 11), 'farm-transfer-mz_sample01-11');
 });
 
-test('express onboarding asks stripe for an account link and never sends a phone', async () => {
-  const fields = expressAccountFields({ email: 'sample-farmer@example.com', listingToken: 'lk_sample' });
-  assert.equal(fields.type, 'express');
-  assert.equal(JSON.stringify(fields).includes('phone'), false);
-  assert.equal(bankConnected(false, false), false);
-  assert.equal(bankConnected(true, false), false);
-  assert.equal(bankConnected(true, true), true);
-  let body = '';
-  let idempotency = '';
+test('accounts v2 drops type, lets stripe hold losses, and the platform pays fees', async () => {
+  const body = v2AccountBody({ email: 'sample-farmer@example.com', name: 'Sample Lane', listingToken: 'lk_sample' });
+  const text = JSON.stringify(body);
+  assert.equal('type' in body, false);
+  assert.equal(text.includes('phone'), false);
+  assert.equal(text.includes('on_behalf_of'), false);
+  assert.equal((body.defaults as { responsibilities: { losses_collector: string; fees_collector: string } }).responsibilities.losses_collector, 'stripe');
+  assert.equal((body.defaults as { responsibilities: { fees_collector: string } }).responsibilities.fees_collector, 'application');
+  assert.equal(body.dashboard, 'express');
+  assert.equal(payoutScheduleFields()['settings[payouts][schedule][weekly_anchor]'], 'monday');
+  assert.equal(payoutScheduleFields()['settings[payouts][statement_descriptor]'], 'MAINCOURSE');
+  assert.equal(transferDescription('Sample Lane', 'mz_abc'), 'Sample Lane, order mz_abc');
+  const onlyOne = reversalTargets({
+    amount: 800,
+    orderTotal: 2500,
+    farms: [
+      { orderFarmId: 11, transferId: 'tr_a', merchandiseCents: 1900, shopperCents: 1700, reversed: false },
+      { orderFarmId: 12, transferId: 'tr_b', merchandiseCents: 800, shopperCents: 800, reversed: false },
+    ],
+  });
+  assert.deepEqual(onlyOne, [{ orderFarmId: 12, transferId: 'tr_b' }]);
+  let sawV2 = false;
   const client = createStripeClient('sk_test_sample', async (url, init) => {
-    body = init?.body || '';
-    idempotency = init?.headers?.['idempotency-key'] || '';
-    assert.equal(init?.headers?.authorization, 'Bearer sk_test_sample');
-    assert.equal(String(url).startsWith('https://api.stripe.com/v1/'), true);
-    if (String(url).endsWith('/transfers')) {
-      return new Response(JSON.stringify({ id: 'tr_sample', amount: 1900, destination: 'acct_ready' }));
+    const href = String(url);
+    if (href.includes('/v2/core/accounts')) {
+      sawV2 = true;
+      const parsed = JSON.parse(init?.body || '{}') as { type?: string };
+      assert.equal(parsed.type, undefined);
+      return new Response(JSON.stringify({ id: 'acct_ready' }));
+    }
+    if (href.endsWith('/transfers')) {
+      return new Response(JSON.stringify({ id: 'tr_sample', amount: 1900, destination: 'acct_ready', destination_payment: 'py_sample' }));
+    }
+    if (href.includes('/charges/py_sample')) {
+      assert.equal(init?.headers?.['stripe-account'], 'acct_ready');
+      return new Response(JSON.stringify({ id: 'py_sample' }));
     }
     return new Response(JSON.stringify({ id: 'acct_ready', charges_enabled: false, payouts_enabled: false, url: 'https://connect.stripe.com/setup/s/sample' }));
   });
-  const account = await client.createExpressAccount({ listingToken: 'lk_sample', email: 'not-an-email' });
+  const account = await client.createExpressAccount({ listingToken: 'lk_sample', name: 'Sample Lane', email: 'not-an-email' });
+  assert.equal(sawV2, true);
   assert.equal(account.id, 'acct_ready');
-  assert.equal(account.charges_enabled, false);
-  const params = new URLSearchParams(body);
-  assert.equal(params.get('phone'), null);
-  assert.equal([...params.keys()].some((key) => key.includes('phone')), false);
-  assert.equal(params.get('email'), null);
-  const link = await client.createAccountLink({
-    accountId: 'acct_ready',
-    returnUrl: 'https://preview.example/listing/lk_sample?payout=return',
-    refreshUrl: 'https://preview.example/listing/lk_sample?payout=return',
-  });
-  assert.equal(link.url.startsWith('https://connect.stripe.com/'), true);
   const transfer = await client.createTransfer({
-    amountCents: 1900, destination: 'acct_ready', transferGroup: 'mz_sample01', orderFarmId: 11,
+    amountCents: 1900, destination: 'acct_ready', transferGroup: 'mz_sample01', orderFarmId: 11, farmName: 'Sample Lane',
   });
-  assert.equal(transfer.destination, 'acct_ready');
-  assert.equal(idempotency, 'farm-transfer-mz_sample01-11');
-  assert.equal(new URLSearchParams(body).get('transfer_group'), 'mz_sample01');
+  assert.equal(transfer.destinationPaymentId, 'py_sample');
+  assert.equal(bankConnected(true, true), true);
 });
 
 test('stripe errors never echo the secret', async () => {

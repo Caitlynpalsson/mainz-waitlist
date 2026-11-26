@@ -50,7 +50,7 @@ type StaffListing = {
 
 type RepAdmin = {
   percent: number | null;
-  reps: { id: number; name: string; email: string; code: string; sample: boolean; farms: { name: string; status: string; soldCents: number }[] }[];
+  reps: { id: number; name: string; email: string; code: string; sample: boolean; shoppers: number; farms: { name: string; status: string; soldCents: number; commissionCents: number }[] }[];
 };
 
 type CsvPreview = {
@@ -413,10 +413,10 @@ export default function AdminHome() {
               {reps?.reps.map((rep) => (
                 <View key={rep.id} style={card}>
                   <Text style={name}>{rep.name.toLowerCase()}{rep.sample ? ' · sample' : ''} · {rep.code}</Text>
-                  <Text style={small}>{rep.email}</Text>
+                  <Text style={small}>{rep.email} · {rep.shoppers} shoppers · earnings {dollars(rep.farms.reduce((sum, farm) => sum + farm.commissionCents, 0))}</Text>
                   {rep.farms.length === 0 ? <Text style={small}>no farms yet.</Text> : null}
                   {rep.farms.map((farm) => (
-                    <Text key={farm.name} style={small}>{farm.name.toLowerCase()} · {farm.status} · sold {dollars(farm.soldCents)}</Text>
+                    <Text key={farm.name} style={small}>{farm.name.toLowerCase()} · {farm.status} · sold {dollars(farm.soldCents)} · earnings {dollars(farm.commissionCents)}</Text>
                   ))}
                   <Pressable onPress={() => mintRepLink(auth.token || '', rep.code)} style={{ marginTop: 8 }}>
                     <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>new private link</Text>

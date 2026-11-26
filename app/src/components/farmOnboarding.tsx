@@ -8,6 +8,7 @@ import {
   ONBOARDING_TEXT_US,
   ONBOARDING_WELCOME,
   PAY_STEP_LINE,
+  PAYDAY_LINE,
   PAY_STEP_TITLE,
   type OnboardingStep,
   type PayPref,
@@ -101,6 +102,7 @@ export function FarmOnboarding({
         <>
           <Text style={headline}>{PAY_STEP_TITLE}</Text>
           <Text style={quiet}>{PAY_STEP_LINE}</Text>
+          <Text style={quiet}>{PAYDAY_LINE}</Text>
           <View style={{ marginTop: 28, width: '100%' }}>
             <PrimaryButton
               label={busy ? 'opening…' : 'connect my bank'}

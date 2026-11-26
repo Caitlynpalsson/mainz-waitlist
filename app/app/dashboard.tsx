@@ -58,6 +58,8 @@ export default function Dashboard() {
   const [stock, setStock] = useState('10');
   const [varieties, setVarieties] = useState<string[]>([]);
   const [message, setMessage] = useState('');
+  const [orders, setOrders] = useState<{ orderId: string; itemCents: number; feeCents: number; keepCents: number; payoutDate: string }[]>([]);
+  const [orderNote, setOrderNote] = useState('');
 
   useEffect(() => {
     const fromLink = typeof params.token === 'string' ? params.token : '';
@@ -77,6 +79,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
+    api<{ orders: { orderId: string; itemCents: number; feeCents: number; keepCents: number; payoutDate: string }[]; note: string }>('/api/farm/orders', { headers: { 'x-farm-token': token } })
+      .then((next) => { setOrders(next.orders); setOrderNote(next.note); })
+      .catch(() => setOrders([]));
     api<Me>('/api/farm/me', { headers: { 'x-farm-token': token } })
       .then((data) => {
         setMe(data);
@@ -188,6 +193,18 @@ export default function Dashboard() {
             <>
               <Text style={farmName}>{me.farm.name.toLowerCase()}</Text>
               <Text style={statusLine}>{me.farm.status}{me.farm.active ? '' : ' · hidden'}</Text>
+              <Text style={[kicker, { marginTop: 36 }]}>orders</Text>
+              {orderNote ? <Text style={quiet}>{orderNote}</Text> : null}
+              {orders.length === 0 ? <Text style={quiet}>no orders yet.</Text> : null}
+              {orders.map((order) => (
+                <View key={order.orderId} style={{ width: '100%', marginTop: 16 }}>
+                  <Text style={quiet}>{order.orderId}</Text>
+                  <Text style={quiet}>item total {dollars(order.itemCents)}</Text>
+                  <Text style={quiet}>10% fee {dollars(order.feeCents)}</Text>
+                  <Text style={quiet}>you keep {dollars(order.keepCents)}</Text>
+                  <Text style={quiet}>payout date {order.payoutDate}</Text>
+                </View>
+              ))}
               <Pressable onPress={() => saveFarm({ offersPickup: !me.farm.offersPickup })}>
                 <Text style={[quiet, { marginTop: 22 }]}>{how}</Text>
               </Pressable>
