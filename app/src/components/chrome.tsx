@@ -254,6 +254,7 @@ function Footer() {
       <View style={{ flexDirection: 'row', gap: 26, marginTop: 22, flexWrap: 'wrap', justifyContent: 'center', paddingHorizontal: 24 }}>
         <FooterLink label="the main course standard" href="/standard" />
         <FooterLink label="for farmers" href="/for-farmers" />
+        <FooterLink label="sell with us" href="/reps" />
         <Pressable onPress={() => Linking.openURL('https://instagram.com/themainzco')} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
           <Text style={foot}>instagram @themainzco</Text>
         </Pressable>

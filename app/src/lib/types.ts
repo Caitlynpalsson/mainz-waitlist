@@ -17,6 +17,7 @@ export type ProductCard = {
   farmSlug: string;
   farmName: string;
   farmCity: string;
+  farmIsDemo?: boolean;
 };
 
 export type FarmCard = {
@@ -88,6 +89,7 @@ export type ProductDetail = {
     pickupSummary: string;
     deliverySummary: string;
     windows: Windows;
+    isDemo?: boolean;
   };
 };
 

@@ -9,6 +9,9 @@ import { deliveryFeeOnPlace, parseAddress } from './delivery';
 import { digitsZip, orderPickupOptions, parseFulfillment, pickupChoiceLabel, pickupDayLabel, pickupTownLine, shortTown } from './fulfillment';
 import { chooseOrderRoute, closeDueRuns, ensureRun, lookupRoute, orderRouteSummary, weekdayForFarmStops } from './deliveryStore';
 import { PHOTO_RULES, assessPhoto, decodeJpegDataUrl, jpegSize } from './photoQuality';
+import { checkoutClosed, CHECKOUT_CLOSED_LINE } from './checkoutGate';
+import { allowedOrigin } from './cors';
+import { joinRep, repDesk, repIdForCode } from './repStore';
 import { safeOrigin } from './stripe';
 import { handleStripeWebhook, listingConnectStatus, openCheckout, startListingConnect } from './stripeStore';
 
@@ -22,6 +25,7 @@ export interface Env {
   PLATFORM_FEE_FLAT_CENTS?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  CHECKOUT_CLOSED_HOSTS?: string;
 }
 
 const PLACE = 'spanish fork, ut';
@@ -103,24 +107,25 @@ type ProductJoin = {
   category?: string;
   in_season?: number;
   farm_city?: string;
+  is_demo?: number;
 };
 
-const corsHeaders: Record<string, string> = {
-  'access-control-allow-origin': '*',
+const corsBase: Record<string, string> = {
   'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS',
   'access-control-allow-headers': 'content-type, authorization, x-farm-token, x-staff-session',
   'access-control-max-age': '86400',
+  vary: 'origin',
 };
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsFor(request) });
     try {
-      return withCors(await route(request, env));
+      return withCors(await route(request, env), request);
     } catch (error) {
-      if (error instanceof HttpError) return withCors(json({ error: error.message }, error.status));
+      if (error instanceof HttpError) return withCors(json({ error: error.message }, error.status), request);
       console.error(error);
-      return withCors(json({ error: 'something went wrong.' }, 500));
+      return withCors(json({ error: 'something went wrong.' }, 500), request);
     }
   },
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<void> {
@@ -134,6 +139,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   const method = request.method.toUpperCase();
 
   if (method === 'GET' && path === '/api/health') return json({ ok: true });
+  if (method === 'GET' && path === '/api/config') return json({ checkoutOpen: !shopCheckoutClosed(env, request) });
   if (method === 'GET' && path === '/api/browse') return browse(env, url);
   if (method === 'GET' && path === '/api/farms') return listFarms(env, url);
   if (method === 'GET' && path === '/api/catalog') return catalog(env, url);
@@ -154,11 +160,14 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (method === 'POST' && path === '/api/quote') return quote(env, await readJson(request));
   if (method === 'POST' && path === '/api/orders') return placeOrder(env, await readJson(request));
-  if (method === 'POST' && path === '/api/checkout') return checkout(env, await readJson(request));
+  if (method === 'POST' && path === '/api/checkout') return checkout(env, request, await readJson(request));
   if (method === 'POST' && path === '/api/stripe/webhook') {
     const payload = await request.text();
     return handleStripeWebhook(env, payload, request.headers.get('stripe-signature') || '');
   }
+  if (method === 'POST' && path === '/api/reps') return joinRep(env, await readJson(request));
+  const repDeskPage = path.match(/^\/api\/reps\/desk\/([0-9a-f]{64})$/);
+  if (method === 'GET' && repDeskPage) return repDesk(env, repDeskPage[1]);
   if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
 
   const listingConnect = path.match(/^\/api\/listings\/([a-z0-9_]+)\/connect$/);
@@ -349,7 +358,7 @@ async function productDetail(env: Env, id: number): Promise<Response> {
     `SELECT p.*, c.name AS food_name, c.category, c.photo_key, c.slug AS food_slug,
             f.id AS farm_id, f.slug AS farm_slug, f.name AS farm_name, f.city AS farm_city,
             f.offers_pickup, f.offers_delivery, f.pickup_summary, f.delivery_summary, f.windows_json,
-            f.status, f.active AS farm_active
+            f.status, f.active AS farm_active, f.is_demo
      FROM products p
      JOIN catalog_foods c ON c.id = p.food_id
      JOIN farms f ON f.id = p.farm_id
@@ -409,6 +418,7 @@ async function productDetail(env: Env, id: number): Promise<Response> {
         pickupSummary: product.pickup_summary,
         deliverySummary: product.delivery_summary,
         windows,
+        isDemo: !!product.is_demo,
       },
     },
     more: more.results.map(productCard),
@@ -536,7 +546,18 @@ async function placeOrder(env: Env, body: CartBody): Promise<Response> {
   }, 201);
 }
 
-async function checkout(env: Env, body: CartBody): Promise<Response> {
+function shopCheckoutClosed(env: Env, request: Request, returnOrigin?: string): boolean {
+  return checkoutClosed({
+    hosts: env.CHECKOUT_CLOSED_HOSTS,
+    origin: request.headers.get('origin'),
+    referer: request.headers.get('referer'),
+    host: request.headers.get('host'),
+    returnOrigin,
+  });
+}
+
+async function checkout(env: Env, request: Request, body: CartBody): Promise<Response> {
+  if (shopCheckoutClosed(env, request, body.returnOrigin)) throw new HttpError(CHECKOUT_CLOSED_LINE);
   let origin = '';
   try {
     origin = safeOrigin(body.returnOrigin);
@@ -630,14 +651,17 @@ async function apply(env: Env, body: Record<string, unknown>): Promise<Response>
   const offersPickup = fulfillment === 'pickup' || fulfillment === 'both' ? 1 : 0;
   const offersDelivery = fulfillment === 'delivery' || fulfillment === 'both' ? 1 : 0;
   const farmSlug = await uniqueSlug(env, name);
+  const repCode = clean(body.rep, 12).toLowerCase();
+  const repId = repCode ? await repIdForCode(env, repCode) : null;
+  if (repCode && !repId) throw new HttpError('that referral code is not one of ours.');
   await env.DB.prepare(
     `INSERT INTO farms (
       slug, name, farmer_names, email, phone, city, state, what_you_sell, sell_now, fulfillment_pref, link,
-      offers_pickup, offers_delivery, bio, status, active, is_demo, card_foods
-    ) VALUES (?, ?, ?, ?, ?, ?, 'UT', ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0, ?)`,
+      offers_pickup, offers_delivery, bio, status, active, is_demo, card_foods, rep_id
+    ) VALUES (?, ?, ?, ?, ?, ?, 'UT', ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0, ?, ?)`,
   ).bind(
     farmSlug, name, contact, email, clean(body.phone, 40), city, what, sellNow, fulfillment, clean(body.link, 200),
-    offersPickup, offersDelivery, `${contact}. ${what}`.slice(0, 240), what,
+    offersPickup, offersDelivery, `${contact}. ${what}`.slice(0, 240), what, repId,
   ).run();
   return json({ ok: true, status: 'pending', slug: farmSlug }, 201);
 }
@@ -1030,7 +1054,7 @@ async function shapeOwned(env: Env, product: Record<string, unknown>) {
 
 const PRODUCT_CARD = `p.id, p.headline, p.note, p.dek, p.price_cents, p.unit, p.stock_qty, p.in_season,
   c.name AS food_name, c.category, c.photo_key,
-  f.id AS farm_id, f.slug AS farm_slug, f.name AS farm_name, f.city AS farm_city,
+  f.id AS farm_id, f.slug AS farm_slug, f.name AS farm_name, f.city AS farm_city, f.is_demo,
   (SELECT ph.photo_key FROM product_photos ph WHERE ph.product_id = p.id ORDER BY ph.sort_order, ph.id LIMIT 1) AS photo`;
 
 function productCard(row: ProductJoin) {
@@ -1050,6 +1074,7 @@ function productCard(row: ProductJoin) {
     farmSlug: row.farm_slug,
     farmName: row.farm_name,
     farmCity: row.farm_city,
+    farmIsDemo: !!row.is_demo,
   };
 }
 
@@ -1213,8 +1238,15 @@ async function readJson<T>(request: Request, max = 20_000): Promise<T> {
   }
 }
 
-function withCors(response: Response): Response {
+function corsFor(request: Request): Record<string, string> {
+  const headers = { ...corsBase };
+  const origin = allowedOrigin(request.headers.get('origin'));
+  if (origin) headers['access-control-allow-origin'] = origin;
+  return headers;
+}
+
+function withCors(response: Response, request: Request): Response {
   const headers = new Headers(response.headers);
-  for (const [key, value] of Object.entries(corsHeaders)) headers.set(key, value);
+  for (const [key, value] of Object.entries(corsFor(request))) headers.set(key, value);
   return new Response(response.body, { status: response.status, headers });
 }

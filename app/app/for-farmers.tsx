@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Shell } from '../src/components/chrome';
 import { PrimaryButton, Wrap } from '../src/components/ui';
@@ -31,6 +31,9 @@ export default function ForFarmers() {
           <View style={{ marginTop: 28, width: '100%', maxWidth: 320 }}>
             <PrimaryButton label="apply to sell on the main course" onPress={() => router.push('/apply')} />
           </View>
+          <Pressable onPress={() => router.push('/reps')} style={{ marginTop: 18, minHeight: 44, justifyContent: 'center' }}>
+            <Text style={quiet}>know a farm? sell with us.</Text>
+          </Pressable>
         </View>
       </Wrap>
     </Shell>

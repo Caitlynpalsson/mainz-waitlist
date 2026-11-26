@@ -63,6 +63,7 @@ export default function ProductPage() {
             <View style={{ marginTop: desktop ? 28 : 4, flexDirection: desktop ? 'row' : 'column', alignItems: 'center', gap: 20 }}>
               <ArchGallery photos={product.photos} name={product.name} width={archW} height={archH} />
               <View style={{ flex: 1, width: '100%', maxWidth: 460, alignItems: 'center' }}>
+                {product.farm.isDemo ? <View style={{ marginBottom: 10 }}><Pill small cream label="sample farm" /></View> : null}
                 <Cap muted>{product.farm.name.toLowerCase()} · {product.farm.city.toLowerCase()}</Cap>
                 <Text style={title}>{product.name}</Text>
                 {product.dek ? <Text style={dek}>{product.dek}</Text> : null}

@@ -23,3 +23,5 @@ DELIVERY_FEE_CENTS = "500"
 # 0 and 0 means a farm's transfer is its full food subtotal. Change these two numbers only.
 PLATFORM_FEE_PERCENT = "0"
 PLATFORM_FEE_FLAT_CENTS = "0"
+# Public shop hosts where checkout stays closed. Preview hosts are not listed.
+CHECKOUT_CLOSED_HOSTS = "themaincoursemarket.com,www.themaincoursemarket.com"

@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { allowedOrigin } from '../src/cors.ts';
+import {
+  RATE_COMING,
+  REP_PAGE_LINES,
+  REP_PAGE_TITLE,
+  commissionCents,
+  farmApprovalLine,
+  isReferralCode,
+  listingApprovalLine,
+  parseCommissionPercent,
+  referralCode,
+} from '../src/reps.ts';
+
+test('the public rep page never names a percentage', () => {
+  const text = `${REP_PAGE_TITLE} ${REP_PAGE_LINES.join(' ')}`;
+  assert.equal(/\d+\s*%|percent|commission/i.test(text), false);
+  assert.equal(text.includes('the main course') || text.includes('sell with us'), true);
+});
+
+test('commission is unset until staff save a rate', () => {
+  assert.equal(parseCommissionPercent(''), null);
+  assert.equal(parseCommissionPercent(null), null);
+  assert.equal(parseCommissionPercent('nope'), null);
+  assert.equal(parseCommissionPercent('10'), 10);
+  assert.equal(parseCommissionPercent('101'), null);
+  assert.equal(commissionCents(2000, null), null);
+  assert.equal(commissionCents(2000, 10), 200);
+  assert.equal(RATE_COMING, 'rate coming soon');
+});
+
+test('referral codes stay short and sample lane wording stays in the approval process', () => {
+  assert.equal(referralCode(new Uint8Array([0, 1, 2, 3, 4, 5])).length, 6);
+  assert.equal(isReferralCode('sample'), true);
+  assert.equal(isReferralCode('no'), false);
+  assert.equal(listingApprovalLine('sent'), 'waiting on the farm');
+  assert.equal(farmApprovalLine({ status: 'pending', active: false, decision: '', stage: 'application_received', removed: false }), 'application received');
+  assert.equal(/goes live/i.test(listingApprovalLine('farm_approved')), false);
+});
+
+test('the shop domain and preview hosts may call the worker', () => {
+  assert.equal(allowedOrigin('https://themaincoursemarket.com'), 'https://themaincoursemarket.com');
+  assert.equal(allowedOrigin('https://www.themaincoursemarket.com'), 'https://www.themaincoursemarket.com');
+  assert.equal(allowedOrigin('http://localhost:8081'), 'http://localhost:8081');
+  assert.equal(allowedOrigin('https://preview.example.pages.dev'), 'https://preview.example.pages.dev');
+  assert.equal(allowedOrigin('https://evil.example'), null);
+  assert.equal(allowedOrigin('http://themaincoursemarket.com'), null);
+});

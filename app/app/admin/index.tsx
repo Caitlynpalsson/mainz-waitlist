@@ -48,6 +48,11 @@ type StaffListing = {
   onboarding?: { reachVia?: string; reachEmail?: string; payPref?: string; payoutConnected?: boolean; pickupOk?: boolean; pickupNote?: string; done?: boolean };
 };
 
+type RepAdmin = {
+  percent: number | null;
+  reps: { id: number; name: string; email: string; code: string; sample: boolean; farms: { name: string; status: string; soldCents: number }[] }[];
+};
+
 type CsvPreview = {
   farms: { farm: string; products: { name: string; problems: string[] }[] }[];
   rowProblems: { row: number; farm: string; product: string; problems: string[] }[];
@@ -92,6 +97,9 @@ export default function AdminHome() {
   const [copied, setCopied] = useState('');
   const [openProducts, setOpenProducts] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [reps, setReps] = useState<RepAdmin | null>(null);
+  const [rate, setRate] = useState('');
+  const [repLink, setRepLink] = useState('');
 
   useEffect(() => {
     if (!auth.token) return;
@@ -103,6 +111,13 @@ export default function AdminHome() {
     try {
       setData(await api<Dashboard>('/api/admin/dashboard', { headers: adminHeaders(current) }));
       try {
+        const repDesk = await api<RepAdmin>('/api/admin/reps', { headers: adminHeaders(current) });
+        setReps(repDesk);
+        setRate(repDesk.percent == null ? '' : String(repDesk.percent));
+      } catch {
+        setReps(null);
+      }
+      try {
         const drafts = await api<{ listings: StaffListing[] }>('/api/admin/listings', { headers: adminHeaders(current) });
         setListings(drafts.listings);
       } catch {
@@ -111,6 +126,36 @@ export default function AdminHome() {
     } catch (err) {
       setData(null);
       setError(err instanceof Error ? err.message : 'could not open admin.');
+    }
+  }
+
+  async function saveRate(token: string) {
+    if (!token) return;
+    setError('');
+    try {
+      await api('/api/admin/reps/commission', {
+        method: 'POST',
+        headers: adminHeaders(token),
+        body: JSON.stringify({ percent: rate.trim() }),
+      });
+      await load(token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'that rate did not save.');
+    }
+  }
+
+  async function mintRepLink(token: string, code: string) {
+    if (!token) return;
+    setError('');
+    try {
+      const made = await api<{ path: string }>('/api/admin/reps/view-link', {
+        method: 'POST',
+        headers: adminHeaders(token),
+        body: JSON.stringify({ code }),
+      });
+      setRepLink(made.path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not make a link.');
     }
   }
 
@@ -356,6 +401,26 @@ export default function AdminHome() {
                     <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>{copied === listing.path ? 'copied' : 'copy text'}</Text>
                   </Pressable>
                   {copied && copied !== listing.path && copied.includes(listing.path) ? <Text style={small}>{copied}</Text> : null}
+                </View>
+              ))}
+            </View>
+            <View style={{ marginTop: 36 }}>
+              <Cap>reps</Cap>
+              <Text style={quiet}>rate is blank until you set it. the public page never shows a number.</Text>
+              <TextInput value={rate} onChangeText={setRate} placeholder="not set yet" placeholderTextColor={colors.gray} keyboardType="decimal-pad" style={input} />
+              <Pressable onPress={() => saveRate(auth.token || '')} style={{ marginTop: 10 }}><Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>save rate</Text></Pressable>
+              {repLink ? <Text style={small}>{repLink}</Text> : null}
+              {reps?.reps.map((rep) => (
+                <View key={rep.id} style={card}>
+                  <Text style={name}>{rep.name.toLowerCase()}{rep.sample ? ' · sample' : ''} · {rep.code}</Text>
+                  <Text style={small}>{rep.email}</Text>
+                  {rep.farms.length === 0 ? <Text style={small}>no farms yet.</Text> : null}
+                  {rep.farms.map((farm) => (
+                    <Text key={farm.name} style={small}>{farm.name.toLowerCase()} · {farm.status} · sold {dollars(farm.soldCents)}</Text>
+                  ))}
+                  <Pressable onPress={() => mintRepLink(auth.token || '', rep.code)} style={{ marginTop: 8 }}>
+                    <Text style={{ fontFamily: 'Inter', color: colors.navy, fontWeight: '600' }}>new private link</Text>
+                  </Pressable>
                 </View>
               ))}
             </View>

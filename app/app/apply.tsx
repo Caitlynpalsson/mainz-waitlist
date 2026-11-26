@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../src/components/chrome';
 import { PrimaryButton, Wrap } from '../src/components/ui';
 import { api } from '../src/lib/api';
+import { REP_CODE_KEY } from '../../api/src/reps';
 import { colors, useLayout } from '../src/theme';
 
 const HOW = ['pickup', 'delivery', 'both'] as const;
 
 export default function Apply() {
   const { desktop } = useLayout();
+  const params = useLocalSearchParams<{ rep?: string }>();
   const [farmName, setFarmName] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,9 +19,32 @@ export default function Apply() {
   const [whatYouSell, setWhat] = useState('');
   const [fulfillment, setFulfillment] = useState<(typeof HOW)[number]>('both');
   const [company, setCompany] = useState('');
+  const [rep, setRep] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const fromUrl = String(params.rep || '').trim().toLowerCase();
+    if (fromUrl && /^[a-z0-9]{4,12}$/.test(fromUrl)) {
+      try { localStorage.setItem(REP_CODE_KEY, fromUrl); } catch { /* still send the code */ }
+      setRep(fromUrl);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(REP_CODE_KEY) || '';
+      if (/^[a-z0-9]{4,12}$/.test(saved)) setRep(saved);
+    } catch { /* private mode */ }
+  }, [params.rep]);
+
+  function rememberRep(value: string) {
+    const clean = value.trim().toLowerCase().slice(0, 12);
+    setRep(clean);
+    try {
+      if (clean) localStorage.setItem(REP_CODE_KEY, clean);
+      else localStorage.removeItem(REP_CODE_KEY);
+    } catch { /* still send the typed code */ }
+  }
 
   async function submit() {
     setError('');
@@ -37,6 +63,7 @@ export default function Apply() {
           link: '',
           sellNow: [],
           company,
+          rep,
         }),
       });
       setDone(true);
@@ -65,6 +92,7 @@ export default function Apply() {
               <Field label="email" value={email} onChange={setEmail} keyboard="email-address" />
               <Field label="city" value={city} onChange={setCity} />
               <Field label="what you sell" value={whatYouSell} onChange={setWhat} />
+              <Field label="who sent you? optional" value={rep} onChange={rememberRep} />
               <Text style={[quiet, { marginTop: 36 }]}>pickup or delivery</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 22, marginTop: 12 }}>
                 {HOW.map((item) => (

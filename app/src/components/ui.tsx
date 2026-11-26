@@ -236,7 +236,8 @@ export function SeasonCard({ product, width, saved, onSave, textInset = 0 }: { p
           </Pressable>
         ) : null}
       </View>
-      <Text style={[nameStyle, { marginTop: 14, paddingHorizontal: textInset }]}>{product.headline}</Text>
+      {product.farmIsDemo ? <View style={{ marginTop: 12, paddingHorizontal: textInset, alignItems: 'flex-start' }}><SamplePill /></View> : null}
+      <Text style={[nameStyle, { marginTop: product.farmIsDemo ? 8 : 14, paddingHorizontal: textInset }]}>{product.headline}</Text>
       <Text style={[noteStyle, { paddingHorizontal: textInset }]}>
         {product.farmName.toLowerCase()}
         {' · '}
@@ -247,7 +248,7 @@ export function SeasonCard({ product, width, saved, onSave, textInset = 0 }: { p
 }
 
 export function ShopCard({ product, width, onPress, onPricePress }: {
-  product: Pick<ProductCard, 'id' | 'name' | 'photo' | 'priceCents' | 'unit'> & { note?: string };
+  product: Pick<ProductCard, 'id' | 'name' | 'photo' | 'priceCents' | 'unit'> & { note?: string; farmIsDemo?: boolean };
   width: number;
   onPress?: () => void;
   onPricePress?: () => void;
@@ -264,7 +265,8 @@ export function ShopCard({ product, width, onPress, onPricePress }: {
       <View style={{ width, height, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
         <FoodImage photo={product.photo} name={product.name} width={width} height={height} />
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
+      {product.farmIsDemo ? <View style={{ marginTop: 12, alignItems: 'flex-start' }}><SamplePill /></View> : null}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: product.farmIsDemo ? 8 : 12, gap: 8 }}>
         <Text style={{ fontFamily: 'Inter', fontSize: 13.5, fontWeight: '500', color: colors.navy, flex: 1 }}>{product.name}</Text>
         {onPricePress ? (
           <Pressable onPress={onPricePress} accessibilityLabel={`price for ${product.name}`}>
@@ -286,7 +288,8 @@ export function MoreCard({ product, width }: { product: ProductCard; width: numb
       <View style={{ width, height, borderTopLeftRadius: 9999, borderTopRightRadius: 9999, overflow: 'hidden', backgroundColor: '#111' }}>
         <FoodImage photo={product.photo} name={product.name} width={width} height={height} />
       </View>
-      <Text style={[nameStyle, { marginTop: 14, textAlign: 'center' }]}>{product.name}</Text>
+      {product.farmIsDemo ? <View style={{ marginTop: 12 }}><SamplePill /></View> : null}
+      <Text style={[nameStyle, { marginTop: product.farmIsDemo ? 8 : 14, textAlign: 'center' }]}>{product.name}</Text>
       <Text style={[noteStyle, { textAlign: 'center' }]}>
         {product.note}
         {product.note ? ' · ' : ''}
@@ -308,6 +311,7 @@ export function FarmTile({ farm, onPress }: { farm: FarmCard; onPress?: () => vo
         <FoodImage photo={farm.heroPhoto} name={farm.name} width={62} height={62} />
       </View>
       <View style={{ flex: 1 }}>
+        {farm.isDemo ? <View style={{ marginBottom: 8, alignSelf: 'flex-start' }}><SamplePill /></View> : null}
         <Text style={nameStyle}>{farm.name.toLowerCase()}</Text>
         <Text style={noteStyle}>
           {farm.city.toLowerCase()}
@@ -321,6 +325,10 @@ export function FarmTile({ farm, onPress }: { farm: FarmCard; onPress?: () => vo
       </View>
     </Pressable>
   );
+}
+
+export function SamplePill() {
+  return <Pill small cream label="sample farm" />;
 }
 
 export function FulfillmentPills({ pickup, delivery }: { pickup?: string; delivery?: string }) {

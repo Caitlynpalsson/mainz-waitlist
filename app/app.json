@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "The Main Course",
+    "name": "the main course",
     "slug": "mainz",
     "scheme": "mainz",
     "version": "1.0.0",
@@ -9,21 +9,21 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#FFFFFF",
     "primaryColor": "#14213D",
-    "description": "The Main Course. Farms near you, with the price the farmer set.",
+    "description": "the main course. farms near you, with the price the farmer set.",
     "extra": {
       "bundleIdStatus": "placeholder",
-      "bundleIdNote": "co.themainz.app is a placeholder for both Apple and Google. Confirm it before any store listing. Expo Go does not use it."
+      "bundleIdNote": "com.themaincoursemarket.app. no App Store or Play listing exists yet. Expo Go ignores it."
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.themainz.app",
+      "bundleIdentifier": "com.themaincoursemarket.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "The Main Course uses your location to sort farms near you.",
+        "NSLocationWhenInUseUsageDescription": "the main course uses your location to sort farms near you.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "co.themainz.app",
+      "package": "com.themaincoursemarket.app",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -39,6 +39,10 @@
     "web": {
       "bundler": "metro",
       "output": "single",
+      "name": "the main course",
+      "shortName": "main",
+      "description": "the main course. farms near you, with the price the farmer set.",
+      "themeColor": "#14213D",
       "favicon": "./assets/favicon.png",
       "backgroundColor": "#F3F0E4"
     },
@@ -65,14 +69,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The Main Course uses a photo only when a farm replaces the stock picture.",
+          "photosPermission": "the main course uses a photo only when a farm replaces the stock picture.",
           "microphonePermission": false
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "The Main Course uses your location to sort farms near you.",
+          "locationWhenInUsePermission": "the main course uses your location to sort farms near you.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false,

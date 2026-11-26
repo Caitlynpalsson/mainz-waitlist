@@ -73,7 +73,9 @@ Do not use `npx expo start --tunnel` with no word after it. In SDK 58 that defau
 
 If the phone and the computer are on the same Wi-Fi, `npx expo start --lan` also works and needs no tunnel. A cloud machine is not on that Wi-Fi, so use the ngrok command above.
 
-The bundle id and Android package are `co.themainz.app`. That string is a placeholder and needs confirmation before any App Store or Play listing. Expo Go ignores it.
+The site is `https://themaincoursemarket.com`. `www` should redirect to that apex. The page also sends `www` there. The API stays `https://mainz-api.guidedapp.workers.dev` for now. Checkout is closed on the public host. The preview at `preview.mainz-j4b.pages.dev` still takes a test payment.
+
+The bundle id and Android package are `com.themaincoursemarket.app`. No App Store or Play listing exists yet. Expo Go ignores it.
 
 Location uses the phone's location only after you tap "use my location". The zip or city field is the other way. The bag and the chosen town are saved on the phone.
 

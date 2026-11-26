@@ -22,7 +22,11 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="the main course" />
         <meta name="twitter:description" content="real food from people with names." />
-        <meta name="apple-mobile-web-app-title" content="the main course" />
+        <meta name="apple-mobile-web-app-title" content="main" />
+        <link rel="canonical" href="https://themaincoursemarket.com/" />
+        <meta property="og:url" content="https://themaincoursemarket.com/" />
+        <meta property="og:site_name" content="the main course" />
+        <script dangerouslySetInnerHTML={{ __html: "if(location.hostname==='www.themaincoursemarket.com')location.replace('https://themaincoursemarket.com'+location.pathname+location.search+location.hash);" }} />
         <ScrollViewStyleReset />
         <style id="mainz" dangerouslySetInnerHTML={{ __html: css }} />
       </head>

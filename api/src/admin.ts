@@ -1,4 +1,5 @@
 import { adminCloseRun, adminRoutes, adminRunSheet, adminSaveRoute } from './deliveryStore';
+import { adminRepList, reissueRepView, setRepCommission } from './repStore';
 import { HttpError, json } from './http';
 import {
   adminGetListing,
@@ -88,6 +89,9 @@ export async function handleAdmin(request: Request, env: Env, method: string, pa
   if (method === 'POST' && path === '/api/admin/listings/preview') return previewListingCsv(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/listings/import') return importListingCsv(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/staff-sessions/revoke') return revokeStaffSessions(env);
+  if (method === 'GET' && path === '/api/admin/reps') return adminRepList(env);
+  if (method === 'POST' && path === '/api/admin/reps/commission') return setRepCommission(env, await readJson(request));
+  if (method === 'POST' && path === '/api/admin/reps/view-link') return reissueRepView(env, await readJson(request));
   if (method === 'POST' && path === '/api/admin/listings/shopper-link') {
     const body = await readJson(request);
     return createStaffPreviewLink(env, String(body.token || ''));

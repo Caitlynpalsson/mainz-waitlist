@@ -22,6 +22,7 @@ export default function Bag() {
   const [formError, setFormError] = useState('');
   const [step, setStep] = useState<'where' | 'info' | 'review'>('where');
   const [choseDelivery, setChoseDelivery] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(true);
   const appliedPickupDefault = useRef(false);
   const groups = useMemo(() => groupCart(store.lines, store.choices), [store.lines, store.choices]);
   const local = useMemo(() => priceGroups(groups.map((group) => ({
@@ -113,7 +114,18 @@ export default function Bag() {
   }, [routeKey]);
   const sameMode = groups.length > 0 && groups.every((group) => group.choice.fulfillment === groups[0].choice.fulfillment);
   const things = store.lines.length;
-  const placeInDock = !desktop && things > 0 && (!hasOwnPickup || step === 'review');
+  useEffect(() => {
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const publicHost = host === 'themaincoursemarket.com' || host === 'www.themaincoursemarket.com';
+    if (publicHost) {
+      setCheckoutOpen(false);
+      return;
+    }
+    api<{ checkoutOpen: boolean }>('/api/config')
+      .then((config) => setCheckoutOpen(config.checkoutOpen))
+      .catch(() => setCheckoutOpen(true));
+  }, []);
+  const placeInDock = checkoutOpen && !desktop && things > 0 && (!hasOwnPickup || step === 'review');
 
   async function place() {
     setFormError('');
@@ -199,7 +211,7 @@ export default function Bag() {
             <Money money={shown} delivering={delivering} />
             {formError ? <Text style={errText}>{formError}</Text> : null}
             {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
-            {placeInDock ? null : (
+            {checkoutOpen ? (placeInDock ? null : (
               <View style={{ marginTop: 18 }}>
                 <PrimaryButton
                   label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
@@ -207,8 +219,8 @@ export default function Bag() {
                   onPress={place}
                 />
               </View>
-            )}
-            <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
+            )) : <Text style={[note, { marginTop: 18 }]}>checkout opens soon 🌱 add what you love and we'll let you know.</Text>}
+            {checkoutOpen ? <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text> : null}
             <Pressable onPress={() => setStep('info')} style={{ marginTop: 8, alignItems: 'center' }}>
               <Text style={link}>back</Text>
             </Pressable>
@@ -269,7 +281,7 @@ export default function Bag() {
           <Field label="phone" value={store.customerPhone} keyboardType="phone-pad" onChange={(value) => store.setCustomer(store.customerName, store.customerEmail, value)} />
           {formError ? <Text style={errText}>{formError}</Text> : null}
           {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
-          {placeInDock ? null : (
+          {checkoutOpen ? (placeInDock ? null : (
             <View style={{ marginTop: 18 }}>
               <PrimaryButton
                 label={placing ? 'placing…' : `place order · ${dollars(shown.totalCents)}`}
@@ -277,8 +289,8 @@ export default function Bag() {
                 onPress={place}
               />
             </View>
-          )}
-          <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text>
+          )) : <Text style={[note, { marginTop: 18 }]}>checkout opens soon 🌱 add what you love and we'll let you know.</Text>}
+          {checkoutOpen ? <Text style={[note, { marginTop: 12 }]}>stripe test checkout. the card is charged in test mode only.</Text> : null}
           <Text style={note}>farmers keep their price. we add a small fee. that's it.</Text>
         </>
       )}

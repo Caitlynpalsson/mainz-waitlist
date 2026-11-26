@@ -10,6 +10,7 @@ import { api } from '../../../src/lib/api';
 import { adminHeaders, useAdminToken } from '../../../src/lib/adminAuth';
 import { useStore } from '../../../src/lib/store';
 import { miles } from '../../../src/lib/money';
+import { shareLine } from '../../../src/lib/site';
 import { colors, useLayout } from '../../../src/theme';
 import { photoSource } from '../../../src/lib/photos';
 import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../src/components/miniSearch';
@@ -125,7 +126,7 @@ export default function StaffShopperPreview() {
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(followKey)}>
             <IconHeart filled={followed} />
           </CircleButton>
-          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on the main course` }).catch(() => undefined)}>
+          <CircleButton label="share" onPress={() => Share.share({ message: shareLine(farm.name, `/listing/${token}/shopper`) }).catch(() => undefined)}>
             <IconShare />
           </CircleButton>
         </>

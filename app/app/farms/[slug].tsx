@@ -14,6 +14,7 @@ import { miles } from '../../src/lib/money';
 import { photoSource } from '../../src/lib/photos';
 import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../src/components/miniSearch';
 import { searchProducts } from '../../../api/src/search';
+import { shareLine } from '../../src/lib/site';
 import { colors, useLayout } from '../../src/theme';
 
 type Payload = { farm: FarmDetail; products: ProductCard[] };
@@ -53,7 +54,7 @@ export default function FarmPage() {
           <CircleButton label={followed ? 'following' : 'follow'} onPress={() => toggleFollow(farm.slug)}>
             <IconHeart filled={followed} />
           </CircleButton>
-          <CircleButton label="share" onPress={() => Share.share({ message: `${farm.name} on the main course` }).catch(() => undefined)}>
+          <CircleButton label="share" onPress={() => Share.share({ message: shareLine(farm.name, `/farms/${farm.slug}`) }).catch(() => undefined)}>
             <IconShare />
           </CircleButton>
         </>
@@ -97,6 +98,7 @@ export default function FarmPage() {
                 <FarmAvatar photo={farm.profilePhoto} name={farm.name} size={desktop ? 96 : 72} />
                 <Cap muted>{`${farm.city}, ${farm.state}`.toLowerCase()}{farm.sinceYear ? ` · since ${farm.sinceYear}` : ''}</Cap>
                 <Text style={title}>{farm.name.toLowerCase()}</Text>
+                {farm.isDemo ? <View style={{ marginTop: 12 }}><Pill small cream label="sample farm" /></View> : null}
                 <Text style={bio}>{farm.bio}</Text>
                 <View style={{ marginTop: 20 }}>
                   <FulfillmentPills
