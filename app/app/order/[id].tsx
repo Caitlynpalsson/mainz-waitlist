@@ -7,6 +7,7 @@ import { api } from '../../src/lib/api';
 import { useApi } from '../../src/lib/useApi';
 import { useStore } from '../../src/lib/store';
 import { dollars } from '../../src/lib/money';
+import { deliveryFeeLabel } from '../../../api/src/delivery';
 import { colors, useLayout } from '../../src/theme';
 
 type Order = {
@@ -107,7 +108,7 @@ export default function OrderPage() {
               ))}
               <View style={{ marginTop: 12 }}><Hair /></View>
               <Row k="to the farmers" v={dollars(order.merchandiseCents)} />
-              <Row k={feeLabel(order.route?.feeState)} v={dollars(order.deliveryFeeCents)} />
+              <Row k={deliveryFeeLabel(order.route?.feeState || '', order.deliveryFeeCents)} v={dollars(order.deliveryFeeCents)} />
               <Row k="service fee" v={dollars(order.platformFeeCents)} />
               <Row k="total" v={dollars(order.totalCents)} />
               <Text style={{ fontFamily: 'Inter', color: colors.gray, marginTop: 18, textAlign: 'center' }}>
@@ -125,13 +126,6 @@ export default function OrderPage() {
       </Wrap>
     </Shell>
   );
-}
-
-function feeLabel(state?: string): string {
-  if (state === 'waived') return 'delivery fee, not charged';
-  if (state === 'held') return 'delivery fee, held';
-  if (state === 'not_charged') return 'delivery fee, not charged yet';
-  return 'delivery fee';
 }
 
 function Row({ k, v }: { k: string; v: string }) {

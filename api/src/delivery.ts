@@ -159,6 +159,13 @@ export function deliveryFeeOnPlace(hasPaymentCode: boolean): 'held' | 'not_charg
   return hasPaymentCode ? 'held' : 'not_charged';
 }
 
+/** A fee that is in the order total was charged. "not charged yet" is only a fee that was not added. */
+export function deliveryFeeLabel(state: string, cents: number): string {
+  if (cents > 0) return 'delivery fee';
+  if (state === 'not_charged') return 'delivery fee, not charged yet';
+  return 'delivery fee, not charged';
+}
+
 export function closeRunDecision(count: number, minOrders: number): 'confirmed' | 'short' {
   return count >= minOrders ? 'confirmed' : 'short';
 }

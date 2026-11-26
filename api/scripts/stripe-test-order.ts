@@ -63,21 +63,6 @@ const foodCents = 2000;
 const transferCents = farmTransferAmountCents(foodCents, { percent: 10, flatCents: 0 });
 if (transferCents !== 1800) fail('expected a transfer of 1800 cents on 2000 cents of food');
 
-async function stripeJson(method: string, path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const response = await fetch(`https://api.stripe.com/${path}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${secret}`,
-      'content-type': 'application/json',
-      'stripe-version': STRIPE_V2_VERSION,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
-  if (!response.ok) throw new Error(data.error?.message || 'stripe refused the test call');
-  return data as Record<string, unknown>;
-}
-
 async function stripeAllow(method: string, path: string): Promise<{ ok: boolean; message: string }> {
   const response = await fetch(`https://api.stripe.com/v1/${path}`, {
     method,
@@ -135,32 +120,22 @@ let accountId = '';
 let transferId = '';
 let problem = '';
 try {
-const created = await stripeJson('POST', 'v2/core/accounts', {
-  display_name: 'Sample Lane',
-  contact_email: 'sample-farmer@example.com',
-  dashboard: 'none',
-  identity: { country: 'us' },
-  defaults: {
-    responsibilities: {
-      fees_collector: 'application',
-      losses_collector: 'application',
-      requirements_collector: 'application',
-    },
-  },
-  configuration: {
-    merchant: { capabilities: { card_payments: { requested: true } } },
-    recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
-  },
-  metadata: { sample: 'mainz-preview-farm', name: 'Sample Lane Farm' },
-});
-accountId = String(created.id || '');
-if (!accountId.startsWith('acct_')) problem = 'stripe did not return a sample account';
-if (!problem) await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
-  ...payoutScheduleFields(),
+// Test script only. Live farms stay Express. This account has no dashboard so the
+// platform can accept the terms and attach Stripe's test bank through the API.
+const created = await stripe('POST', 'accounts', {
+  country: 'US',
+  email: 'sample-farmer@example.com',
   business_type: 'individual',
+  'controller[losses][payments]': 'application',
+  'controller[fees][payer]': 'application',
+  'controller[stripe_dashboard][type]': 'none',
+  'controller[requirement_collection]': 'application',
+  'capabilities[card_payments][requested]': 'true',
+  'capabilities[transfers][requested]': 'true',
   'business_profile[mcc]': '5499',
   'business_profile[url]': CONNECT_SITE,
   'business_profile[product_description]': 'sample produce',
+  ...payoutScheduleFields(),
   'settings[payments][statement_descriptor]': PAYOUT_DESCRIPTOR,
   'individual[first_name]': 'Sample',
   'individual[last_name]': 'Lane',
@@ -178,8 +153,15 @@ if (!problem) await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, 
   'individual[address][country]': 'US',
   'tos_acceptance[date]': String(Math.floor(Date.now() / 1000)),
   'tos_acceptance[ip]': '127.0.0.1',
-  external_account: 'btok_us_verified',
+  'external_account[object]': 'bank_account',
+  'external_account[country]': 'US',
+  'external_account[currency]': 'usd',
+  'external_account[routing_number]': '110000000',
+  'external_account[account_number]': '000123456789',
+  'metadata[sample]': 'mainz-preview-farm',
 });
+accountId = String(created.id || '');
+if (!accountId.startsWith('acct_')) problem = 'stripe did not return a sample account';
 const account = await waitForTransfers(accountId);
 say(`sample farm: ${accountId}`);
 say(`charges: ${account.charges_enabled === true} payouts: ${account.payouts_enabled === true}`);

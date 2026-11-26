@@ -6,6 +6,7 @@ import {
   cleanRouteInput,
   closeRunDecision,
   cutoffInstantForRun,
+  deliveryFeeLabel,
   deliveryFeeOnPlace,
   followingRun,
   nextDelivery,
@@ -95,6 +96,9 @@ test('a short run waives the delivery fee and a full run confirms', () => {
   assert.equal(moved.routeStatus, 'pending_route');
   assert.equal(deliveryFeeOnPlace(false), 'not_charged');
   assert.equal(deliveryFeeOnPlace(true), 'held');
+  assert.equal(deliveryFeeLabel('not_charged', 500), 'delivery fee');
+  assert.equal(deliveryFeeLabel('not_charged', 0), 'delivery fee, not charged yet');
+  assert.equal(deliveryFeeLabel('waived', 0), 'delivery fee, not charged');
   assert.match(SHORT_RUN_NOTE, /switch to pickup/);
   const priced = priceGroups([{
     farmId: 1,
