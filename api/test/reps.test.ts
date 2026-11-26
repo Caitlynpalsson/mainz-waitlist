@@ -15,6 +15,7 @@ import {
   listingApprovalLine,
   milestoneProgress,
   parseCommissionPercent,
+  friendlyStanding,
   portalStanding,
   referralCode,
   repPublicName,
@@ -52,6 +53,9 @@ test('referral codes stay short and sample lane wording stays in the approval pr
   assert.equal(listingApprovalLine('sent'), 'waiting on the farm');
   assert.equal(portalStanding({ kind: 'listing', status: 'sent' }), 'in approval');
   assert.equal(portalStanding({ kind: 'farm', status: 'approved', active: true, bank: true }), 'selling');
+  assert.equal(friendlyStanding('selling'), 'selling');
+  assert.equal(friendlyStanding('in approval'), 'in review');
+  assert.equal(friendlyStanding('applied'), 'applied');
   assert.equal(repPublicName('sample rep'), 'sample r');
   assert.equal(milestoneProgress(1, 0).earned[0]?.label, 'first farm');
   assert.equal(milestoneProgress(1, 0).next?.label, '5 farms');

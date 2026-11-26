@@ -81,6 +81,17 @@ export function portalStanding(input: {
   return 'applied';
 }
 
+/** Friendlier words for the rep desk. No phone numbers. */
+export function friendlyStanding(status: string): 'invited' | 'applied' | 'in review' | 'approved' | 'selling' | 'not this time' {
+  const value = status.toLowerCase();
+  if (value.includes('not this time') || value.includes('removed') || value.includes('denied')) return 'not this time';
+  if (value === 'selling' || value.includes('on the shop')) return 'selling';
+  if (value === 'approved' || value.includes('bank connected')) return 'approved';
+  if (value.includes('approval') || value.includes('review') || value.includes('onboarding') || value.includes('changes')) return 'in review';
+  if (value === 'applied' || value.includes('application')) return 'applied';
+  return 'invited';
+}
+
 export function repPublicName(name: string): string {
   const parts = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
   if (!parts.length) return 'a rep';

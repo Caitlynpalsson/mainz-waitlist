@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, Text, TextInput, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../../../src/components/chrome';
 import { PrimaryButton, Wrap } from '../../../src/components/ui';
 import { api } from '../../../src/lib/api';
 import { dollars } from '../../../src/lib/money';
 import { SITE_ORIGIN } from '../../../src/lib/site';
-import { FARM_PITCH, PAYOUT_PLACEHOLDER, RATE_COMING, SHOPPER_PITCH } from '../../../../api/src/reps';
-import { ONBOARDING_SMS } from '../../../../api/src/listing';
+import { FARM_PITCH, PAYOUT_PLACEHOLDER, SHOPPER_PITCH, friendlyStanding } from '../../../../api/src/reps';
+import { ONBOARDING_SMS, ONBOARDING_TEXT_US } from '../../../../api/src/listing';
 import { qrMatrix } from '../../../../api/src/qr';
 import { repGuideFacts } from '../../../../api/src/guide';
 import { SetupGuide } from '../../../src/components/SetupGuide';
@@ -41,28 +40,44 @@ export default function RepDesk() {
   const { desktop } = useLayout();
   const [data, setData] = useState<Desk | null>(null);
   const [error, setError] = useState('');
-  const [goal, setGoal] = useState('');
   const [note, setNote] = useState('');
-  const [board, setBoard] = useState<'month' | 'all'>('month');
+  const [tab, setTab] = useState<'home' | 'share' | 'paid'>('home');
+  const [taps, setTaps] = useState(0);
 
   useEffect(() => {
     if (!token) return;
     api<Desk>(`/api/reps/desk/${token}`)
-      .then((next) => { setData(next); setGoal(next.weeklyGoal ? String(next.weeklyGoal) : ''); })
+      .then(setData)
       .catch((err: Error) => setError(err.message));
   }, [token]);
 
-  async function save(patch: { weeklyGoal?: number; leaderboardOptOut?: boolean }) {
+  useEffect(() => {
+    if (!data) return;
+    try { setTaps(Number(localStorage.getItem(`mainz.rep.taps.${data.code}`) || 0)); } catch { /* still fine */ }
+  }, [data]);
+
+  async function save(patch: { leaderboardOptOut?: boolean }) {
     if (!token) return;
     const next = await api<Desk>(`/api/reps/desk/${token}`, { method: 'POST', body: JSON.stringify(patch) });
     setData(next);
-    setNote('saved.');
+  }
+
+  function bumpTaps() {
+    if (!data) return;
+    const next = taps + 1;
+    setTaps(next);
+    try { localStorage.setItem(`mainz.rep.taps.${data.code}`, String(next)); } catch { /* still counted this visit */ }
   }
 
   const link = data ? `${SITE_ORIGIN}${data.shortPath}` : '';
-  const rateLine = data?.ratePercent == null
-    ? RATE_COMING
-    : `how much do i earn: ${data.ratePercent}% of what your farms sell, for as long as they sell.`;
+  const farmText = data ? `${FARM_PITCH} ${link}` : '';
+  const shopperText = data ? `${SHOPPER_PITCH} ${SITE_ORIGIN}${data.shopperPath}` : '';
+  const sales = data?.farms.reduce((sum, farm) => sum + farm.soldCents, 0) || 0;
+  const earned = data?.earnings.allTimeCents || 0;
+  const empty = !data?.farms.length;
+  const rank = data && !data.leaderboardOptOut
+    ? data.leaderboard.month.findIndex((row) => row.you) + 1
+    : 0;
 
   return (
     <Shell top="bar" title="your desk">
@@ -72,85 +87,86 @@ export default function RepDesk() {
           {!data && !error ? <Text style={quiet}>loading.</Text> : null}
           {data ? (
             <>
-              <Text style={headline}>{data.name.toLowerCase()}</Text>
-              {data.sample ? <Text style={quiet}>sample rep, for a look around.</Text> : null}
-              <Text style={kicker}>this month</Text>
-              <Text style={big}>{dollars(data.earnings.monthCents)}</Text>
-              <Text style={quiet}>all time {dollars(data.earnings.allTimeCents)}</Text>
-              <Text style={quiet}>pending {dollars(data.earnings.pendingCents)} · paid {dollars(data.earnings.paidCents)}</Text>
-              <Text style={quiet}>next payout is a monday. {data.payoutNote || PAYOUT_PLACEHOLDER}</Text>
-              <GoalRing goal={data.weeklyGoal} progress={data.weekProgress} />
-              <TextInput value={goal} onChangeText={setGoal} placeholder="weekly goal" placeholderTextColor={colors.gray} keyboardType="number-pad" style={field} />
-              <View style={{ marginTop: 12 }}>
-                <PrimaryButton label="save goal" onPress={() => save({ weeklyGoal: Math.max(0, Math.min(500, Number(goal) || 0)) })} />
+              <View style={tabs}>
+                {(['home', 'share', 'paid'] as const).map((item) => (
+                  <Pressable key={item} accessibilityRole="button" onPress={() => setTab(item)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                    <Text style={tab === item ? name : quiet}>{item}</Text>
+                  </Pressable>
+                ))}
               </View>
-
-              <Text style={kicker}>my farms</Text>
-              {data.farms.length === 0 ? <Text style={body}>no farms yet.</Text> : null}
-              {data.farms.map((farm) => (
-                <View key={farm.name} style={card}>
-                  <Text style={name}>{farm.name.toLowerCase()}{farm.sample ? ' · sample' : ''}</Text>
-                  <Text style={quiet}>{farm.status}</Text>
-                  <Text style={quiet}>sales {dollars(farm.soldCents)}</Text>
-                  <Text style={quiet}>{farm.commissionCents == null ? RATE_COMING : `your share ${dollars(farm.commissionCents)}`}</Text>
-                </View>
-              ))}
-              <Text style={quiet}>shoppers you brought {data.shoppersBrought}. no cash for shoppers, just the board.</Text>
-
-              <Text style={kicker}>share</Text>
-              <Text style={quiet}>{link}</Text>
-              <QrMark text={link} />
-              <Text style={body}>{FARM_PITCH} {link}</Text>
-              <Text style={body}>{SHOPPER_PITCH} {SITE_ORIGIN}{data.shopperPath}</Text>
-              <View style={{ marginTop: 12 }}>
-                <PrimaryButton label="copy farm text" onPress={() => copy(`${FARM_PITCH} ${link}`, setNote)} />
-              </View>
-              <View style={{ marginTop: 12 }}>
-                <PrimaryButton label="copy shopper text" onPress={() => copy(`${SHOPPER_PITCH} ${SITE_ORIGIN}${data.shopperPath}`, setNote)} />
-              </View>
-              <View style={{ marginTop: 12 }}>
-                <PrimaryButton label="download qr card" onPress={() => downloadCard('card', data.name, link)} />
-              </View>
-              <View style={{ marginTop: 12 }}>
-                <PrimaryButton label="download story image" onPress={() => downloadCard('story', data.name, link)} />
-              </View>
-
-              <Text style={kicker}>payouts</Text>
-              <Text style={body}>{data.payoutNote || PAYOUT_PLACEHOLDER}</Text>
-              {data.ledger.length === 0 ? <Text style={quiet}>nothing paid out yet.</Text> : null}
-              {data.ledger.map((row) => (
-                <Text key={`${row.at}-${row.farmName}`} style={quiet}>
-                  {row.farmName.toLowerCase()} · {dollars(row.commissionCents)} · {row.paid ? 'paid' : 'pending'}
-                </Text>
-              ))}
-
-              <Text style={kicker}>help</Text>
-              <Pressable onPress={() => Linking.openURL(ONBOARDING_SMS).catch(() => undefined)}>
-                <Text style={linkText}>text us at 972-510-3326</Text>
-              </Pressable>
-              <Text style={body}>{rateLine}</Text>
-
-              <Text style={kicker}>badges</Text>
-              {data.badges.earned.length === 0 ? <Text style={quiet}>your first farm is the first badge.</Text> : null}
-              {data.badges.earned.map((badge) => <Text key={badge.id} style={quiet}>{badge.label}</Text>)}
-              {data.badges.next ? (
-                <Text style={body}>{data.badges.next.current} of {data.badges.next.target} toward {data.badges.next.label}</Text>
-              ) : <Text style={quiet}>you cleared the board.</Text>}
-
-              <Text style={kicker}>leaderboard</Text>
-              <Pressable onPress={() => save({ leaderboardOptOut: !data.leaderboardOptOut })}>
-                <Text style={linkText}>{data.leaderboardOptOut ? 'you are hidden. tap to show your name' : 'show my name. tap to hide'}</Text>
-              </Pressable>
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 12 }}>
-                <Pressable onPress={() => setBoard('month')}><Text style={board === 'month' ? name : quiet}>this month</Text></Pressable>
-                <Pressable onPress={() => setBoard('all')}><Text style={board === 'all' ? name : quiet}>all time</Text></Pressable>
-              </View>
-              {(board === 'month' ? data.leaderboard.month : data.leaderboard.allTime).map((row) => (
-                <Text key={row.label + String(row.you)} style={quiet}>
-                  {row.label}{row.you ? ' · you' : ''}{row.hidden ? ' · hidden' : ''} · {row.farms} farms · {row.shoppers} shoppers
-                </Text>
-              ))}
-              {note ? <Text style={quiet}>{note}</Text> : null}
+              {tab === 'home' ? (
+                <>
+                  <Text style={headline}>{data.ratePercent == null ? 'your rate is on its way' : `you earn ${data.ratePercent}% of what your farms sell, forever`}</Text>
+                  <Text style={quiet}>next payout is monday, {nextMondayLabel()}.</Text>
+                  <View style={{ marginTop: 18 }}>
+                    <PrimaryButton label="invite a farm" onPress={() => { bumpTaps(); void shareText(farmText, setNote); }} />
+                  </View>
+                  {empty ? <Text style={body}>invite your first farm.</Text> : null}
+                  <View style={tileRow}>
+                    <Tile label="link taps" value={String(taps)} />
+                    <Tile label="farms" value={String(data.farms.length)} />
+                    <Tile label="sales" value={sales ? dollars(sales) : 'none yet'} />
+                    <Tile label="your 3%" value={earned ? dollars(earned) : 'starts with a farm'} />
+                  </View>
+                  <Text style={kicker}>your farms</Text>
+                  {empty ? <Text style={body}>when a farm uses your link, they show up here.</Text> : null}
+                  {data.farms.map((farm) => (
+                    <View key={farm.name} style={card}>
+                      <Text style={name}>{farm.name.toLowerCase()}{farm.sample ? ' · sample' : ''}</Text>
+                      <Text style={quiet}>{friendlyStanding(farm.status)}</Text>
+                      <Pressable accessibilityRole="button" onPress={() => remind(farm.name, link)} style={{ minHeight: 44, justifyContent: 'center' }}>
+                        <Text style={linkText}>send a reminder</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                  <Text style={quiet}>{data.shoppersBrought ? `${data.shoppersBrought} shoppers stopped by. that is a nice extra, not part of your pay.` : 'shoppers who join are a nice extra. they do not change what you earn.'}</Text>
+                  <View style={chipRow}>
+                    {data.badges.earned.map((badge) => <Text key={badge.id} style={chip}>{badge.label}</Text>)}
+                  </View>
+                  {rank > 0 ? (
+                    <Pressable onPress={() => save({ leaderboardOptOut: true })}>
+                      <Text style={quiet}>you are #{rank} this month. tap to step off the board.</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => save({ leaderboardOptOut: false })}>
+                      <Text style={linkText}>show me on the board</Text>
+                    </Pressable>
+                  )}
+                </>
+              ) : null}
+              {tab === 'share' ? (
+                <>
+                  <View style={card}>
+                    <Text style={name}>invite a farm</Text>
+                    <Text style={body}>{farmText}</Text>
+                    <Pressable accessibilityRole="button" onPress={() => { bumpTaps(); void shareText(farmText, setNote); }}><Text style={linkText}>share</Text></Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => { bumpTaps(); copy(farmText, setNote); }}><Text style={linkText}>copy</Text></Pressable>
+                  </View>
+                  <View style={card}>
+                    <Text style={name}>invite shoppers</Text>
+                    <Text style={body}>{shopperText}</Text>
+                    <Pressable accessibilityRole="button" onPress={() => { bumpTaps(); void shareText(shopperText, setNote); }}><Text style={linkText}>share</Text></Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => { bumpTaps(); copy(shopperText, setNote); }}><Text style={linkText}>copy</Text></Pressable>
+                  </View>
+                  <Text style={quiet}>a quiet code, if you want it on paper.</Text>
+                  <QrMark text={link} />
+                  <Pressable onPress={() => downloadCard('story', data.name, link)}><Text style={quiet}>save a story image</Text></Pressable>
+                </>
+              ) : null}
+              {tab === 'paid' ? (
+                <>
+                  <Text style={headline}>every monday, lands in 1 to 3 days</Text>
+                  <Text style={body}>{data.payoutNote || PAYOUT_PLACEHOLDER}</Text>
+                  {data.ledger.length === 0 ? <Text style={quiet}>not set up yet. we'll set this up with you.</Text> : null}
+                  <Text style={quiet}>pending stays pending until monday. if one fails, we will say why.</Text>
+                  {data.ledger.map((row) => (
+                    <Text key={`${row.at}-${row.farmName}`} style={quiet}>
+                      {row.farmName.toLowerCase()} · {dollars(row.commissionCents)} · {row.paid ? `paid ${friendlyWhen(row.at)}` : 'pending'}
+                    </Text>
+                  ))}
+                </>
+              ) : null}
+              {note ? <Text style={toast}>{note}</Text> : null}
             </>
           ) : null}
         </View>
@@ -166,34 +182,52 @@ export default function RepDesk() {
           }}
         />
       ) : null}
+      <Pressable accessibilityRole="link" accessibilityLabel={`text us at ${ONBOARDING_TEXT_US}`} onPress={() => Linking.openURL(ONBOARDING_SMS).catch(() => undefined)} style={sticky}>
+        <Text style={linkText}>text us {ONBOARDING_TEXT_US}</Text>
+      </Pressable>
     </Shell>
   );
 }
 
-function GoalRing({ goal, progress }: { goal: number; progress: number }) {
-  const size = 92;
-  const stroke = 8;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const ratio = goal > 0 ? Math.max(0, Math.min(1, progress / goal)) : 0;
+function nextMondayLabel(): string {
+  const now = new Date();
+  const add = (8 - now.getUTCDay()) % 7;
+  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + add));
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }).toLowerCase();
+}
+
+function friendlyWhen(value: string): string {
+  const date = new Date(value.includes('T') ? value : `${value.replace(' ', 'T')}Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).toLowerCase();
+}
+
+function remind(farmName: string, link: string) {
+  const text = `hi, checking in about ${farmName.toLowerCase()} on the main course. your page is here: ${link}`;
+  const sms = `sms:?&body=${encodeURIComponent(text)}`;
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.share) {
+    navigator.share({ text }).catch(() => Linking.openURL(sms).catch(() => undefined));
+    return;
+  }
+  Linking.openURL(sms).catch(() => undefined);
+}
+
+async function shareText(text: string, setNote: (value: string) => void) {
+  if (typeof navigator !== 'undefined' && navigator.share) {
+    try {
+      await navigator.share({ text });
+      setNote('shared');
+      return;
+    } catch { /* copy is still there */ }
+  }
+  copy(text, setNote);
+}
+
+function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ alignItems: 'center', marginTop: 22 }}>
-      <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.peri} strokeWidth={stroke} fill="none" />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={colors.navy}
-          strokeWidth={stroke}
-          fill="none"
-          strokeDasharray={`${c * ratio} ${c}`}
-          strokeLinecap="round"
-          rotation={-90}
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-      <Text style={quiet}>{goal ? `${progress} of ${goal} this week` : 'set a small weekly goal'}</Text>
+    <View style={tile}>
+      <Text style={quiet}>{label}</Text>
+      <Text style={name}>{value}</Text>
     </View>
   );
 }
@@ -217,10 +251,10 @@ function QrMark({ text }: { text: string }) {
 function copy(text: string, setNote: (value: string) => void) {
   const clip = globalThis.navigator?.clipboard;
   if (!clip) {
-    setNote(text);
+    setNote('copied');
     return;
   }
-  clip.writeText(text).then(() => setNote('copied.')).catch(() => setNote(text));
+  clip.writeText(text).then(() => setNote('copied')).catch(() => setNote('copied'));
 }
 
 function downloadCard(kind: 'card' | 'story', name: string, url: string) {
@@ -266,8 +300,14 @@ const big = { fontFamily: 'Inter' as const, fontSize: 40, fontWeight: '600' as c
 const kicker = { fontFamily: 'Inter' as const, fontSize: 12, letterSpacing: 1.4, textTransform: 'uppercase' as const, color: colors.gray, textAlign: 'center' as const, marginTop: 36 };
 const body = { fontFamily: 'Inter' as const, fontSize: 15, lineHeight: 22, color: colors.ink, textAlign: 'center' as const, marginTop: 12 };
 const quiet = { fontFamily: 'Inter' as const, fontSize: 13, lineHeight: 18, color: colors.gray, textAlign: 'center' as const, marginTop: 8 };
-const err = { fontFamily: 'Inter' as const, color: colors.red, textAlign: 'center' as const };
+const err = { fontFamily: 'Inter' as const, color: colors.gray, textAlign: 'center' as const };
+const tabs = { flexDirection: 'row' as const, justifyContent: 'space-around' as const, marginBottom: 12 };
+const tileRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 10, marginTop: 18 };
+const tile = { width: 140, padding: 12, borderRadius: 16, backgroundColor: colors.cream, alignItems: 'center' as const };
+const chipRow = { flexDirection: 'row' as const, flexWrap: 'wrap' as const, justifyContent: 'center' as const, gap: 8, marginTop: 16 };
+const chip = { fontFamily: 'Inter' as const, fontSize: 13, color: colors.navy, backgroundColor: colors.cream, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, overflow: 'hidden' as const };
+const toast = { fontFamily: 'Inter' as const, fontSize: 14, color: colors.navy, textAlign: 'center' as const, marginTop: 16 };
+const sticky = { position: 'absolute' as const, left: 0, right: 0, bottom: 12, alignItems: 'center' as const };
 const name = { fontFamily: 'Inter' as const, fontSize: 16, fontWeight: '600' as const, color: colors.navy, textAlign: 'center' as const };
 const card = { marginTop: 18, padding: 18, borderRadius: 18, backgroundColor: colors.cream };
-const field = { fontFamily: 'Inter' as const, fontSize: 16, color: colors.navy, textAlign: 'center' as const, borderBottomWidth: 1, borderBottomColor: colors.hair, paddingVertical: 10, marginTop: 16 };
 const linkText = { fontFamily: 'Inter' as const, fontSize: 15, color: colors.navy, textAlign: 'center' as const, marginTop: 14, textDecorationLine: 'underline' as const };
