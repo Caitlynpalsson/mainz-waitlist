@@ -1154,11 +1154,13 @@ function farmDetailCard(row: FarmRow, productCount: number, origin: LatLng | nul
 }
 
 function privateFarm(row: FarmRow) {
+  const flags = row as FarmRow & { stripe_charges_enabled?: number; stripe_payouts_enabled?: number };
   return {
     ...farmDetailCard(row, 0),
     email: row.email,
     status: row.status,
     active: !!row.active,
+    bankConnected: Number(flags.stripe_charges_enabled) === 1 && Number(flags.stripe_payouts_enabled) === 1,
   };
 }
 

@@ -12,6 +12,8 @@ import { FarmOnboarding, TextUsLine, nextOnboardingStep, prevOnboardingStep, typ
 import { photoSource } from '../../../src/lib/photos';
 import { ProductSearchField, ProductSearchIcon, SEARCH_EMPTY } from '../../../src/components/miniSearch';
 import { searchProducts } from '../../../../api/src/search';
+import { farmGuideFacts } from '../../../../api/src/guide';
+import { SetupGuide } from '../../../src/components/SetupGuide';
 
 type Product = { id?: number; name: string; priceCents: number; unit: string; photoKey: string; priceStatus?: string; availability?: string };
 type Food = { id: number; name: string; unit: string; photo: string };
@@ -39,7 +41,7 @@ type Listing = {
 
 
 export default function ListingApproval() {
-  const params = useLocalSearchParams<{ token: string; preview_step?: string; payout?: string }>();
+  const params = useLocalSearchParams<{ token: string; preview_step?: string; payout?: string; guide?: string }>();
   const token = params.token;
   const previewing = onboardingStep(params.preview_step);
   const [step, setStep] = useState<OnboardingStep | null>(previewing);
@@ -269,6 +271,19 @@ export default function ListingApproval() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    const guide = params.guide;
+    if (guide === 'profile' || guide === 'products') {
+      setStep(null);
+      setFilling(true);
+    } else if (guide === 'photos' || guide === 'approval') {
+      setStep(null);
+      setFilling(false);
+    } else if (guide === 'bank') {
+      setStep('pay');
+    }
+  }, [params.guide]);
 
   useEffect(() => {
     if (params.payout !== 'return' || !token || previewing) return;
@@ -510,6 +525,29 @@ export default function ListingApproval() {
         onConfirm={() => startOnboarding()}
         onChanges={() => send(`/api/listings/${token}/changes`, { note })}
       />
+      {data && token && !denied ? (
+        <SetupGuide
+          audience="farm"
+          accountId={token}
+          facts={farmGuideFacts({
+            name: data.farmName,
+            town: data.location,
+            story: data.story,
+            photo: data.profilePhoto,
+            photoIsLogo: portraitIsLogo(data.profilePhoto),
+            pricedProducts: data.products.filter((product) => product.priceCents > 0).length,
+            bankConnected: bankReady || !!data.onboarding?.payoutConnected,
+            payByCheck: data.onboarding?.payPref === 'check',
+            approvalStarted: !!data.onboarding?.done || data.status === 'sent' || data.status === 'changes_requested' || data.status === 'farm_approved',
+          })}
+          hrefFor={(stepId) => `/listing/${token}?guide=${stepId}`}
+          onOpen={(stepId) => {
+            if (stepId === 'profile' || stepId === 'products') { setStep(null); setFilling(true); }
+            if (stepId === 'photos' || stepId === 'approval') { setStep(null); setFilling(false); }
+            if (stepId === 'bank') setStep('pay');
+          }}
+        />
+      ) : null}
       <DownSheet
         open={down}
         busy={busy}

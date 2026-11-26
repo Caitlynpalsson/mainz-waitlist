@@ -10,6 +10,8 @@ import { SITE_ORIGIN } from '../../../src/lib/site';
 import { FARM_PITCH, PAYOUT_PLACEHOLDER, RATE_COMING, SHOPPER_PITCH } from '../../../../api/src/reps';
 import { ONBOARDING_SMS } from '../../../../api/src/listing';
 import { qrMatrix } from '../../../../api/src/qr';
+import { repGuideFacts } from '../../../../api/src/guide';
+import { SetupGuide } from '../../../src/components/SetupGuide';
 import { colors, useLayout } from '../../../src/theme';
 
 type Farm = { name: string; status: string; soldCents: number; commissionCents: number | null; sample: boolean };
@@ -153,6 +155,17 @@ export default function RepDesk() {
           ) : null}
         </View>
       </Wrap>
+      {data && token ? (
+        <SetupGuide
+          audience="rep"
+          accountId={token}
+          facts={repGuideFacts({ farms: data.farms.length, shoppers: data.shoppersBrought })}
+          hrefFor={(stepId) => stepId === 'farm' ? data.applyPath : stepId === 'shoppers' ? data.shopperPath : `/reps/desk/${token}?guide=${stepId}`}
+          onOpen={(stepId) => {
+            if (stepId === 'share') void copy(`${FARM_PITCH} ${link}`, setNote);
+          }}
+        />
+      ) : null}
     </Shell>
   );
 }

@@ -9,6 +9,8 @@ import { dollars } from '../src/lib/money';
 import { prepareFarmerPhoto } from '../src/lib/uploadPhoto';
 import type { CatalogFood, Windows } from '../src/lib/types';
 import { udafType } from '../../api/src/review';
+import { farmGuideFacts } from '../../api/src/guide';
+import { SetupGuide } from '../src/components/SetupGuide';
 import { colors, useLayout } from '../src/theme';
 
 const TOKEN_KEY = 'mainz.farmToken';
@@ -39,13 +41,16 @@ type Me = {
     pickupSummary: string;
     deliverySummary: string;
     bio: string;
+    city?: string;
+    profilePhoto?: string;
+    bankConnected?: boolean;
     windows: Windows;
   };
   products: Owned[];
 };
 
 export default function Dashboard() {
-  const params = useLocalSearchParams<{ token?: string }>();
+  const params = useLocalSearchParams<{ token?: string; guide?: string }>();
   const { desktop } = useLayout();
   const [token, setToken] = useState('');
   const [draft, setDraft] = useState('');
@@ -193,7 +198,7 @@ export default function Dashboard() {
             <>
               <Text style={farmName}>{me.farm.name.toLowerCase()}</Text>
               <Text style={statusLine}>{me.farm.status}{me.farm.active ? '' : ' · hidden'}</Text>
-              <Text style={[kicker, { marginTop: 36 }]}>orders</Text>
+              <Text nativeID="guide-bank" style={[kicker, { marginTop: 36 }]}>orders</Text>
               {orderNote ? <Text style={quiet}>{orderNote}</Text> : null}
               {orders.length === 0 ? <Text style={quiet}>no orders yet.</Text> : null}
               {orders.map((order) => (
@@ -211,7 +216,7 @@ export default function Dashboard() {
               <Pressable onPress={() => saveFarm({ offersDelivery: !me.farm.offersDelivery })}>
                 {schedule ? <Text style={quiet}>{schedule}</Text> : null}
               </Pressable>
-              <Text style={[kicker, { marginTop: 48 }]}>your food</Text>
+              <Text nativeID="guide-products" style={[kicker, { marginTop: 48 }]}>your food</Text>
               {me.products.map((product) => (
                 <ProductEditor key={product.id} product={product} onSave={savePrice} onPhoto={replacePhoto} />
               ))}
@@ -258,6 +263,22 @@ export default function Dashboard() {
           {message ? <Text style={[quiet, { color: colors.navy, marginTop: 16 }]}>{message}</Text> : null}
         </View>
       </Wrap>
+      {me && token ? (
+        <SetupGuide
+          audience="farm"
+          accountId={token}
+          facts={farmGuideFacts({
+            name: me.farm.name,
+            town: me.farm.city,
+            story: me.farm.bio,
+            photo: me.products.some((product) => product.photos.some((photo) => !photo.isStock)) || me.farm.profilePhoto ? 'yours' : '',
+            pricedProducts: me.products.filter((product) => product.priceCents > 0).length,
+            bankConnected: !!me.farm.bankConnected,
+            approvalStarted: me.farm.status === 'approved' || me.farm.active,
+          })}
+          hrefFor={(stepId) => `/dashboard?guide=${stepId}`}
+        />
+      ) : null}
     </Shell>
   );
 }
