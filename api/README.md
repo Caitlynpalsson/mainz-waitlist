@@ -164,6 +164,20 @@ The server repeats 1–3 and also reads the saved JPEG so the stored file is rea
 
 Foods that still need a real licensed photo are listed in `PHOTO-GAPS.md`. Do not download random images to fill those.
 
+## Optional services
+
+All of these stay off until the matching secret or binding is set. Do not put the values in the repo.
+
+- `RESEND_API_KEY` and `EMAIL_FROM` together turn on order email. Shopper mail never includes a farm phone or bank details. Without both, email is a no-op.
+- `TURNSTILE_SECRET_KEY` checks the person widget on apply, rep join, shopper join, and checkout. `TURNSTILE_SITE_KEY` shows the widget. Leave both empty and those forms work as they do now.
+- `CF_ANALYTICS_TOKEN` loads Cloudflare Web Analytics. Empty means no snippet.
+- `SENTRY_DSN` and `POSTHOG_KEY` report worker errors with email and phone stripped out. No session replay.
+- `R2` is an optional bucket binding for new farm photos. Photos stay in D1 when it is not bound.
+- `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are reserved for web push. Push is off.
+- Address lookup is not built. Tax stays "tax not collected". A Workers AI binding can be passed to the helper later. Nothing calls a model today.
+
+Admin CSV downloads, for a signed-in admin: `/api/admin/export/orders`, `/api/admin/export/transfers`, `/api/admin/export/reps`.
+
 ## Tests
 
 ```bash

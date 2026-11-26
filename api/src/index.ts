@@ -14,6 +14,7 @@ import { allowedOrigin } from './cors';
 import { joinRep, joinShopper, repDesk, repIdForCode, saveRepSettings } from './repStore';
 import { connectPlatformFeeCents, readConnectFee, safeOrigin } from './stripe';
 import { handleStripeWebhook, listingConnectStatus, openCheckout, startListingConnect } from './stripeStore';
+import { emailFromEnv, observe, photoStore, readMedia, verifyTurnstile } from './integrations';
 
 export interface Env {
   DB: D1Database;
@@ -27,6 +28,15 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_CONNECT_WEBHOOK_SECRET?: string;
   CHECKOUT_CLOSED_HOSTS?: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_SITE_KEY?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  SENTRY_DSN?: string;
+  POSTHOG_KEY?: string;
+  POSTHOG_HOST?: string;
+  R2?: import('./integrations').R2BucketLike;
 }
 
 const PLACE = 'spanish fork, ut';
@@ -126,6 +136,7 @@ export default {
     } catch (error) {
       if (error instanceof HttpError) return withCors(json({ error: error.message }, error.status), request);
       console.error(error);
+      void observe(env, error);
       return withCors(json({ error: 'something went wrong.' }, 500), request);
     }
   },
@@ -140,7 +151,19 @@ async function route(request: Request, env: Env): Promise<Response> {
   const method = request.method.toUpperCase();
 
   if (method === 'GET' && path === '/api/health') return json({ ok: true });
-  if (method === 'GET' && path === '/api/config') return json({ checkoutOpen: !shopCheckoutClosed(env, request) });
+  if (method === 'GET' && path === '/api/config') {
+    return json({
+      checkoutOpen: !shopCheckoutClosed(env, request),
+      turnstileSiteKey: env.TURNSTILE_SITE_KEY || '',
+      analyticsToken: env.CF_ANALYTICS_TOKEN || '',
+    });
+  }
+  const media = path.match(/^\/api\/media\/(.+)$/);
+  if (method === 'GET' && media) {
+    const file = await readMedia(env, decodeURIComponent(media[1]));
+    if (file) return file;
+    throw new HttpError('that photo is not here.', 404);
+  }
   if (method === 'GET' && path === '/api/browse') return browse(env, url);
   if (method === 'GET' && path === '/api/farms') return listFarms(env, url);
   if (method === 'GET' && path === '/api/catalog') return catalog(env, url);
@@ -161,17 +184,33 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (method === 'POST' && path === '/api/quote') return quote(env, await readJson(request));
   if (method === 'POST' && path === '/api/orders') return placeOrder(env, await readJson(request));
-  if (method === 'POST' && path === '/api/checkout') return checkout(env, request, await readJson(request));
+  if (method === 'POST' && path === '/api/checkout') {
+    const body = await readJson<CartBody & { turnstile?: string }>(request);
+    await assertHuman(env, body.turnstile);
+    return checkout(env, request, body);
+  }
   if (method === 'POST' && path === '/api/stripe/webhook') {
     const payload = await request.text();
     return handleStripeWebhook(env, payload, request.headers.get('stripe-signature') || '');
   }
-  if (method === 'POST' && path === '/api/reps') return joinRep(env, await readJson(request));
-  if (method === 'POST' && path === '/api/shoppers') return joinShopper(env, await readJson(request));
+  if (method === 'POST' && path === '/api/reps') {
+    const body = await readJson<Record<string, unknown>>(request);
+    await assertHuman(env, body.turnstile);
+    return joinRep(env, body);
+  }
+  if (method === 'POST' && path === '/api/shoppers') {
+    const body = await readJson<Record<string, unknown>>(request);
+    await assertHuman(env, body.turnstile);
+    return joinShopper(env, body);
+  }
   const repDeskPage = path.match(/^\/api\/reps\/desk\/([0-9a-f]{64})$/);
   if (method === 'POST' && repDeskPage) return saveRepSettings(env, repDeskPage[1], await readJson(request));
   if (method === 'GET' && repDeskPage) return repDesk(env, repDeskPage[1]);
-  if (method === 'POST' && path === '/api/applications') return apply(env, await readJson(request));
+  if (method === 'POST' && path === '/api/applications') {
+    const body = await readJson<Record<string, unknown>>(request);
+    await assertHuman(env, body.turnstile);
+    return apply(env, body);
+  }
 
   const listingConnect = path.match(/^\/api\/listings\/([a-z0-9_]+)\/connect$/);
   if (method === 'POST' && listingConnect) return startListingConnect(env, listingConnect[1], await readJson(request));
@@ -574,7 +613,20 @@ async function checkout(env: Env, request: Request, body: CartBody): Promise<Res
     successUrl: `${origin}/order/${data.order.publicId}?paid=1`,
     cancelUrl: `${origin}/bag`,
   });
+  const shopperEmail = String(body.customer?.email || '');
+  if (shopperEmail.includes('@')) {
+    await emailFromEnv(env).sendOrderConfirmation({
+      to: shopperEmail,
+      orderId: data.order.publicId,
+      summary: `your order is in. questions? text the team.`,
+    });
+  }
   return json({ ...data, checkoutUrl: session.url }, 201);
+}
+
+async function assertHuman(env: Env, token: unknown): Promise<void> {
+  const ok = await verifyTurnstile(env.TURNSTILE_SECRET_KEY, typeof token === 'string' ? token : '');
+  if (!ok) throw new HttpError('please confirm you are a person.');
 }
 
 async function orderDetail(env: Env, publicId: string): Promise<Response> {
@@ -853,12 +905,14 @@ async function uploadPhoto(env: Env, farm: FarmRow, productId: number, body: Rec
   const existing = await env.DB.prepare(
     `SELECT id FROM product_photos WHERE product_id = ? AND role = ?`,
   ).bind(productId, role).first<{ id: number }>();
+  const store = photoStore(env);
+  const stored = store.kind === 'r2' ? await store.put(`${productId}-${role}`, bytes, 'image/jpeg') : dataUrl;
   if (existing) {
-    await env.DB.prepare(`UPDATE product_photos SET photo_key = ?, is_stock = 0 WHERE id = ?`).bind(dataUrl, existing.id).run();
+    await env.DB.prepare(`UPDATE product_photos SET photo_key = ?, is_stock = 0 WHERE id = ?`).bind(stored, existing.id).run();
   } else {
     await env.DB.prepare(
       `INSERT INTO product_photos (product_id, sort_order, role, photo_key, is_stock) VALUES (?, 0, ?, ?, 0)`,
-    ).bind(productId, role, dataUrl).run();
+    ).bind(productId, role, stored).run();
   }
   return json({ accepted: true, role, product: await oneProduct(env, farm.id, productId) });
 }

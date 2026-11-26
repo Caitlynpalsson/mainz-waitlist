@@ -11,6 +11,7 @@ import { priceGroups, type Fulfillment } from '../src/lib/orderMath';
 import { digitsZip, pickupCardLine, pickupChoiceLabel, shownCheckoutTotals } from '../../api/src/fulfillment';
 import { isNativeShell, shopOrigin } from '../../api/src/nativeLinks';
 import { openUrl } from '../src/lib/nativeShell';
+import { TurnstileField } from '../src/components/SiteExtras';
 import { useStore, type CartLine, type FarmChoice } from '../src/lib/store';
 import type { Quote } from '../src/lib/types';
 import { colors, useLayout } from '../src/theme';
@@ -21,6 +22,7 @@ export default function Bag() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [turnstile, setTurnstile] = useState('');
   const [formError, setFormError] = useState('');
   const [step, setStep] = useState<'where' | 'info' | 'review'>('where');
   const [choseDelivery, setChoseDelivery] = useState(false);
@@ -146,6 +148,7 @@ export default function Bag() {
           customer: { name: store.customerName, email: store.customerEmail, phone: store.customerPhone },
           address: { line1: store.address1, cityZip: store.cityZip },
           returnOrigin: origin,
+          turnstile,
         }),
       });
       if (!saved.checkoutUrl) {
@@ -214,6 +217,7 @@ export default function Bag() {
             <Money money={shown} delivering={delivering} />
             {formError ? <Text style={errText}>{formError}</Text> : null}
             {quoteError ? <Text style={errText}>{quoteError}</Text> : null}
+            {checkoutOpen ? <TurnstileField onToken={setTurnstile} /> : null}
             {checkoutOpen ? (placeInDock ? null : (
               <View style={{ marginTop: 18 }}>
                 <PrimaryButton

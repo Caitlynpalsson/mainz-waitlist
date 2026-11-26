@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Shell } from '../src/components/chrome';
+import { TurnstileField } from '../src/components/SiteExtras';
 import { Cap, Hair, PrimaryButton, Wrap } from '../src/components/ui';
 import { api } from '../src/lib/api';
 import { REP_CODE_KEY } from '../../api/src/reps';
@@ -26,6 +27,7 @@ export default function You() {
   const [rep, setRep] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [turnstile, setTurnstile] = useState('');
 
   useEffect(() => {
     const fromUrl = String(params.rep || '').trim().toLowerCase();
@@ -44,7 +46,7 @@ export default function You() {
     setBusy(true);
     setNote('');
     try {
-      await api('/api/shoppers', { method: 'POST', body: JSON.stringify({ name, email, rep }) });
+      await api('/api/shoppers', { method: 'POST', body: JSON.stringify({ name, email, rep, turnstile }) });
       setNote("you're on the list. we won't email you from this preview.");
     } catch (err) {
       setNote(err instanceof Error ? err.message : 'try again.');
@@ -63,6 +65,7 @@ export default function You() {
           </Text>
           <TextInput value={name} onChangeText={setName} placeholder="your name" placeholderTextColor={colors.gray} style={field} />
           <TextInput value={email} onChangeText={setEmail} placeholder="email" placeholderTextColor={colors.gray} autoCapitalize="none" keyboardType="email-address" style={field} />
+          <TurnstileField onToken={setTurnstile} />
           <View style={{ marginTop: 16 }}>
             <PrimaryButton label={busy ? 'saving…' : 'count me in'} disabled={busy} onPress={joinList} />
           </View>

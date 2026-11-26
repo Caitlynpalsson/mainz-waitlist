@@ -1,4 +1,5 @@
 import { adminCloseRun, adminRoutes, adminRunSheet, adminSaveRoute } from './deliveryStore';
+import { ordersCsv, repLedgerCsv, transfersCsv } from './integrations';
 import { adminRepList, reissueRepView, setRepCommission } from './repStore';
 import { HttpError, json } from './http';
 import {
@@ -77,6 +78,9 @@ type FarmRow = {
 export async function handleAdmin(request: Request, env: Env, method: string, path: string): Promise<Response> {
   requireAdmin(request, env);
   if (method === 'GET' && path === '/api/admin/dashboard') return dashboard(env);
+  if (method === 'GET' && path === '/api/admin/export/orders') return ordersCsv(env.DB);
+  if (method === 'GET' && path === '/api/admin/export/transfers') return transfersCsv(env.DB);
+  if (method === 'GET' && path === '/api/admin/export/reps') return repLedgerCsv(env.DB);
   if (method === 'GET' && path === '/api/admin/routes') return adminRoutes(env);
   if (method === 'POST' && path === '/api/admin/routes') return adminSaveRoute(env, null, await readJson(request));
   const routeClose = path.match(/^\/api\/admin\/routes\/(\d+)\/close$/);

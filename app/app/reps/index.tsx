@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { Shell } from '../../src/components/chrome';
+import { TurnstileField } from '../../src/components/SiteExtras';
 import { PrimaryButton, Wrap } from '../../src/components/ui';
 import { api } from '../../src/lib/api';
 import { SITE_ORIGIN } from '../../src/lib/site';
@@ -18,6 +19,7 @@ export default function Reps() {
   const [busy, setBusy] = useState(false);
   const [joined, setJoined] = useState<Joined | null>(null);
   const [copied, setCopied] = useState('');
+  const [turnstile, setTurnstile] = useState('');
 
   async function join() {
     setError('');
@@ -25,7 +27,7 @@ export default function Reps() {
     try {
       setJoined(await api<Joined>('/api/reps', {
         method: 'POST',
-        body: JSON.stringify({ name, email, phone }),
+        body: JSON.stringify({ name, email, phone, turnstile }),
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'try again.');
@@ -71,6 +73,7 @@ export default function Reps() {
               <Field label="phone" value={phone} onChange={setPhone} keyboard="phone-pad" />
               {error ? <Text style={err}>{error}</Text> : null}
               <View style={{ marginTop: 28 }}>
+                <TurnstileField onToken={setTurnstile} />
                 <PrimaryButton label={busy ? 'saving…' : 'get my link'} disabled={busy} onPress={join} />
               </View>
             </View>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Shell } from '../src/components/chrome';
+import { TurnstileField } from '../src/components/SiteExtras';
 import { PrimaryButton, Wrap } from '../src/components/ui';
 import { api } from '../src/lib/api';
 import { REP_CODE_KEY } from '../../api/src/reps';
@@ -23,6 +24,7 @@ export default function Apply() {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
   const [sending, setSending] = useState(false);
+  const [turnstile, setTurnstile] = useState('');
 
   useEffect(() => {
     const fromUrl = String(params.rep || '').trim().toLowerCase();
@@ -64,6 +66,7 @@ export default function Apply() {
           sellNow: [],
           company,
           rep,
+          turnstile,
         }),
       });
       setDone(true);
@@ -104,6 +107,7 @@ export default function Apply() {
               <TextInput value={company} onChangeText={setCompany} style={{ position: 'absolute', left: -9999, height: 0 }} accessibilityElementsHidden importantForAccessibility="no" />
               {error ? <Text style={[quiet, { color: colors.red, marginTop: 18 }]}>{error}</Text> : null}
               <View style={{ marginTop: 36 }}>
+                <TurnstileField onToken={setTurnstile} />
                 <PrimaryButton label={sending ? 'sending…' : 'apply to sell on the main course'} disabled={sending} onPress={submit} />
               </View>
             </>

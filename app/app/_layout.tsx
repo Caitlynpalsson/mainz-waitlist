@@ -4,6 +4,7 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { InstallPrompt } from '../src/components/InstallPrompt';
+import { SiteExtras } from '../src/components/SiteExtras';
 import { LocationSheet } from '../src/components/LocationSheet';
 import { bootNative } from '../src/lib/nativeShell';
 import { PlaceProvider } from '../src/lib/place';
@@ -26,6 +27,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#ffffff' } }} />
           <LocationSheet />
           <InstallPrompt />
+          <SiteExtras />
         </PlaceProvider>
       </StoreProvider>
     </SafeAreaProvider>
