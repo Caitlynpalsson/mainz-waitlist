@@ -9,6 +9,7 @@ import {
   checkoutSessionFields,
   connectPlatformFeeCents,
   createStripeClient,
+  STRIPE_V2_VERSION,
   payoutScheduleFields,
   reversalTargets,
   transferDescription,
@@ -93,17 +94,23 @@ test('one checkout, then one transfer per farm, holding a farm that is not ready
   assert.equal(transferIdempotencyKey('mz_sample01', 11), 'farm-transfer-mz_sample01-11');
 });
 
-test('accounts v2 drops type, lets stripe hold losses, and the platform pays fees', async () => {
+test('accounts v2 uses the preview version and the platform holds fees and losses', async () => {
+  assert.equal(STRIPE_V2_VERSION, '2025-11-17.preview');
   const body = v2AccountBody({ email: 'sample-farmer@example.com', name: 'Sample Lane', listingToken: 'lk_sample' });
   const text = JSON.stringify(body);
+  const responsibilities = (body.defaults as { responsibilities: { losses_collector: string; fees_collector: string } }).responsibilities;
+  const merchant = body.configuration as { merchant: { capabilities: { card_payments: { requested: boolean } } }; recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: boolean } } } } };
   assert.equal('type' in body, false);
   assert.equal(text.includes('phone'), false);
   assert.equal(text.includes('on_behalf_of'), false);
-  assert.equal((body.defaults as { responsibilities: { losses_collector: string; fees_collector: string } }).responsibilities.losses_collector, 'stripe');
-  assert.equal((body.defaults as { responsibilities: { fees_collector: string } }).responsibilities.fees_collector, 'application');
+  assert.equal(responsibilities.losses_collector, 'application');
+  assert.equal(responsibilities.fees_collector, 'application');
   assert.equal(body.dashboard, 'express');
+  assert.equal(merchant.merchant.capabilities.card_payments.requested, true);
+  assert.equal(merchant.recipient.capabilities.stripe_balance.stripe_transfers.requested, true);
   assert.equal(payoutScheduleFields()['settings[payouts][schedule][weekly_anchor]'], 'monday');
   assert.equal(payoutScheduleFields()['settings[payouts][statement_descriptor]'], 'MAINCOURSE');
+  assert.equal(payoutScheduleFields()['settings[payouts][debit_negative_balances]'], 'true');
   assert.equal(transferDescription('Sample Lane', 'mz_abc'), 'Sample Lane, order mz_abc');
   const onlyOne = reversalTargets({
     amount: 800,
@@ -119,8 +126,11 @@ test('accounts v2 drops type, lets stripe hold losses, and the platform pays fee
     const href = String(url);
     if (href.includes('/v2/core/accounts')) {
       sawV2 = true;
-      const parsed = JSON.parse(init?.body || '{}') as { type?: string };
+      assert.equal(init?.headers?.['stripe-version'], '2025-11-17.preview');
+      const parsed = JSON.parse(init?.body || '{}') as { type?: string; defaults?: { responsibilities?: { losses_collector?: string; fees_collector?: string } } };
       assert.equal(parsed.type, undefined);
+      assert.equal(parsed.defaults?.responsibilities?.losses_collector, 'application');
+      assert.equal(parsed.defaults?.responsibilities?.fees_collector, 'application');
       return new Response(JSON.stringify({ id: 'acct_ready' }));
     }
     if (href.endsWith('/transfers')) {
@@ -135,6 +145,12 @@ test('accounts v2 drops type, lets stripe hold losses, and the platform pays fee
   const account = await client.createExpressAccount({ listingToken: 'lk_sample', name: 'Sample Lane', email: 'not-an-email' });
   assert.equal(sawV2, true);
   assert.equal(account.id, 'acct_ready');
+  const link = await client.createAccountLink({
+    accountId: account.id,
+    returnUrl: 'https://www.themaincoursemarket.com/?payout=return',
+    refreshUrl: 'https://www.themaincoursemarket.com/?payout=refresh',
+  });
+  assert.equal(link.url.startsWith('https://connect.stripe.com/'), true);
   const transfer = await client.createTransfer({
     amountCents: 1900, destination: 'acct_ready', transferGroup: 'mz_sample01', orderFarmId: 11, farmName: 'Sample Lane',
   });

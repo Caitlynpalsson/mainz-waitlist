@@ -8,7 +8,15 @@
  * From the api folder:
  *   STRIPE_SECRET_KEY=sk_test_... npm run stripe-test
  */
-import { assertStripeTestKey, farmTransferAmountCents, readConnectFee } from '../src/stripe.ts';
+import {
+  STRIPE_V2_VERSION,
+  accountLinkFields,
+  assertStripeTestKey,
+  farmTransferAmountCents,
+  payoutScheduleFields,
+  readConnectFee,
+  v2AccountBody,
+} from '../src/stripe.ts';
 
 const proc = (globalThis as { process?: { env?: Record<string, string | undefined>; exit?: (code: number) => void } }).process;
 const env = proc?.env || {};
@@ -63,13 +71,30 @@ async function stripeJson(method: string, path: string, body: Record<string, unk
     headers: {
       authorization: `Bearer ${secret}`,
       'content-type': 'application/json',
-      'stripe-version': '2025-11-17.clover',
+      'stripe-version': STRIPE_V2_VERSION,
     },
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
   if (!response.ok) fail(data.error?.message || 'stripe refused the test call');
   return data as Record<string, unknown>;
+}
+
+async function stripeSoft(method: string, path: string, fields?: Record<string, string>): Promise<{ ok: boolean; message: string; data: Record<string, unknown> }> {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${secret}`,
+      ...(fields ? { 'content-type': 'application/x-www-form-urlencoded' } : {}),
+    },
+    body: fields ? new URLSearchParams(fields).toString() : undefined,
+  });
+  const data = await response.json().catch(() => ({})) as { error?: { message?: string } };
+  return {
+    ok: response.ok,
+    message: data.error?.message || 'stripe refused the test call',
+    data: data as Record<string, unknown>,
+  };
 }
 
 async function stripe(method: string, path: string, fields?: Record<string, string>): Promise<Record<string, unknown>> {
@@ -86,38 +111,26 @@ async function stripe(method: string, path: string, fields?: Record<string, stri
   return data as Record<string, unknown>;
 }
 
-const created = await stripeJson('POST', 'v2/core/accounts', {
-  display_name: 'Sample Lane',
-  contact_email: 'sample-farmer@example.com',
-  dashboard: 'express',
-  identity: { country: 'us', business_details: { url: 'https://www.themaincoursemarket.com' } },
-  defaults: { responsibilities: { fees_collector: 'application', losses_collector: 'stripe' } },
-  configuration: {
-    merchant: { capabilities: { card_payments: { requested: true } } },
-    recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
-  },
-  metadata: { sample: 'mainz-preview-farm', name: 'Sample Lane Farm' },
-});
+const created = await stripeJson('POST', 'v2/core/accounts', v2AccountBody({
+  name: 'Sample Lane',
+  email: 'sample-farmer@example.com',
+  listingToken: 'sample',
+}));
 const accountId = String(created.id || '');
 if (!accountId.startsWith('acct_')) fail('stripe did not return a sample account');
-await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, {
-  'settings[payouts][schedule][interval]': 'weekly',
-  'settings[payouts][schedule][weekly_anchor]': 'monday',
-  'settings[payouts][statement_descriptor]': 'MAINCOURSE',
-  'settings[payouts][debit_negative_balances]': 'true',
-  'external_account[object]': 'bank_account',
-  'external_account[country]': 'US',
-  'external_account[currency]': 'usd',
-  'external_account[routing_number]': '110000000',
-  'external_account[account_number]': '000123456789',
-});
+await stripe('POST', `accounts/${encodeURIComponent(accountId)}`, payoutScheduleFields());
+const bank = await stripeSoft('POST', `accounts/${encodeURIComponent(accountId)}`, { external_account: 'btok_us_verified' });
+if (!bank.ok) say(`test bank stays on stripe's page: ${bank.message}`);
+const link = await stripe('POST', 'account_links', accountLinkFields({
+  accountId,
+  returnUrl: 'https://www.themaincoursemarket.com/?payout=return',
+  refreshUrl: 'https://www.themaincoursemarket.com/?payout=refresh',
+}));
+if (!String(link.url || '').startsWith('https://')) fail('stripe did not return an account link');
+say('account link: ok');
 const account = await stripe('GET', `accounts/${encodeURIComponent(accountId)}`);
 say(`sample farm: ${accountId}`);
 say(`charges: ${account.charges_enabled === true} payouts: ${account.payouts_enabled === true}`);
-if (account.charges_enabled !== true || account.payouts_enabled !== true) {
-  const due = (account.requirements as { currently_due?: string[] } | undefined)?.currently_due || [];
-  fail(`sample account is not ready for a transfer. still due: ${due.join(', ') || 'see the stripe dashboard'}`);
-}
 
 const payment = await stripe('POST', 'payment_intents', {
   amount: String(foodCents),

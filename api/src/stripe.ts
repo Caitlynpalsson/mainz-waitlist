@@ -118,12 +118,14 @@ export function safeOrigin(value: unknown): string {
 
 export const CONNECT_SITE = 'https://www.themaincoursemarket.com';
 export const PAYOUT_DESCRIPTOR = 'MAINCOURSE';
-/** Accounts v2. The sandbox rejects the legacy `type` field. */
-export const STRIPE_V2_VERSION = '2025-11-17.clover';
+/** Accounts v2. `2025-11-17.clover` 404s on this sandbox. */
+export const STRIPE_V2_VERSION = '2025-11-17.preview';
 
 /**
  * Express dashboard, Stripe-hosted onboarding, separate charges and transfers.
- * Platform pays Stripe fees. This sandbox requires losses_collector stripe.
+ * Express on this sandbox requires fees_collector and losses_collector to both be
+ * application, so the platform pays Stripe's fees and covers negative balances.
+ * card_payments plus stripe_transfers is what a farm needs to be paid by transfer.
  * No `type`, no `on_behalf_of`, no phone.
  */
 export function v2AccountBody(input: { email?: string; name?: string; listingToken: string }): Record<string, unknown> {
@@ -137,7 +139,7 @@ export function v2AccountBody(input: { email?: string; name?: string; listingTok
     defaults: {
       responsibilities: {
         fees_collector: 'application',
-        losses_collector: 'stripe',
+        losses_collector: 'application',
       },
     },
     configuration: {
